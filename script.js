@@ -857,12 +857,17 @@ function setupEventListeners() {
         content.style.display = 'block';
     });
 
-    // Auth event listeners
-    loginBtn.addEventListener("click", openAuthModal);
+    // FIX FOR ISSUE 2: Login button now explicitly sets isSignUpMode to false
+    loginBtn.addEventListener("click", () => {
+        isSignUpMode = false;
+        openAuthModal();
+    });
+    
     signupBtn.addEventListener("click", () => {
         isSignUpMode = true;
         openAuthModal();
     });
+    
     logoutBtn.addEventListener("click", handleLogout);
     authSubmitBtn.addEventListener("click", handleAuth);
     authSwitchBtn.addEventListener("click", toggleAuthMode);
@@ -1476,7 +1481,7 @@ function addDirectLaborToRecipe() {
     timeRequirementUnit.textContent = "hours";
 }
 
-// FIXED: Function to add items to recipe - ensures sub-recipe costs are calculated
+// FIX FOR ISSUE 1: Enhanced addItemToRecipe function to properly handle sub-recipe cost calculation
 function addItemToRecipe() {
     const selectedValue = unifiedItemSelect.value;
     const quantity = parseFloat(addIngredientQty.value);
@@ -1507,11 +1512,35 @@ function addItemToRecipe() {
         );
     } else if (type === 'subrecipe') {
         const subRecipe = getCurrentRecipes().find(recipe => recipe.id === itemId);
-        if (!subRecipe) return;
+        if (!subRecipe) {
+            alert("Sub-recipe not found! It may have been deleted.");
+            return;
+        }
 
-        // FIXED: Use costPerUnit instead of unitCost
-        const unitCost = subRecipe.costPerUnit || 0;
-        const unit = subRecipe.costUnit || subRecipe.outputUnit || 'batch';
+        // FIXED: Enhanced sub-recipe cost calculation
+        let unitCost = subRecipe.costPerUnit || 0;
+        let unit = subRecipe.costUnit || subRecipe.outputUnit || 'batch';
+        
+        // Debug logging
+        console.log("Adding sub-recipe:", subRecipe.name);
+        console.log("Sub-recipe cost data:", {
+            costPerUnit: subRecipe.costPerUnit,
+            costUnit: subRecipe.costUnit,
+            outputUnit: subRecipe.outputUnit,
+            calculatedUnitCost: unitCost,
+            calculatedUnit: unit
+        });
+
+        // Ensure we have valid cost data
+        if (unitCost <= 0) {
+            console.warn("Sub-recipe has zero or invalid cost:", subRecipe);
+            // Try to calculate cost from sub-recipe ingredients
+            const subRecipeTotalCost = calculateSubRecipeTotalCost(subRecipe);
+            if (subRecipeTotalCost > 0 && subRecipe.yieldQuantity > 0) {
+                unitCost = subRecipeTotalCost / subRecipe.yieldQuantity;
+                console.log("Calculated sub-recipe cost from ingredients:", unitCost);
+            }
+        }
 
         addRow(
             subRecipe.name,
@@ -1532,6 +1561,29 @@ function addItemToRecipe() {
     
     // FIXED: Force recalculation to ensure sub-recipe costs are included
     recalc();
+}
+
+// NEW: Helper function to calculate sub-recipe total cost from ingredients
+function calculateSubRecipeTotalCost(subRecipe) {
+    let totalCost = 0;
+    
+    // Calculate raw material costs
+    if (subRecipe.rawMaterialItems) {
+        subRecipe.rawMaterialItems.forEach(item => {
+            const itemCost = item.quantity * item.unitCost * (item.yield / 100);
+            totalCost += itemCost;
+        });
+    }
+    
+    // Calculate direct labor costs
+    if (subRecipe.directLaborItems) {
+        subRecipe.directLaborItems.forEach(item => {
+            const itemCost = item.quantity * item.unitCost;
+            totalCost += itemCost;
+        });
+    }
+    
+    return totalCost;
 }
 
 // FIXED: Open sub-recipe save modal - handles both new and edit cases
@@ -2110,7 +2162,7 @@ function closeEditPromptModal() {
     editPromptModal.classList.add("hidden");
 }
 
-// FIXED: Function to flatten sub-recipes for display and calculation
+// FIX FOR ISSUE 1: Enhanced flattenSubRecipes function to ensure sub-recipe costs are properly calculated
 function flattenSubRecipes(recipeItems, batchScale = 1) {
     const flattenedItems = [];
     
@@ -2122,10 +2174,27 @@ function flattenSubRecipes(recipeItems, batchScale = 1) {
                 // Calculate the scaling factor for this sub-recipe usage
                 const subRecipeScaling = item.quantity / (subRecipe.yieldQuantity || 1);
                 
+                console.log(`Flattening sub-recipe: ${subRecipe.name}`, {
+                    itemQuantity: item.quantity,
+                    subRecipeYield: subRecipe.yieldQuantity,
+                    scalingFactor: subRecipeScaling,
+                    batchScale: batchScale
+                });
+                
                 // Flatten raw materials from sub-recipe
                 if (subRecipe.rawMaterialItems) {
                     subRecipe.rawMaterialItems.forEach(subItem => {
                         const scaledQuantity = subItem.quantity * subRecipeScaling * batchScale;
+                        const totalCost = scaledQuantity * subItem.unitCost * (subItem.yield / 100);
+                        
+                        console.log(`  - Raw material: ${subItem.name}`, {
+                            originalQuantity: subItem.quantity,
+                            scaledQuantity: scaledQuantity,
+                            unitCost: subItem.unitCost,
+                            yield: subItem.yield,
+                            totalCost: totalCost
+                        });
+                        
                         flattenedItems.push({
                             name: `${subItem.name} (from ${subRecipe.name})`,
                             quantity: scaledQuantity,
@@ -2142,6 +2211,15 @@ function flattenSubRecipes(recipeItems, batchScale = 1) {
                 if (subRecipe.directLaborItems) {
                     subRecipe.directLaborItems.forEach(subItem => {
                         const scaledQuantity = subItem.quantity * subRecipeScaling * batchScale;
+                        const totalCost = scaledQuantity * subItem.unitCost;
+                        
+                        console.log(`  - Direct labor: ${subItem.name}`, {
+                            originalQuantity: subItem.quantity,
+                            scaledQuantity: scaledQuantity,
+                            unitCost: subItem.unitCost,
+                            totalCost: totalCost
+                        });
+                        
                         flattenedItems.push({
                             name: `${subItem.name} (from ${subRecipe.name})`,
                             quantity: scaledQuantity,
@@ -2153,6 +2231,14 @@ function flattenSubRecipes(recipeItems, batchScale = 1) {
                         });
                     });
                 }
+            } else {
+                console.warn(`Sub-recipe with ID ${item.subRecipeId} not found`);
+                // If sub-recipe not found, treat as regular item
+                flattenedItems.push({
+                    ...item,
+                    quantity: item.quantity * batchScale,
+                    isFromSubRecipe: false
+                });
             }
         } else {
             // Regular item, just scale it
@@ -2164,6 +2250,7 @@ function flattenSubRecipes(recipeItems, batchScale = 1) {
         }
     });
     
+    console.log("Flattened items total:", flattenedItems.length);
     return flattenedItems;
 }
 
@@ -2198,15 +2285,32 @@ function recalc() {
         });
     });
 
-    // FIX FOR ISSUE 2a & 2b: Flatten sub-recipes for calculation
+    // FIX FOR ISSUE 1: Enhanced flattening with better debugging
     const flattenedItems = flattenSubRecipes(recipeItems, batchScale);
 
     // Calculate totals from flattened items
     flattenedItems.forEach(item => {
         if (item.type === 'rawMaterial' || item.type === 'sub-recipe') {
-            rawMaterialsTotal += item.quantity * item.unitCost * (item.yield / 100);
+            const itemCost = item.quantity * item.unitCost * (item.yield / 100);
+            rawMaterialsTotal += itemCost;
+            
+            console.log(`Raw material cost: ${item.name}`, {
+                quantity: item.quantity,
+                unitCost: item.unitCost,
+                yield: item.yield,
+                cost: itemCost,
+                runningTotal: rawMaterialsTotal
+            });
         } else if (item.type === 'directLabor') {
-            directLaborTotal += item.quantity * item.unitCost;
+            const itemCost = item.quantity * item.unitCost;
+            directLaborTotal += itemCost;
+            
+            console.log(`Direct labor cost: ${item.name}`, {
+                quantity: item.quantity,
+                unitCost: item.unitCost,
+                cost: itemCost,
+                runningTotal: directLaborTotal
+            });
         }
     });
 
@@ -2214,10 +2318,24 @@ function recalc() {
     directLaborRecipeBody.querySelectorAll("tr").forEach((row) => {
         const time = parseFloat(row.children[1].querySelector("input").value) || 0;
         const rate = parseFloat(row.children[2].querySelector("input").value) || 0;
-        directLaborTotal += (time * rate) * batchScale;
+        const laborCost = (time * rate) * batchScale;
+        directLaborTotal += laborCost;
+        
+        console.log(`Direct labor table cost:`, {
+            time: time,
+            rate: rate,
+            cost: laborCost,
+            runningTotal: directLaborTotal
+        });
     });
 
     const grandTotal = rawMaterialsTotal + directLaborTotal;
+
+    console.log("Final totals:", {
+        rawMaterialsTotal: rawMaterialsTotal,
+        directLaborTotal: directLaborTotal,
+        grandTotal: grandTotal
+    });
 
     // Update display
     rawMaterialsTotalEl.textContent = `${currency}${rawMaterialsTotal.toFixed(2)}`;
@@ -2606,7 +2724,7 @@ function populateSummaryRecipeSelect() {
     });
 }
 
-// NEW: Load recipe for summary analysis - FIX FOR ISSUE 2
+// NEW: Load recipe for summary analysis - FIX FOR ISSUE 1
 function loadRecipeForSummary() {
     const recipeId = summaryRecipeSelect.value;
     if (!recipeId) {
@@ -2627,15 +2745,15 @@ function loadRecipeForSummary() {
     
     loadedRecipeDisplay.classList.remove('hidden');
     
-    // FIX FOR ISSUE 2: Update summary with loaded recipe data
+    // FIX FOR ISSUE 1: Update summary with loaded recipe data
     updateSummaryWithLoadedRecipe(recipe);
 }
 
-// NEW: Update summary with loaded recipe data - FIX FOR ISSUE 2
+// NEW: Update summary with loaded recipe data - FIX FOR ISSUE 1
 function updateSummaryWithLoadedRecipe(recipe) {
     const batchScale = parseFloat(batchScaleInput.value) || 1;
     
-    // FIX FOR ISSUE 2a & 2b: Flatten sub-recipes for calculation
+    // FIX FOR ISSUE 1: Enhanced flattening for loaded recipes
     const allItems = [...recipe.rawMaterialItems, ...recipe.directLaborItems];
     const flattenedItems = flattenSubRecipes(allItems, batchScale);
     
@@ -2702,7 +2820,7 @@ function updateSummaryWithLoadedRecipe(recipe) {
 function updateCostBreakdownPreviewWithRecipe(recipe) {
     const batchScale = parseFloat(batchScaleInput.value) || 1;
     
-    // FIX FOR ISSUE 2a & 2b: Flatten sub-recipes for display
+    // FIX FOR ISSUE 1: Enhanced flattening for display
     const allItems = [...recipe.rawMaterialItems, ...recipe.directLaborItems];
     const flattenedItems = flattenSubRecipes(allItems, batchScale);
     
@@ -2793,7 +2911,7 @@ function updateCostBreakdownPreview() {
         });
     });
 
-    // FIX FOR ISSUE 2a & 2b: Flatten sub-recipes for display
+    // FIX FOR ISSUE 1: Enhanced flattening for display
     const flattenedItems = flattenSubRecipes(recipeItems, batchScale);
     
     // Separate flattened items by type
