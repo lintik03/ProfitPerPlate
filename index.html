@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ProfitPerPlate - Restaurant Costing Tool</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <!-- Header -->
+    <header class="header">
+      <div class="header-top">
+        <div class="left-group">
+          <div class="brand">
+            <h2 class="site-name">ProfitPerPlate</h2>
+            <p class="site-slogan">Know your profit in every plate</p>
+          </div>
+        </div>
+        
+        <div class="right-group">
+          <!-- Dark Mode Toggle -->
+          <div class="theme-toggle-container">
+            <label for="themeToggle" class="theme-toggle-label">
+              <span class="theme-icon">🌙</span>
+              <input type="checkbox" id="themeToggle" class="theme-toggle" />
+              <span class="theme-slider"></span>
+              <span class="theme-icon">☀️</span>
+            </label>
+          </div>
+
+          <label for="currencySelect" class="currency-label">Currency →</label>
+          <select id="currencySelect">
+            <option value="₱">₱ PHP</option>
+            <option value="$">$ USD</option>
+            <option value="¥">¥ JPY</option>
+            <option value="₩">₩ KRW</option>
+            <option value="€">€ EUR</option>
+            <option value="£">£ GBP</option>
+            <option value="₹">₹ INR</option>
+            <option value="₽">₽ RUB</option>
+            <option value="₴">₴ UAH</option>
+            <option value="R$">R$ BRL</option>
+            <option value="₮">₮ MNT</option>
+            <option value="₵">₵ GHS</option>
+            <option value="₫">₫ VND</option>
+          </select>
+
+          <!-- Profile Section -->
+          <div class="profile-section">
+            <div class="profile-selector">
+              <select id="profileSelect">
+                <!-- Profiles will be populated here -->
+              </select>
+              <button id="profileBtn" class="profile-btn">Profiles</button>
+            </div>
+          </div>
+
+          <!-- NEW: Cloud Sync Button -->
+          <button id="cloudSyncBtn" class="btn-secondary" style="white-space: nowrap;">☁️ Cloud Sync</button>
+
+          <button id="helpBtn" class="help-btn">?</button>
+        </div>
+      </div>
+
+      <!-- User Menu (Hidden by default) -->
+      <div id="userMenu" class="user-menu hidden">
+        <span id="userEmail" class="user-email"></span>
+        <button onclick="handleSignOut()" class="btn-secondary small">Sign Out</button>
+      </div>
+
+      <!-- Navigation (Full-width, non-wrapping) -->
+      <nav class="tabs" role="navigation" aria-label="Primary">
+        <button class="tab-btn active" data-tab="raw-materials">Raw Materials and Direct Labor</button>
+        <button class="tab-btn" data-tab="recipes">Recipe Calculator</button>
+        <button class="tab-btn" data-tab="summary">Summary</button>
+      </nav>
+    </header>
+
+    <!-- Data Storage Notice -->
+    <section class="global-notice" aria-label="Data Storage Notice">
+      <div class="data-warning">
+        <h4>⚠️ Data Storage Notice</h4>
+        <p>Your data is stored locally in this browser only. Use the Export/Backup features below to save your data permanently or transfer it to another device.</p>
+      </div>
+    </section>
+
+    <div class="app-layout">
+      <div class="main-container">
+        <div class="content-area">
+        <!-- RAW MATERIALS AND DIRECT LABOR TAB -->
+        <section id="raw-materials-tab" class="tab-content active panel">
+          <!-- Raw Materials Section -->
+          <div class="section-header">
+            <h2>Master Raw Material List</h2>
+            <button class="add-btn" onclick="openRawMaterialModal()">
+              + Add Raw Material
+            </button>
+          </div>
+
+          <div class="search-container">
+            <input
+              type="text"
+              id="rawMaterialSearch"
+              placeholder="🔍 Search raw materials..."
+              class="search-input"
+              oninput="renderRawMaterials()"
+            />
+          </div>
+
+          <div class="table-container">
+            <table aria-label="Master Raw Material List">
+              <thead>
+                <tr>
+                  <th>Raw Material</th>
+                  <th>Category</th>
+                  <th>Cost/Unit</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="rawMaterialsTable">
+                <!-- Raw materials will be populated here -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Direct Labor Section -->
+          <div class="section-header" style="margin-top: var(--space-2xl);">
+            <h2>Direct Labor List</h2>
+            <button class="add-btn" onclick="openDirectLaborModal()">
+              + Add Direct Labor
+            </button>
+          </div>
+
+          <div class="search-container">
+            <input
+              type="text"
+              id="directLaborSearch"
+              placeholder="🔍 Search direct labor..."
+              class="search-input"
+              oninput="renderDirectLabor()"
+            />
+          </div>
+
+          <div class="table-container">
+            <table aria-label="Direct Labor List">
+              <thead>
+                <tr>
+                  <th>Labor Name</th>
+                  <th>Shift Rate</th>
+                  <th>Shift Duration</th>
+                  <th>Cost/Unit</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="directLaborTable">
+                <!-- Direct labor items will be populated here -->
+              </tbody>
+            </table>
+          </div>
+          
+          <!-- Data Management Buttons -->
+          <div class="data-management">
+            <button class="btn-secondary" onclick="exportData()">Export Data</button>
+            <button class="btn-secondary" onclick="importData()">Import Data</button>
+            <button class="btn-secondary" onclick="backupData()">Backup Profile</button>
+          </div>
+        </section>
+
+        <!-- RECIPES TAB -->
+        <section id="recipes-tab" class="tab-content panel">
+          <div class="current-recipe">
+            <h3 id="currentRecipeName">Current Recipe</h3>
+
+            <!-- Recipe name and reset button -->
+            <div class="recipe-header-controls">
+              <input
+                id="recipeName"
+                type="text"
+                placeholder="Enter recipe name..."
+              />
+              
+              <!-- MOVED: Servings input from Summary to Recipe Calculator -->
+              <div class="servings-control">
+                <label for="servings">Servings:</label>
+                <div class="input-wrap">
+                  <input id="servings" type="number" value="1" min="1" class="number-input small">
+                </div>
+              </div>
+
+              <button id="resetRecipe" class="reset-btn">Reset Recipe</button>
+            </div>
+
+            <!-- Add Item section moved above the table -->
+            <div class="add-ingredient-section">
+              <h4>Add Item to Recipe</h4>
+
+              <div class="input-group">
+                <label for="unifiedItemSelect">Select Item
+                  <button type="button" class="help-icon" onclick="showFieldHelp('selectItem', event)">?</button>
+                </label>
+                <select id="unifiedItemSelect" class="select-input">
+                  <option value="">Select an item...</option>
+                  <optgroup label="Raw Materials">
+                    <!-- Raw materials will be populated here -->
+                  </optgroup>
+                  <optgroup label="Sub-Recipes">
+                    <!-- Sub-recipes will be populated here -->
+                  </optgroup>
+                </select>
+              </div>
+
+              <div class="input-group">
+                <label for="addIngredientQty">Quantity
+                  <button type="button" class="help-icon" onclick="showFieldHelp('quantity', event)">?</button>
+                </label>
+                <div class="input-with-unit">
+                  <input
+                    type="number"
+                    id="addIngredientQty"
+                    placeholder="0.00"
+                    class="number-input small"
+                    min="0"
+                    step="0.01"
+                  />
+                  <span id="addIngredientUnit" class="unit-display-small">g</span>
+                </div>
+              </div>
+
+              <div class="input-group">
+                <label for="addIngredientYield">Yield %
+                  <button type="button" class="help-icon" onclick="showFieldHelp('yield', event)">?</button>
+                </label>
+                <div class="input-with-unit">
+                  <input
+                    type="number"
+                    id="addIngredientYield"
+                    placeholder="100"
+                    class="number-input small"
+                    value="100"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                  />
+                  <span class="unit-display-small">%</span>
+                </div>
+              </div>
+
+              <div class="input-group">
+                <label>&nbsp;</label>
+                <button class="btn-primary" onclick="addItemToRecipe()">
+                  Add to Recipe
+                </button>
+              </div>
+            </div>
+
+            <!-- Recipe table with horizontal scrolling container -->
+            <div class="table-container">
+              <table id="recipeTable" aria-label="Recipe Calculator Table">
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th style="width: 140px">Qty/Time</th>
+                    <th style="width: 140px">Yield %</th>
+                    <th style="width: 160px">Unit Cost</th>
+                    <th style="width: 160px">Total Cost</th>
+                    <th style="width: 80px"></th>
+                  </tr>
+                </thead>
+                <tbody id="recipeBody">
+                  <!-- Recipe items will be populated here -->
+                </tbody>
+              </table>
+            </div>
+
+            <div class="table-footer">
+              <div class="total-cost">
+                <strong>RAW MATERIALS TOTAL:</strong>
+                <span id="rawMaterialsTotal">₱0.00</span>
+              </div>
+            </div>
+
+            <!-- Direct Labor Cost Section -->
+            <div class="labor-section">
+              <h3>Direct Labor Cost</h3>
+              
+              <div class="add-labor-section">
+                <h4>Add Direct Labor Item</h4>
+
+                <div class="input-group">
+                  <label for="directLaborSelect">Direct Labor Item
+                    <button type="button" class="help-icon" onclick="showFieldHelp('laborName', event)">?</button>
+                  </label>
+                  <select id="directLaborSelect" class="select-input">
+                    <option value="">Select direct labor...</option>
+                    <!-- Direct labor items will be populated here -->
+                  </select>
+                </div>
+
+                <div class="input-group">
+                  <label for="timeRequirement">Time Requirement
+                    <button type="button" class="help-icon" onclick="showFieldHelp('quantity', event)">?</button>
+                  </label>
+                  <div class="input-with-unit">
+                    <input
+                      type="number"
+                      id="timeRequirement"
+                      placeholder="0.00"
+                      class="number-input small"
+                      min="0"
+                      step="0.01"
+                    />
+                    <span id="timeRequirementUnit" class="unit-display-small">hours</span>
+                  </div>
+                </div>
+
+                <div class="input-group">
+                  <label>&nbsp;</label>
+                  <button class="btn-primary" onclick="addDirectLaborToRecipe()">
+                    Add Direct Labor
+                  </button>
+                </div>
+              </div>
+
+              <!-- Direct Labor table with horizontal scrolling container -->
+              <div class="table-container">
+                <table id="directLaborRecipeTable" aria-label="Direct Labor Cost Table">
+                  <thead>
+                    <tr>
+                      <th>Labor Item</th>
+                      <th style="width: 140px">Time Required</th>
+                      <th style="width: 140px">Rate</th>
+                      <th style="width: 160px">Total Cost</th>
+                      <th style="width: 80px"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="directLaborRecipeBody">
+                    <!-- Direct labor items will be populated here -->
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="table-footer">
+                <div class="total-cost">
+                  <strong>DIRECT LABOR TOTAL:</strong>
+                  <span id="directLaborTotal">₱0.00</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Grand Total Display -->
+            <div class="table-footer" style="margin-top: var(--space-lg);">
+              <div class="total-cost accent-total">
+                <strong>TOTAL RECIPE COST:</strong>
+                <span id="grandTotal">₱0.00</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="recipe-list" id="recipeListSection">
+            <h3>Saved Recipes</h3>
+            
+            <!-- Two save buttons instead of one -->
+            <div class="save-recipe-buttons">
+              <button id="saveMainRecipeBtn" class="add-btn">
+                Save to Main Recipe
+              </button>
+              <button id="saveSubRecipeBtn" class="btn-secondary">
+                Save to Sub-Recipe
+              </button>
+            </div>
+            
+            <!-- Recipe columns for main and sub-recipes -->
+            <div class="recipe-columns">
+              <div class="recipe-column">
+                <h4>Main Recipes</h4>
+                <div id="mainRecipesList">
+                  <!-- Main recipes will be populated here -->
+                </div>
+              </div>
+              <div class="recipe-column">
+                <h4>Sub-Recipes</h4>
+                <div id="subRecipesList">
+                  <!-- Sub-recipes will be populated here -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SUMMARY TAB -->
+        <section id="summary-tab" class="tab-content panel">
+          <h2>Summary</h2>
+
+          <!-- NEW: Recipe Loader Section -->
+          <div class="summary-recipe-selector">
+            <h3>Recipe Analysis</h3>
+            <div class="load-recipe-controls">
+              <select id="summaryRecipeSelect" class="select-input">
+                <option value="">Select a recipe to analyze...</option>
+              </select>
+              <button onclick="loadRecipeForSummary()" class="btn-primary">Load Recipe</button>
+            </div>
+            <div id="loadedRecipeDisplay" class="loaded-recipe-info hidden">
+              <h4>Currently Analyzing: <span id="currentRecipeNameDisplay"></span></h4>
+              <div class="recipe-meta">
+                <p><strong>Total Cost:</strong> <span id="loadedRecipeTotalCost"></span></p>
+                <p><strong>Servings:</strong> <span id="loadedRecipeServings"></span></p>
+                <p><strong>Items:</strong> <span id="loadedRecipeItemCount"></span></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- NEW: Cost Breakdown Preview -->
+          <div class="cost-breakdown-preview">
+            <div class="breakdown-section">
+              <div class="breakdown-header" data-section="rawMaterials">
+                <h3>
+                  <span>▾</span>
+                  Raw Materials <span class="breakdown-count" id="rawMaterialsCount">0 items</span>
+                </h3>
+                <span class="breakdown-total" id="rawMaterialsPreviewTotal">₱0.00</span>
+              </div>
+              <div class="breakdown-content" id="rawMaterialsPreview">
+                <div class="table-container">
+                  <table class="breakdown-table">
+                    <thead>
+                      <tr>
+                        <th>Raw Material</th>
+                        <th>Qty</th>
+                        <th>Yield %</th>
+                        <th>Unit Cost</th>
+                        <th>Total Cost</th>
+                      </tr>
+                    </thead>
+                    <tbody id="rawMaterialsPreviewBody">
+                      <!-- Raw materials will be populated here -->
+                    </tbody>
+                    <tfoot>
+                      <tr class="breakdown-subtotal">
+                        <td colspan="4">Raw Materials Subtotal</td>
+                        <td id="rawMaterialsPreviewSubtotal">₱0.00</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            </div>
+            
+            <div class="breakdown-section">
+              <div class="breakdown-header" data-section="directLabor">
+                <h3>
+                  <span>▾</span>
+                  Direct Labor <span class="breakdown-count" id="directLaborCount">0 items</span>
+                </h3>
+                <span class="breakdown-total" id="directLaborPreviewTotal">₱0.00</span>
+              </div>
+              <div class="breakdown-content" id="directLaborPreview">
+                <div class="table-container">
+                  <table class="breakdown-table">
+                    <thead>
+                      <tr>
+                        <th>Labor Item</th>
+                        <th>Time Required</th>
+                        <th>Rate</th>
+                        <th>Total Cost</th>
+                      </tr>
+                    </thead>
+                    <tbody id="directLaborPreviewBody">
+                      <!-- Direct labor items will be populated here -->
+                    </tbody>
+                    <tfoot>
+                      <tr class="breakdown-subtotal">
+                        <td colspan="3">Direct Labor Subtotal</td>
+                        <td id="directLaborPreviewSubtotal">₱0.00</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="summary-controls">
+            <!-- NEW: Batch Scaling Input -->
+            <label>
+              Batch Scale
+              <button type="button" class="field-help" onclick="showFieldHelp('batchScale', event)">?</button>
+              <div class="input-wrap">
+                <input id="batchScale" type="number" value="1" min="0.1" step="0.1" />
+                <span>x</span>
+              </div>
+            </label>
+
+            <label
+              >Mark-up %
+              <button type="button" class="field-help" onclick="showFieldHelp('markup', event)">?</button>
+              <div class="input-wrap">
+                <input id="markup" type="number" value="40" /><span>%</span>
+              </div>
+            </label>
+            <label
+              >Regular Tax %
+              <button type="button" class="field-help" onclick="showFieldHelp('tax', event)">?</button>
+              <div class="input-wrap">
+                <input id="tax" type="number" value="0" /><span>%</span>
+              </div>
+            </label>
+            <label
+              >VAT %
+              <button type="button" class="field-help" onclick="showFieldHelp('vat', event)">?</button>
+              <div class="input-wrap">
+                <input id="vat" type="number" value="0" /><span>%</span>
+              </div>
+            </label>
+          </div>
+
+          <div class="summary-grid">
+            <div class="summary-item">
+              <label>Raw Materials Cost:</label><span id="summaryRawMaterialsCost">₱0.00</span>
+            </div>
+            <div class="summary-item">
+              <label>Direct Labor Cost:</label><span id="summaryDirectLaborCost">₱0.00</span>
+            </div>
+            <div class="summary-item" style="border-bottom: 2px solid var(--primary); font-weight: bold;">
+              <label>Total Cost:</label><span id="summaryTotalCost">₱0.00</span>
+            </div>
+            
+            <!-- NEW: Servings Display - Enhanced with tooltip styling -->
+            <div class="summary-item" style="font-weight: 600; border-bottom: 1px solid var(--primary);" title="Base servings × Batch scale">
+              <label>Total Servings:</label><span id="summaryServingsDisplay">1</span>
+            </div>
+            
+            <div class="summary-item">
+              <label>Cost/Serving (Before Tax):</label
+              ><span id="summaryCostServing">₱0.00</span>
+            </div>
+            <div class="summary-item">
+              <label>Selling Price (After Tax):</label
+              ><span id="summarySellingPrice">₱0.00</span>
+            </div>
+            <div class="summary-item">
+              <label>Food Cost %:</label><span id="summaryFoodCost">0%</span>
+            </div>
+            <div class="summary-item">
+              <label>Labor Cost %:</label><span id="summaryLaborCostPercent">0%</span>
+            </div>
+            <div class="summary-item">
+              <label>Total Cost %:</label><span id="summaryTotalCostPercent">0%</span>
+            </div>
+            <div class="summary-item">
+              <label>Gross Profit Margin %:</label
+              ><span id="summaryGrossProfit">0%</span>
+            </div>
+            
+            <!-- NEW: Batch Profit Analysis -->
+            <div class="summary-item batch-profit-analysis">
+              <label>Batch Revenue:</label><span id="summaryBatchRevenue">₱0.00</span>
+            </div>
+            <div class="summary-item batch-profit-analysis">
+              <label>Batch Profit:</label><span id="summaryBatchProfit">₱0.00</span>
+            </div>
+            <div class="summary-item batch-profit-analysis" style="border-top: 2px solid var(--primary); font-weight: bold;">
+              <label>Batch Profit Margin:</label><span id="summaryBatchProfitMargin">0%</span>
+            </div>
+          </div>
+
+          <div class="summary-actions">
+            <!-- Print button now shows preview first -->
+            <button id="printBtn" class="print-btn">🖨️ Print Costing</button>
+          </div>
+        </section>
+      </div>
+
+      <!-- Ad Space -->
+      <aside class="ad-space panel">
+        <h3>Advertisement</h3>
+        <div class="ad-content">
+          <p>Your ad could be here</p>
+          <div style="margin-top: var(--space-md); font-size: 13px; color: var(--text-secondary);">
+            Desktop: Right Side<br>
+            Mobile: Bottom
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    </div>
+
+    <!-- Print Preview Modal -->
+    <div id="printPreviewModal" class="modal hidden">
+      <div class="modal-content print-preview">
+        <div class="modal-header">
+          <h3>Print Preview - Recipe Costing</h3>
+          <button class="close-btn" onclick="closePrintPreview()">×</button>
+        </div>
+        <div class="print-preview-content" id="printPreviewContent">
+          <!-- Print preview content will be inserted here -->
+        </div>
+        <div class="print-actions">
+          <button class="btn-secondary" onclick="closePrintPreview()">Cancel</button>
+          <button class="btn-primary" onclick="printCostingReport()">Print</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Prompt Modal -->
+    <div id="editPromptModal" class="modal hidden edit-prompt-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="editPromptTitle">Save Changes</h3>
+          <button class="close-btn" onclick="closeEditPromptModal()">×</button>
+        </div>
+        <div id="editPromptMessage">
+          <!-- Message will be inserted here -->
+        </div>
+        <div class="edit-prompt-options">
+          <button class="btn-secondary" onclick="handleEditPromptChoice('replace')">Replace Existing</button>
+          <button class="btn-primary" onclick="handleEditPromptChoice('new')">Save as New</button>
+        </div>
+        <div style="margin-top: var(--space-md); text-align: center;">
+          <button class="btn-secondary" onclick="closeEditPromptModal()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sub-Recipe Save Modal -->
+    <div id="subRecipeSaveModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Save as Sub-Recipe</h3>
+          <button class="close-btn" onclick="closeSubRecipeSaveModal()">×</button>
+        </div>
+        
+        <!-- Layer 1: Sub-Recipe Name (uneditable) -->
+        <div class="form-group">
+          <label for="subRecipeNameDisplay">Sub-Recipe Name
+            <button type="button" class="field-help" onclick="showFieldHelp('subRecipeName', event)">?</button>
+          </label>
+          <input
+            type="text"
+            id="subRecipeNameDisplay"
+            class="text-input readonly-input"
+            readonly
+          />
+        </div>
+
+        <!-- Layer 2: Category of Measurement -->
+        <div class="form-group">
+          <label for="subRecipeCategory">Category of Measurement
+            <button type="button" class="field-help" onclick="showFieldHelp('subRecipeCategory', event)">?</button>
+          </label>
+          <select id="subRecipeCategory" class="select-input" onchange="updateSubRecipeUnitOptions()">
+            <option value="weight">Weight</option>
+            <option value="volume">Volume</option>
+            <option value="count">Count</option>
+          </select>
+        </div>
+
+        <!-- Layer 3: Total Yield per Batch -->
+        <div class="form-group">
+          <label for="subRecipeYieldQuantity">Total Yield per Batch
+            <button type="button" class="field-help" onclick="showFieldHelp('subRecipeYieldQuantity', event)">?</button>
+          </label>
+          <div style="display: flex; gap: var(--space-sm)">
+            <input
+              type="number"
+              id="subRecipeYieldQuantity"
+              value="1"
+              step="0.01"
+              min="0.01"
+              class="number-input"
+              oninput="updateSubRecipeCostDisplay()"
+              style="flex: 1"
+            />
+            <select
+              id="subRecipeYieldUnit"
+              class="select-input"
+              onchange="updateSubRecipeCostDisplay()"
+              style="width: 120px"
+            >
+              <!-- Options will be populated dynamically -->
+            </select>
+          </div>
+        </div>
+
+        <!-- Layer 4: Cost Per Unit (uneditable) -->
+        <div class="form-group">
+          <label for="subRecipeCostPerUnit">Cost Per Unit
+            <button type="button" class="field-help" onclick="showFieldHelp('costPerUnit', event)">?</button>
+          </label>
+          <div style="display: flex; gap: var(--space-sm)">
+            <input
+              type="number"
+              id="subRecipeCostPerUnit"
+              step="0.0001"
+              class="number-input readonly-input"
+              readonly
+              style="flex: 1"
+            />
+            <select
+              id="subRecipeCostUnit"
+              class="select-input"
+              onchange="updateSubRecipeCostDisplay()"
+              style="width: 120px"
+            >
+              <!-- Options will be populated dynamically -->
+            </select>
+          </div>
+        </div>
+
+        <!-- Cost Calculation Display -->
+        <div class="cost-calculation">
+          <h4>Sub-Recipe Cost Calculation</h4>
+          <div class="calculation-formula">
+            Cost Per Unit = (Total Recipe Cost ÷ Total Yield per Batch) × Conversion Factor
+          </div>
+          <div id="subRecipeCostDetails">
+            Total recipe cost: <span id="currentRecipeCostDisplay">₱0.00</span><br>
+            Cost per unit: <span id="costPerOutputUnit">₱0.00</span>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn-secondary" onclick="closeSubRecipeSaveModal()">Cancel</button>
+          <button class="btn-primary" onclick="saveSubRecipe()">Save Sub-Recipe</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Raw Material Modal -->
+    <div id="rawMaterialModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="rawMaterialModalTitle">Add New Raw Material</h3>
+          <button class="close-btn" onclick="closeRawMaterialModal()">×</button>
+        </div>
+        <form id="rawMaterialForm">
+          <div class="form-group">
+            <label>Raw Material Name:
+              <button type="button" class="field-help" onclick="showFieldHelp('ingredientName', event)">?</button>
+            </label>
+            <input
+              type="text"
+              id="modalRawMaterialName"
+              required
+              class="text-input"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Category:
+              <button type="button" class="field-help" onclick="showFieldHelp('ingredientCategory', event)">?</button>
+            </label>
+            <select
+              id="modalRawMaterialCategory"
+              required
+              class="select-input"
+              onchange="updateUnitOptions()"
+            >
+              <option value="weight">Weight</option>
+              <option value="volume">Volume</option>
+              <option value="count">Count</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Purchase Price:
+                <button type="button" class="field-help" onclick="showFieldHelp('purchasePrice', event)">?</button>
+              </label>
+              <input
+                type="number"
+                id="modalRawMaterialPrice"
+                step="0.01"
+                required
+                class="number-input"
+                oninput="updateCostPerUnit()"
+              />
+            </div>
+            <div class="form-group">
+              <label>Purchase Quantity:
+                <button type="button" class="field-help" onclick="showFieldHelp('purchaseQuantity', event)">?</button>
+              </label>
+              <input
+                type="number"
+                id="modalRawMaterialQuantity"
+                step="0.01"
+                value="1"
+                required
+                class="number-input"
+                oninput="updateCostPerUnit()"
+              />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Purchase Unit:
+                <button type="button" class="field-help" onclick="showFieldHelp('purchaseUnit', event)">?</button>
+              </label>
+              <select
+                id="modalRawMaterialUnit"
+                required
+                class="select-input"
+                onchange="updateCostPerUnit()"
+              >
+                <!-- Options will be populated dynamically -->
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Cost Per Unit:
+                <button type="button" class="field-help" onclick="showFieldHelp('costPerUnit', event)">?</button>
+              </label>
+              <div style="display: flex; gap: var(--space-sm)">
+                <input
+                  type="number"
+                  id="modalCostPerUnit"
+                  step="0.0001"
+                  required
+                  class="number-input"
+                  readonly
+                  style="flex: 1"
+                />
+                <select
+                  id="modalCostUnit"
+                  class="select-input"
+                  onchange="updateCostPerUnitValue()"
+                  style="width: 120px"
+                >
+                  <!-- Options will be populated dynamically -->
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cost Calculation Display -->
+          <div class="cost-calculation">
+            <h4>Cost Calculation</h4>
+            <div class="calculation-formula">
+              Cost Per Unit = (Purchase Price ÷ Purchase Quantity) × Conversion Factor
+            </div>
+            <div id="costCalculationDetails">
+              Enter purchase details to see calculation
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button
+              type="button"
+              class="btn-secondary"
+              onclick="closeRawMaterialModal()"
+            >
+              Cancel
+            </button>
+            <button type="button" class="btn-primary" id="saveRawMaterialBtn">
+              Save Raw Material
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Direct Labor Modal -->
+    <div id="directLaborModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="directLaborModalTitle">Add New Direct Labor</h3>
+          <button class="close-btn" onclick="closeDirectLaborModal()">×</button>
+        </div>
+        <form id="directLaborForm">
+          <div class="form-group">
+            <label>Labor Name:
+              <button type="button" class="field-help" onclick="showFieldHelp('laborName', event)">?</button>
+            </label>
+            <input
+              type="text"
+              id="modalLaborName"
+              required
+              class="text-input"
+              placeholder="e.g., Kitchen Work, Prep Chef"
+            />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Shift Rate:
+                <button type="button" class="field-help" onclick="showFieldHelp('shiftRate', event)">?</button>
+              </label>
+              <input
+                type="number"
+                id="modalShiftRate"
+                step="0.01"
+                required
+                class="number-input"
+                oninput="updateLaborCostPerUnit()"
+                placeholder="Total cost per shift"
+              />
+            </div>
+            <div class="form-group">
+              <label>Shift Duration:
+                <button type="button" class="field-help" onclick="showFieldHelp('shiftDuration', event)">?</button>
+              </label>
+              <input
+                type="number"
+                id="modalShiftDuration"
+                step="0.01"
+                value="8"
+                required
+                class="number-input"
+                oninput="updateLaborCostPerUnit()"
+                placeholder="Duration"
+              />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Time Unit:
+                <button type="button" class="field-help" onclick="showFieldHelp('timeUnit', event)">?</button>
+              </label>
+              <select
+                id="modalTimeUnit"
+                required
+                class="select-input"
+                onchange="updateLaborCostPerUnit()"
+              >
+                <option value="hours">Hours</option>
+                <option value="minutes">Minutes</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Cost Per Unit:
+                <button type="button" class="field-help" onclick="showFieldHelp('costPerUnit', event)">?</button>
+              </label>
+              <div style="display: flex; gap: var(--space-sm)">
+                <input
+                  type="number"
+                  id="modalCostPerUnitLabor"
+                  step="0.0001"
+                  required
+                  class="number-input"
+                  readonly
+                  style="flex: 1"
+                />
+                <select
+                  id="modalCostUnitLabor"
+                  class="select-input"
+                  onchange="updateLaborCostPerUnit()"
+                  style="width: 120px"
+                >
+                  <option value="hours">Hours</option>
+                  <option value="minutes">Minutes</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cost Calculation Display -->
+          <div class="cost-calculation">
+            <h4>Cost Calculation</h4>
+            <div class="calculation-formula">
+              Cost Per Unit = (Shift Rate ÷ Shift Duration) × Conversion Factor
+            </div>
+            <div id="laborCostCalculationDetails">
+              Enter shift details to see calculation
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button
+              type="button"
+              class="btn-secondary"
+              onclick="closeDirectLaborModal()"
+            >
+              Cancel
+            </button>
+            <button type="button" class="btn-primary" id="saveDirectLaborBtn">
+              Save Direct Labor
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Profile Management Modal -->
+    <div id="profileModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Profile Management</h3>
+          <button class="close-btn" onclick="closeProfileModal()">×</button>
+        </div>
+        
+        <div class="data-warning">
+          <h4>⚠️ Local Storage Notice</h4>
+          <p>Profiles are stored in your browser's local storage. Data will be lost if you clear browser data or use a different browser/device.</p>
+        </div>
+
+        <div class="form-group">
+          <label for="newProfileName">Create New Profile:</label>
+          <div style="display: flex; gap: var(--space-sm)">
+            <input
+              type="text"
+              id="newProfileName"
+              class="text-input"
+              placeholder="Enter profile name"
+              style="flex: 1"
+            />
+            <button class="btn-primary" onclick="createNewProfile()">Create</button>
+          </div>
+        </div>
+
+        <div class="profile-list" id="profileList">
+          <!-- Profiles will be listed here -->
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn-secondary" onclick="closeProfileModal()">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Import/Export Modal -->
+    <div id="importExportModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="importExportModalTitle">Data Management</h3>
+          <button class="close-btn" onclick="closeImportExportModal()">×</button>
+        </div>
+        <div class="import-export-content" id="importExportContent">
+          <!-- Content will be populated dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <!-- NEW: Auth Modal -->
+    <div id="authModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Cloud Sync & Backup</h3>
+          <button class="close-btn" onclick="closeAuthModal()">×</button>
+        </div>
+        
+        <div class="auth-tabs">
+          <button class="auth-tab active" data-tab="login">Login</button>
+          <button class="auth-tab" data-tab="signup">Sign Up</button>
+        </div>
+
+        <!-- Login Form -->
+        <div id="loginForm" class="auth-form">
+          <div class="form-group">
+            <label>Email:</label>
+            <input type="email" id="loginEmail" class="text-input" placeholder="your@email.com">
+          </div>
+          <div class="form-group">
+            <label>Password:</label>
+            <input type="password" id="loginPassword" class="text-input" placeholder="Your password">
+          </div>
+          <button class="btn-primary" onclick="handleLogin()">Login & Sync to Cloud</button>
+        </div>
+
+        <!-- Sign Up Form -->
+        <div id="signupForm" class="auth-form hidden">
+          <div class="form-group">
+            <label>Email:</label>
+            <input type="email" id="signupEmail" class="text-input" placeholder="your@email.com">
+          </div>
+          <div class="form-group">
+            <label>Password:</label>
+            <input type="password" id="signupPassword" class="text-input" placeholder="Minimum 6 characters">
+          </div>
+          <button class="btn-primary" onclick="handleSignUp()">Create Account & Backup</button>
+        </div>
+
+        <div class="auth-footer">
+          <p><small>Your data will be securely backed up and synced across devices</small></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Help modal -->
+    <div id="helpModal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="modal-content">
+        <h3 id="helpModalTitle">Complete Field Guide — ProfitPerPlate</h3>
+        <div id="helpModalContent">
+          <!-- Content will be populated by JavaScript -->
+        </div>
+        <div style="text-align: right; margin-top: var(--space-md)">
+          <button id="closeHelp" class="modal-close">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Supabase and new scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
