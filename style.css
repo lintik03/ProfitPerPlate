@@ -694,6 +694,27 @@ td span:not(:has(input, select)) {
   font-size: 13px;
 }
 
+/* NEW: Eye toggle button for password */
+.eye-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  padding: var(--space-sm);
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.eye-toggle:hover {
+  background: var(--primary-light);
+  transform: scale(1.1);
+}
+
 /* Buttons - Enhanced */
 .btn-primary {
   background: var(--primary);

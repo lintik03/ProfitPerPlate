@@ -256,6 +256,9 @@ const authError = document.getElementById("authError");
 const authSwitchBtn = document.getElementById("authSwitchBtn");
 const authSwitchText = document.getElementById("authSwitchText");
 
+// NEW: Password toggle element
+const togglePassword = document.getElementById("togglePassword");
+
 // Auth Button Elements
 const loginBtn = document.getElementById("loginBtn");
 const signupBtn = document.getElementById("signupBtn");
@@ -350,6 +353,11 @@ function closeAuthModal() {
     authModal.classList.add("hidden");
     authForm.reset();
     authError.classList.add("hidden");
+    // Reset password visibility
+    authPassword.type = 'password';
+    if (togglePassword) {
+        togglePassword.textContent = '👁️';
+    }
 }
 
 function updateAuthModal() {
@@ -363,6 +371,17 @@ function updateAuthModal() {
         authSubmitBtn.textContent = "Login";
         authSwitchText.textContent = "Don't have an account? ";
         authSwitchBtn.textContent = "Sign up";
+    }
+}
+
+// NEW: Toggle password visibility
+function togglePasswordVisibility() {
+    if (authPassword.type === 'password') {
+        authPassword.type = 'text';
+        togglePassword.textContent = '🔒';
+    } else {
+        authPassword.type = 'password';
+        togglePassword.textContent = '👁️';
     }
 }
 
@@ -631,7 +650,21 @@ function setupEventListeners() {
             saveRecipe('main');
         }
     });
-    saveSubRecipeBtn.addEventListener("click", openSubRecipeSaveModal);
+    
+    // FIX FOR ISSUE 1: Check for sub-recipe editing when saving
+    saveSubRecipeBtn.addEventListener("click", () => {
+        if (!recipeNameInput.value.trim()) {
+            alert("Please enter a recipe name before saving as sub-recipe");
+            recipeNameInput.focus();
+            return;
+        }
+        
+        if (editingItem.type === 'subRecipe' && editingItem.id) {
+            showEditPrompt('subRecipe', editingItem.id, recipeNameInput.value);
+        } else {
+            openSubRecipeSaveModal();
+        }
+    });
 
     // Save Raw Material button
     document
@@ -702,6 +735,11 @@ function setupEventListeners() {
             closeAuthModal();
         }
     });
+
+    // NEW: Password visibility toggle
+    if (togglePassword) {
+        togglePassword.addEventListener("click", togglePasswordVisibility);
+    }
 
     // Update unit display when item is selected in unified dropdown
     unifiedItemSelect.addEventListener("change", function () {
@@ -1667,6 +1705,11 @@ function saveRecipe(type) {
         if (existingIndex !== -1) {
             recipes[existingIndex] = recipe;
         }
+    } else if (editingItem.type === 'subRecipe' && editingItem.id) {
+        const existingIndex = recipes.findIndex(r => r.id === editingItem.id);
+        if (existingIndex !== -1) {
+            recipes[existingIndex] = recipe;
+        }
     } else {
         recipes.push(recipe);
     }
@@ -1940,11 +1983,25 @@ function handleEditPromptChoice(choice) {
     
     if (choice === 'replace') {
         // Replace existing recipe
-        saveRecipe(editingItem.type === 'mainRecipe' ? 'main' : 'sub');
+        if (editingItem.type === 'mainRecipe') {
+            saveRecipe('main');
+        } else if (editingItem.type === 'subRecipe') {
+            saveRecipe('sub');
+        } else {
+            // Handle other types if needed
+            saveRecipe(editingItem.type === 'mainRecipe' ? 'main' : 'sub');
+        }
     } else if (choice === 'new') {
         // Save as new recipe (generate new ID)
         editingItem.id = null;
-        saveRecipe(editingItem.type === 'mainRecipe' ? 'main' : 'sub');
+        if (editingItem.type === 'mainRecipe') {
+            saveRecipe('main');
+        } else if (editingItem.type === 'subRecipe') {
+            saveRecipe('sub');
+        } else {
+            // Handle other types if needed
+            saveRecipe(editingItem.type === 'mainRecipe' ? 'main' : 'sub');
+        }
     }
 }
 
@@ -1963,6 +2020,59 @@ function closeEditPromptModal() {
     editPromptModal.classList.add("hidden");
 }
 
+// NEW: Function to flatten sub-recipes for display and calculation
+function flattenSubRecipes(recipeItems, batchScale = 1) {
+    const flattenedItems = [];
+    
+    recipeItems.forEach(item => {
+        if (item.type === 'sub-recipe' && item.subRecipeId) {
+            // Find the sub-recipe
+            const subRecipe = getCurrentRecipes().find(r => r.id === item.subRecipeId);
+            if (subRecipe) {
+                // Calculate the scaling factor for this sub-recipe usage
+                const subRecipeScaling = item.quantity / subRecipe.yieldQuantity;
+                
+                // Flatten raw materials from sub-recipe
+                subRecipe.rawMaterialItems.forEach(subItem => {
+                    const scaledQuantity = subItem.quantity * subRecipeScaling * batchScale;
+                    flattenedItems.push({
+                        name: `${subItem.name} (from ${subRecipe.name})`,
+                        quantity: scaledQuantity,
+                        unit: subItem.unit,
+                        yield: subItem.yield,
+                        unitCost: subItem.unitCost,
+                        type: 'rawMaterial',
+                        isFromSubRecipe: true
+                    });
+                });
+                
+                // Flatten direct labor from sub-recipe
+                subRecipe.directLaborItems.forEach(subItem => {
+                    const scaledQuantity = subItem.quantity * subRecipeScaling * batchScale;
+                    flattenedItems.push({
+                        name: `${subItem.name} (from ${subRecipe.name})`,
+                        quantity: scaledQuantity,
+                        unit: subItem.unit,
+                        yield: subItem.yield,
+                        unitCost: subItem.unitCost,
+                        type: 'directLabor',
+                        isFromSubRecipe: true
+                    });
+                });
+            }
+        } else {
+            // Regular item, just scale it
+            flattenedItems.push({
+                ...item,
+                quantity: item.quantity * batchScale,
+                isFromSubRecipe: false
+            });
+        }
+    });
+    
+    return flattenedItems;
+}
+
 // Recalculate totals
 function recalc() {
     const batchScale = parseFloat(batchScaleInput.value) || 1;
@@ -1972,38 +2082,62 @@ function recalc() {
     let rawMaterialsTotal = 0;
     let directLaborTotal = 0;
 
-    // Calculate raw materials total
+    // Get all recipe items
+    const recipeItems = [];
     recipeBody.querySelectorAll("tr").forEach((row) => {
-        const q = parseFloat(row.children[1].querySelector("input").value) || 0;
-        const uc = parseFloat(row.children[3].querySelector("input").value) || 0;
-        const y = parseFloat(row.children[2].querySelector("input").value) || 100;
-        rawMaterialsTotal += q * uc * (y / 100);
+        const itemName = row.children[0].querySelector("input").value;
+        const quantity = parseFloat(row.children[1].querySelector("input").value) || 0;
+        const unit = row.children[1].querySelector(".quantity-unit").textContent;
+        const yieldPct = parseFloat(row.children[2].querySelector("input").value) || 100;
+        const unitCost = parseFloat(row.children[3].querySelector("input").value) || 0;
+        const type = row.dataset.type || 'rawMaterial';
+        const subRecipeId = row.dataset.subRecipeId || null;
+        
+        recipeItems.push({
+            name: itemName,
+            quantity: quantity,
+            unit: unit,
+            yield: yieldPct,
+            unitCost: unitCost,
+            type: type,
+            subRecipeId: subRecipeId
+        });
     });
 
-    // Calculate direct labor total
+    // FIX FOR ISSUE 2a & 2b: Flatten sub-recipes for calculation
+    const flattenedItems = flattenSubRecipes(recipeItems, batchScale);
+
+    // Calculate totals from flattened items
+    flattenedItems.forEach(item => {
+        if (item.type === 'rawMaterial' || item.type === 'sub-recipe') {
+            rawMaterialsTotal += item.quantity * item.unitCost * (item.yield / 100);
+        } else if (item.type === 'directLabor') {
+            directLaborTotal += item.quantity * item.unitCost;
+        }
+    });
+
+    // Calculate direct labor total (separate from flattened items)
     directLaborRecipeBody.querySelectorAll("tr").forEach((row) => {
         const time = parseFloat(row.children[1].querySelector("input").value) || 0;
         const rate = parseFloat(row.children[2].querySelector("input").value) || 0;
-        directLaborTotal += time * rate;
+        directLaborTotal += (time * rate) * batchScale;
     });
 
-    const scaledRawMaterialsTotal = rawMaterialsTotal * batchScale;
-    const scaledDirectLaborTotal = directLaborTotal * batchScale;
-    const grandTotal = scaledRawMaterialsTotal + scaledDirectLaborTotal;
+    const grandTotal = rawMaterialsTotal + directLaborTotal;
 
     // Update display
-    rawMaterialsTotalEl.textContent = `${currency}${scaledRawMaterialsTotal.toFixed(2)}`;
-    directLaborTotalEl.textContent = `${currency}${scaledDirectLaborTotal.toFixed(2)}`;
+    rawMaterialsTotalEl.textContent = `${currency}${rawMaterialsTotal.toFixed(2)}`;
+    directLaborTotalEl.textContent = `${currency}${directLaborTotal.toFixed(2)}`;
     grandTotalEl.textContent = `${currency}${grandTotal.toFixed(2)}`;
 
     // Update summary
-    updateSummary(scaledRawMaterialsTotal, scaledDirectLaborTotal, grandTotal, scaledServings);
+    updateSummary(rawMaterialsTotal, directLaborTotal, grandTotal, scaledServings);
     
     // NEW: Update cost breakdown preview
     updateCostBreakdownPreview();
 }
 
-// Update summary section
+// Update summary section - FIX FOR ISSUE 2c: Tax/VAT isolation
 function updateSummary(rawMaterialsCost, directLaborCost, totalCost, scaledServings) {
     const markup = parseFloat(markupInput.value) || 0;
     const tax = parseFloat(taxInput.value) || 0;
@@ -2013,13 +2147,13 @@ function updateSummary(rawMaterialsCost, directLaborCost, totalCost, scaledServi
     const sellingPriceBeforeTax = costPerServing * (1 + markup / 100);
     const sellingPrice = sellingPriceBeforeTax * (1 + (tax + vat) / 100);
 
-    // Calculate percentages based on selling price (industry standard)
-    const foodCostPercent = sellingPrice > 0 ? (rawMaterialsCost / scaledServings / sellingPrice) * 100 : 0;
-    const laborCostPercent = sellingPrice > 0 ? (directLaborCost / scaledServings / sellingPrice) * 100 : 0;
-    const totalCostPercent = sellingPrice > 0 ? (totalCost / scaledServings / sellingPrice) * 100 : 0;
-    const grossProfitPercent = sellingPrice > 0 ? 100 - totalCostPercent : 0;
+    // FIX FOR ISSUE 2c: Calculate percentages based on selling price BEFORE tax (industry standard)
+    const foodCostPercent = sellingPriceBeforeTax > 0 ? (rawMaterialsCost / scaledServings / sellingPriceBeforeTax) * 100 : 0;
+    const laborCostPercent = sellingPriceBeforeTax > 0 ? (directLaborCost / scaledServings / sellingPriceBeforeTax) * 100 : 0;
+    const totalCostPercent = sellingPriceBeforeTax > 0 ? (totalCost / scaledServings / sellingPriceBeforeTax) * 100 : 0;
+    const grossProfitPercent = sellingPriceBeforeTax > 0 ? 100 - totalCostPercent : 0;
 
-    // NEW: Calculate batch profit
+    // NEW: Calculate batch profit (using AFTER-TAX selling price for revenue)
     const batchRevenue = sellingPrice * scaledServings;
     const batchProfit = batchRevenue - totalCost;
     const batchProfitMargin = batchRevenue > 0 ? (batchProfit / batchRevenue) * 100 : 0;
@@ -2057,33 +2191,58 @@ function generatePrintPreview() {
     
     // Calculate raw materials and direct labor totals
     let rawMaterialsCost = 0;
+    let directLaborCost = 0;
+    
+    // Get all recipe items for flattening
+    const recipeItems = [];
     recipeBody.querySelectorAll("tr").forEach((row) => {
-        const q = parseFloat(row.children[1].querySelector("input").value) || 0;
-        const uc = parseFloat(row.children[3].querySelector("input").value) || 0;
-        const y = parseFloat(row.children[2].querySelector("input").value) || 100;
-        rawMaterialsCost += q * uc * (y / 100);
+        const itemName = row.children[0].querySelector("input").value;
+        const quantity = parseFloat(row.children[1].querySelector("input").value) || 0;
+        const unit = row.children[1].querySelector(".quantity-unit").textContent;
+        const yieldPct = parseFloat(row.children[2].querySelector("input").value) || 100;
+        const unitCost = parseFloat(row.children[3].querySelector("input").value) || 0;
+        const type = row.dataset.type || 'rawMaterial';
+        const subRecipeId = row.dataset.subRecipeId || null;
+        
+        recipeItems.push({
+            name: itemName,
+            quantity: quantity,
+            unit: unit,
+            yield: yieldPct,
+            unitCost: unitCost,
+            type: type,
+            subRecipeId: subRecipeId
+        });
+    });
+
+    // Use flattened items for calculation
+    const flattenedItems = flattenSubRecipes(recipeItems, batchScale);
+    
+    flattenedItems.forEach(item => {
+        if (item.type === 'rawMaterial' || item.type === 'sub-recipe') {
+            rawMaterialsCost += item.quantity * item.unitCost * (item.yield / 100);
+        } else if (item.type === 'directLabor') {
+            directLaborCost += item.quantity * item.unitCost;
+        }
     });
     
-    let directLaborCost = 0;
     directLaborRecipeBody.querySelectorAll("tr").forEach((row) => {
         const time = parseFloat(row.children[1].querySelector("input").value) || 0;
         const rate = parseFloat(row.children[2].querySelector("input").value) || 0;
-        directLaborCost += time * rate;
+        directLaborCost += (time * rate) * batchScale;
     });
-    
-    const scaledRawMaterialsCost = rawMaterialsCost * batchScale;
-    const scaledDirectLaborCost = directLaborCost * batchScale;
     
     const costPerServing = totalCost / scaledServings;
     const sellingPriceBeforeTax = costPerServing * (1 + markup / 100);
     const sellingPrice = sellingPriceBeforeTax * (1 + (tax + vat) / 100);
     
-    const foodCostPercent = sellingPrice > 0 ? (scaledRawMaterialsCost / scaledServings / sellingPrice) * 100 : 0;
-    const laborCostPercent = sellingPrice > 0 ? (scaledDirectLaborCost / scaledServings / sellingPrice) * 100 : 0;
-    const totalCostPercent = sellingPrice > 0 ? (totalCost / scaledServings / sellingPrice) * 100 : 0;
-    const grossProfitPercent = sellingPrice > 0 ? 100 - totalCostPercent : 0;
+    // FIX FOR ISSUE 2c: Use selling price before tax for percentages
+    const foodCostPercent = sellingPriceBeforeTax > 0 ? (rawMaterialsCost / scaledServings / sellingPriceBeforeTax) * 100 : 0;
+    const laborCostPercent = sellingPriceBeforeTax > 0 ? (directLaborCost / scaledServings / sellingPriceBeforeTax) * 100 : 0;
+    const totalCostPercent = sellingPriceBeforeTax > 0 ? (totalCost / scaledServings / sellingPriceBeforeTax) * 100 : 0;
+    const grossProfitPercent = sellingPriceBeforeTax > 0 ? 100 - totalCostPercent : 0;
 
-    // NEW: Batch profit calculations
+    // NEW: Batch profit calculations (using after-tax selling price)
     const batchRevenue = sellingPrice * scaledServings;
     const batchProfit = batchRevenue - totalCost;
     const batchProfitMargin = batchRevenue > 0 ? (batchProfit / batchRevenue) * 100 : 0;
@@ -2109,22 +2268,17 @@ function generatePrintPreview() {
                 <tbody>
     `;
 
-    // Add raw materials rows
-    recipeBody.querySelectorAll("tr").forEach(row => {
-        const itemName = row.children[0].querySelector("input").value;
-        const quantity = parseFloat(row.children[1].querySelector("input").value) || 0;
-        const quantityUnit = row.children[1].querySelector(".quantity-unit").textContent;
-        const yieldPct = parseFloat(row.children[2].querySelector("input").value) || 100;
-        const unitCost = parseFloat(row.children[3].querySelector("input").value) || 0;
-        const unitCostUnit = row.children[3].querySelector(".unit-display").textContent;
-        const totalCost = (quantity * unitCost * (yieldPct / 100)) * batchScale;
+    // Add raw materials rows from flattened items
+    const rawMaterialFlattened = flattenedItems.filter(item => item.type === 'rawMaterial' || item.type === 'sub-recipe');
+    rawMaterialFlattened.forEach(item => {
+        const totalCost = item.quantity * item.unitCost * (item.yield / 100);
         
         printHTML += `
             <tr>
-                <td>${escapeHtml(itemName)}</td>
-                <td>${(quantity * batchScale).toFixed(2)} ${quantityUnit}</td>
-                <td>${parseFloat(yieldPct).toFixed(1)}%</td>
-                <td>${currency}${parseFloat(unitCost).toFixed(2)}${unitCostUnit}</td>
+                <td>${escapeHtml(item.name)}</td>
+                <td>${item.quantity.toFixed(2)} ${item.unit}</td>
+                <td>${parseFloat(item.yield).toFixed(1)}%</td>
+                <td>${currency}${parseFloat(item.unitCost).toFixed(2)}/${item.unit}</td>
                 <td>${currency}${totalCost.toFixed(2)}</td>
             </tr>
         `;
@@ -2135,7 +2289,7 @@ function generatePrintPreview() {
                 <tfoot>
                     <tr class="summary-highlight">
                         <td colspan="4">Raw Materials Subtotal</td>
-                        <td>${currency}${scaledRawMaterialsCost.toFixed(2)}</td>
+                        <td>${currency}${rawMaterialsCost.toFixed(2)}</td>
                     </tr>
                 </tfoot>
             </table>
@@ -2155,7 +2309,22 @@ function generatePrintPreview() {
                 <tbody>
     `;
 
-    // Add direct labor rows
+    // Add direct labor rows from flattened items
+    const laborFlattened = flattenedItems.filter(item => item.type === 'directLabor');
+    laborFlattened.forEach(item => {
+        const totalCost = item.quantity * item.unitCost;
+        
+        printHTML += `
+            <tr>
+                <td>${escapeHtml(item.name)}</td>
+                <td>${item.quantity.toFixed(2)} ${item.unit}</td>
+                <td>${currency}${parseFloat(item.unitCost).toFixed(2)}/${item.unit}</td>
+                <td>${currency}${totalCost.toFixed(2)}</td>
+            </tr>
+        `;
+    });
+
+    // Add direct labor from the direct labor table
     directLaborRecipeBody.querySelectorAll("tr").forEach(row => {
         const laborName = row.children[0].querySelector("input").value;
         const timeRequired = parseFloat(row.children[1].querySelector("input").value) || 0;
@@ -2179,7 +2348,7 @@ function generatePrintPreview() {
                 <tfoot>
                     <tr class="summary-highlight">
                         <td colspan="3">Direct Labor Subtotal</td>
-                        <td>${currency}${scaledDirectLaborCost.toFixed(2)}</td>
+                        <td>${currency}${directLaborCost.toFixed(2)}</td>
                     </tr>
                 </tfoot>
             </table>
@@ -2191,11 +2360,11 @@ function generatePrintPreview() {
                 <tbody>
                     <tr>
                         <td>Raw Materials Cost:</td>
-                        <td>${currency}${scaledRawMaterialsCost.toFixed(2)}</td>
+                        <td>${currency}${rawMaterialsCost.toFixed(2)}</td>
                     </tr>
                     <tr>
                         <td>Direct Labor Cost:</td>
-                        <td>${currency}${scaledDirectLaborCost.toFixed(2)}</td>
+                        <td>${currency}${directLaborCost.toFixed(2)}</td>
                     </tr>
                     <tr class="totals-row">
                         <td><strong>Total Recipe Cost:</strong></td>
@@ -2372,18 +2541,22 @@ function loadRecipeForSummary() {
 function updateSummaryWithLoadedRecipe(recipe) {
     const batchScale = parseFloat(batchScaleInput.value) || 1;
     
-    // Calculate totals from the loaded recipe
-    let rawMaterialsTotal = recipe.rawMaterialItems.reduce((total, item) => {
-        return total + (item.quantity * item.unitCost * (item.yield / 100));
-    }, 0);
-
-    let directLaborTotal = recipe.directLaborItems.reduce((total, item) => {
-        return total + (item.quantity * item.unitCost);
-    }, 0);
-
-    // Scale the totals
-    rawMaterialsTotal *= batchScale;
-    directLaborTotal *= batchScale;
+    // FIX FOR ISSUE 2a & 2b: Flatten sub-recipes for calculation
+    const allItems = [...recipe.rawMaterialItems, ...recipe.directLaborItems];
+    const flattenedItems = flattenSubRecipes(allItems, batchScale);
+    
+    // Calculate totals from flattened items
+    let rawMaterialsTotal = 0;
+    let directLaborTotal = 0;
+    
+    flattenedItems.forEach(item => {
+        if (item.type === 'rawMaterial' || item.type === 'sub-recipe') {
+            rawMaterialsTotal += item.quantity * item.unitCost * (item.yield / 100);
+        } else if (item.type === 'directLabor') {
+            directLaborTotal += item.quantity * item.unitCost;
+        }
+    });
+    
     const totalCost = rawMaterialsTotal + directLaborTotal;
     const servings = recipe.servings || 1;
     const scaledServings = servings * batchScale;
@@ -2401,6 +2574,12 @@ function updateSummaryWithLoadedRecipe(recipe) {
     const batchProfit = batchRevenue - totalCost;
     const batchProfitMargin = batchRevenue > 0 ? (batchProfit / batchRevenue) * 100 : 0;
     
+    // FIX FOR ISSUE 2c: Use selling price before tax for percentages
+    const foodCostPercent = sellingPriceBeforeTax > 0 ? (rawMaterialsTotal / scaledServings / sellingPriceBeforeTax) * 100 : 0;
+    const laborCostPercent = sellingPriceBeforeTax > 0 ? (directLaborTotal / scaledServings / sellingPriceBeforeTax) * 100 : 0;
+    const totalCostPercent = sellingPriceBeforeTax > 0 ? (totalCost / scaledServings / sellingPriceBeforeTax) * 100 : 0;
+    const grossProfitPercent = sellingPriceBeforeTax > 0 ? 100 - totalCostPercent : 0;
+    
     // Update servings display
     summaryServingsDisplay.textContent = scaledServings;
     
@@ -2410,12 +2589,6 @@ function updateSummaryWithLoadedRecipe(recipe) {
     summaryTotalCost.textContent = `${currency}${totalCost.toFixed(2)}`;
     summaryCostServing.textContent = `${currency}${costPerServing.toFixed(2)}`;
     summarySellingPrice.textContent = `${currency}${sellingPrice.toFixed(2)}`;
-    
-    // Calculate percentages
-    const foodCostPercent = sellingPrice > 0 ? (rawMaterialsTotal / scaledServings / sellingPrice) * 100 : 0;
-    const laborCostPercent = sellingPrice > 0 ? (directLaborTotal / scaledServings / sellingPrice) * 100 : 0;
-    const totalCostPercent = sellingPrice > 0 ? (totalCost / scaledServings / sellingPrice) * 100 : 0;
-    const grossProfitPercent = sellingPrice > 0 ? 100 - totalCostPercent : 0;
     
     summaryFoodCost.textContent = `${foodCostPercent.toFixed(1)}%`;
     summaryLaborCostPercent.textContent = `${laborCostPercent.toFixed(1)}%`;
@@ -2435,20 +2608,27 @@ function updateSummaryWithLoadedRecipe(recipe) {
 function updateCostBreakdownPreviewWithRecipe(recipe) {
     const batchScale = parseFloat(batchScaleInput.value) || 1;
     
+    // FIX FOR ISSUE 2a & 2b: Flatten sub-recipes for display
+    const allItems = [...recipe.rawMaterialItems, ...recipe.directLaborItems];
+    const flattenedItems = flattenSubRecipes(allItems, batchScale);
+    
+    // Separate flattened items by type
+    const rawMaterialFlattened = flattenedItems.filter(item => item.type === 'rawMaterial' || item.type === 'sub-recipe');
+    const directLaborFlattened = flattenedItems.filter(item => item.type === 'directLabor');
+    
     // Update raw materials preview
-    rawMaterialsCount.textContent = `${recipe.rawMaterialItems.length} items`;
+    rawMaterialsCount.textContent = `${rawMaterialFlattened.length} items`;
     
     let rawMaterialsSubtotal = 0;
     rawMaterialsPreviewBody.innerHTML = '';
     
-    recipe.rawMaterialItems.forEach(item => {
-        const scaledQuantity = item.quantity * batchScale;
-        const totalCost = scaledQuantity * item.unitCost * (item.yield / 100);
+    rawMaterialFlattened.forEach(item => {
+        const totalCost = item.quantity * item.unitCost * (item.yield / 100);
         
         const rowElement = document.createElement('tr');
         rowElement.innerHTML = `
             <td>${escapeHtml(item.name)}</td>
-            <td>${scaledQuantity.toFixed(2)} ${item.unit}</td>
+            <td>${item.quantity.toFixed(2)} ${item.unit}</td>
             <td>${parseFloat(item.yield).toFixed(1)}%</td>
             <td>${currency}${parseFloat(item.unitCost).toFixed(2)}/${item.unit}</td>
             <td>${currency}${totalCost.toFixed(2)}</td>
@@ -2462,19 +2642,18 @@ function updateCostBreakdownPreviewWithRecipe(recipe) {
     rawMaterialsPreviewSubtotal.textContent = `${currency}${rawMaterialsSubtotal.toFixed(2)}`;
     
     // Update direct labor preview
-    directLaborCount.textContent = `${recipe.directLaborItems.length} items`;
+    directLaborCount.textContent = `${directLaborFlattened.length} items`;
     
     let directLaborSubtotal = 0;
     directLaborPreviewBody.innerHTML = '';
     
-    recipe.directLaborItems.forEach(item => {
-        const scaledTime = item.quantity * batchScale;
-        const totalCost = scaledTime * item.unitCost;
+    directLaborFlattened.forEach(item => {
+        const totalCost = item.quantity * item.unitCost;
         
         const rowElement = document.createElement('tr');
         rowElement.innerHTML = `
             <td>${escapeHtml(item.name)}</td>
-            <td>${scaledTime.toFixed(2)} ${item.unit}</td>
+            <td>${item.quantity.toFixed(2)} ${item.unit}</td>
             <td>${currency}${parseFloat(item.unitCost).toFixed(2)}/${item.unit}</td>
             <td>${currency}${totalCost.toFixed(2)}</td>
         `;
@@ -2498,28 +2677,50 @@ function updateCostBreakdownPreview() {
     // Otherwise use current recipe data
     const batchScale = parseFloat(batchScaleInput.value) || 1;
     
+    // Get current recipe items for flattening
+    const recipeItems = [];
+    recipeBody.querySelectorAll("tr").forEach(row => {
+        const itemName = row.children[0].querySelector("input").value;
+        const quantity = parseFloat(row.children[1].querySelector("input").value) || 0;
+        const unit = row.children[1].querySelector(".quantity-unit").textContent;
+        const yieldPct = parseFloat(row.children[2].querySelector("input").value) || 100;
+        const unitCost = parseFloat(row.children[3].querySelector("input").value) || 0;
+        const type = row.dataset.type || 'rawMaterial';
+        const subRecipeId = row.dataset.subRecipeId || null;
+        
+        recipeItems.push({
+            name: itemName,
+            quantity: quantity,
+            unit: unit,
+            yield: yieldPct,
+            unitCost: unitCost,
+            type: type,
+            subRecipeId: subRecipeId
+        });
+    });
+
+    // FIX FOR ISSUE 2a & 2b: Flatten sub-recipes for display
+    const flattenedItems = flattenSubRecipes(recipeItems, batchScale);
+    
+    // Separate flattened items by type
+    const rawMaterialFlattened = flattenedItems.filter(item => item.type === 'rawMaterial' || item.type === 'sub-recipe');
+    const directLaborFlattened = flattenedItems.filter(item => item.type === 'directLabor');
+    
     // Update raw materials preview
-    const rawMaterialRows = recipeBody.querySelectorAll("tr");
-    rawMaterialsCount.textContent = `${rawMaterialRows.length} items`;
+    rawMaterialsCount.textContent = `${rawMaterialFlattened.length} items`;
     
     let rawMaterialsSubtotal = 0;
     rawMaterialsPreviewBody.innerHTML = '';
     
-    rawMaterialRows.forEach(row => {
-        const itemName = row.children[0].querySelector("input").value;
-        const quantity = parseFloat(row.children[1].querySelector("input").value) || 0;
-        const quantityUnit = row.children[1].querySelector(".quantity-unit").textContent;
-        const yieldPct = parseFloat(row.children[2].querySelector("input").value) || 100;
-        const unitCost = parseFloat(row.children[3].querySelector("input").value) || 0;
-        const unitCostUnit = row.children[3].querySelector(".unit-display").textContent;
-        const totalCost = (quantity * unitCost * (yieldPct / 100)) * batchScale;
+    rawMaterialFlattened.forEach(item => {
+        const totalCost = item.quantity * item.unitCost * (item.yield / 100);
         
         const rowElement = document.createElement('tr');
         rowElement.innerHTML = `
-            <td>${escapeHtml(itemName)}</td>
-            <td>${(quantity * batchScale).toFixed(2)} ${quantityUnit}</td>
-            <td>${parseFloat(yieldPct).toFixed(1)}%</td>
-            <td>${currency}${parseFloat(unitCost).toFixed(2)}${unitCostUnit}</td>
+            <td>${escapeHtml(item.name)}</td>
+            <td>${item.quantity.toFixed(2)} ${item.unit}</td>
+            <td>${parseFloat(item.yield).toFixed(1)}%</td>
+            <td>${currency}${parseFloat(item.unitCost).toFixed(2)}/${item.unit}</td>
             <td>${currency}${totalCost.toFixed(2)}</td>
         `;
         rawMaterialsPreviewBody.appendChild(rowElement);
@@ -2530,31 +2731,57 @@ function updateCostBreakdownPreview() {
     rawMaterialsPreviewTotal.textContent = `${currency}${rawMaterialsSubtotal.toFixed(2)}`;
     rawMaterialsPreviewSubtotal.textContent = `${currency}${rawMaterialsSubtotal.toFixed(2)}`;
     
-    // Update direct labor preview
-    const directLaborRows = directLaborRecipeBody.querySelectorAll("tr");
-    directLaborCount.textContent = `${directLaborRows.length} items`;
-    
-    let directLaborSubtotal = 0;
-    directLaborPreviewBody.innerHTML = '';
-    
-    directLaborRows.forEach(row => {
+    // Update direct labor preview (include direct labor table items)
+    const directLaborTableItems = [];
+    directLaborRecipeBody.querySelectorAll("tr").forEach(row => {
         const laborName = row.children[0].querySelector("input").value;
         const timeRequired = parseFloat(row.children[1].querySelector("input").value) || 0;
         const timeUnit = row.children[1].querySelector(".quantity-unit").textContent;
         const rate = parseFloat(row.children[2].querySelector("input").value) || 0;
-        const rateUnit = row.children[2].querySelector(".unit-display-small").textContent;
         const totalCost = (timeRequired * rate) * batchScale;
+        
+        directLaborTableItems.push({
+            name: laborName,
+            quantity: timeRequired * batchScale,
+            unit: timeUnit,
+            unitCost: rate,
+            totalCost: totalCost
+        });
+    });
+    
+    directLaborCount.textContent = `${directLaborFlattened.length + directLaborTableItems.length} items`;
+    
+    let directLaborSubtotal = 0;
+    directLaborPreviewBody.innerHTML = '';
+    
+    // Add flattened direct labor items
+    directLaborFlattened.forEach(item => {
+        const totalCost = item.quantity * item.unitCost;
         
         const rowElement = document.createElement('tr');
         rowElement.innerHTML = `
-            <td>${escapeHtml(laborName)}</td>
-            <td>${(timeRequired * batchScale).toFixed(2)} ${timeUnit}</td>
-            <td>${currency}${parseFloat(rate).toFixed(2)}${rateUnit}</td>
+            <td>${escapeHtml(item.name)}</td>
+            <td>${item.quantity.toFixed(2)} ${item.unit}</td>
+            <td>${currency}${parseFloat(item.unitCost).toFixed(2)}/${item.unit}</td>
             <td>${currency}${totalCost.toFixed(2)}</td>
         `;
         directLaborPreviewBody.appendChild(rowElement);
         
         directLaborSubtotal += totalCost;
+    });
+    
+    // Add direct labor table items
+    directLaborTableItems.forEach(item => {
+        const rowElement = document.createElement('tr');
+        rowElement.innerHTML = `
+            <td>${escapeHtml(item.name)}</td>
+            <td>${item.quantity.toFixed(2)} ${item.unit}</td>
+            <td>${currency}${parseFloat(item.unitCost).toFixed(2)}/${item.unit}</td>
+            <td>${currency}${item.totalCost.toFixed(2)}</td>
+        `;
+        directLaborPreviewBody.appendChild(rowElement);
+        
+        directLaborSubtotal += item.totalCost;
     });
     
     directLaborPreviewTotal.textContent = `${currency}${directLaborSubtotal.toFixed(2)}`;
@@ -2707,20 +2934,46 @@ function calculateCurrentRecipeTotalCost() {
     let rawMaterialsTotal = 0;
     let directLaborTotal = 0;
     
+    // Get recipe items for flattening
+    const recipeItems = [];
     recipeBody.querySelectorAll("tr").forEach((row) => {
-        const q = parseFloat(row.children[1].querySelector("input").value) || 0;
-        const uc = parseFloat(row.children[3].querySelector("input").value) || 0;
-        const y = parseFloat(row.children[2].querySelector("input").value) || 100;
-        rawMaterialsTotal += q * uc * (y / 100);
+        const itemName = row.children[0].querySelector("input").value;
+        const quantity = parseFloat(row.children[1].querySelector("input").value) || 0;
+        const unit = row.children[1].querySelector(".quantity-unit").textContent;
+        const yieldPct = parseFloat(row.children[2].querySelector("input").value) || 100;
+        const unitCost = parseFloat(row.children[3].querySelector("input").value) || 0;
+        const type = row.dataset.type || 'rawMaterial';
+        const subRecipeId = row.dataset.subRecipeId || null;
+        
+        recipeItems.push({
+            name: itemName,
+            quantity: quantity,
+            unit: unit,
+            yield: yieldPct,
+            unitCost: unitCost,
+            type: type,
+            subRecipeId: subRecipeId
+        });
+    });
+
+    // Use flattened items for calculation
+    const flattenedItems = flattenSubRecipes(recipeItems, batchScale);
+    
+    flattenedItems.forEach(item => {
+        if (item.type === 'rawMaterial' || item.type === 'sub-recipe') {
+            rawMaterialsTotal += item.quantity * item.unitCost * (item.yield / 100);
+        } else if (item.type === 'directLabor') {
+            directLaborTotal += item.quantity * item.unitCost;
+        }
     });
     
     directLaborRecipeBody.querySelectorAll("tr").forEach((row) => {
         const time = parseFloat(row.children[1].querySelector("input").value) || 0;
         const rate = parseFloat(row.children[2].querySelector("input").value) || 0;
-        directLaborTotal += time * rate;
+        directLaborTotal += (time * rate) * batchScale;
     });
     
-    return parseFloat(((rawMaterialsTotal + directLaborTotal) * batchScale).toFixed(2));
+    return parseFloat((rawMaterialsTotal + directLaborTotal).toFixed(2));
 }
 
 // Tab Management
