@@ -2402,7 +2402,7 @@ td span:not(:has(input, select)) {
   }
 }
 
-/* Dark Mode Styles - WITH FIXES FOR ISSUE 1 */
+/* Dark Mode Styles - WITH FIXES FOR ISSUE 1 & 3 */
 body.dark-mode {
   --background: #1a1d23;
   --surface: #252932;
@@ -2491,7 +2491,7 @@ body.dark-mode tr:hover td {
   background: rgba(110, 215, 157, 0.08) !important;
 }
 
-/* Inputs and selects in dark mode */
+/* Inputs and selects in dark mode - FIX FOR ISSUE 3 */
 body.dark-mode input,
 body.dark-mode select,
 body.dark-mode textarea {
@@ -2504,6 +2504,42 @@ body.dark-mode textarea {
 body.dark-mode input::placeholder,
 body.dark-mode textarea::placeholder {
   color: var(--text-secondary);
+}
+
+/* FIX FOR ISSUE 3: Specific fixes for dark mode input backgrounds */
+body.dark-mode #recipeName,
+body.dark-mode #authEmail,
+body.dark-mode #authPassword,
+body.dark-mode .recipe-header-controls input,
+body.dark-mode .modal input[type="text"],
+body.dark-mode .modal input[type="email"],
+body.dark-mode .modal input[type="password"],
+body.dark-mode .modal input[type="number"],
+body.dark-mode .modal select {
+  background: var(--surface) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}
+
+body.dark-mode #recipeName:focus,
+body.dark-mode #authEmail:focus,
+body.dark-mode #authPassword:focus,
+body.dark-mode .recipe-header-controls input:focus,
+body.dark-mode .modal input[type="text"]:focus,
+body.dark-mode .modal input[type="email"]:focus,
+body.dark-mode .modal input[type="password"]:focus,
+body.dark-mode .modal input[type="number"]:focus,
+body.dark-mode .modal select:focus {
+  background: var(--surface) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgba(110, 215, 157, 0.15) !important;
+}
+
+/* Ensure readonly inputs also have proper dark mode styling */
+body.dark-mode .readonly-input {
+  background: var(--surface-elevated) !important;
+  color: var(--text-secondary) !important;
 }
 
 body.dark-mode .data-warning {

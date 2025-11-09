@@ -301,6 +301,9 @@ async function initApp() {
     // Check auth state
     await window.supabaseClient.checkAuthState();
     
+    // Add dark mode CSS fixes
+    addDarkModeCSSFixes();
+    
     setupEventListeners();
     renderAllData();
     recalc();
@@ -316,6 +319,49 @@ async function initApp() {
     
     // NEW: Update cost breakdown preview
     updateCostBreakdownPreview();
+}
+
+// Add dark mode CSS fixes
+function addDarkModeCSSFixes() {
+    const style = document.createElement('style');
+    style.textContent = `
+        /* Fix dark mode input backgrounds */
+        body.dark-mode #recipeName,
+        body.dark-mode #authEmail,
+        body.dark-mode #authPassword,
+        body.dark-mode .recipe-header-controls input,
+        body.dark-mode .modal input[type="text"],
+        body.dark-mode .modal input[type="email"],
+        body.dark-mode .modal input[type="password"],
+        body.dark-mode .modal input[type="number"],
+        body.dark-mode .modal select {
+            background: var(--surface) !important;
+            color: var(--text-primary) !important;
+            border-color: var(--border) !important;
+        }
+        
+        body.dark-mode #recipeName:focus,
+        body.dark-mode #authEmail:focus,
+        body.dark-mode #authPassword:focus,
+        body.dark-mode .recipe-header-controls input:focus,
+        body.dark-mode .modal input[type="text"]:focus,
+        body.dark-mode .modal input[type="email"]:focus,
+        body.dark-mode .modal input[type="password"]:focus,
+        body.dark-mode .modal input[type="number"]:focus,
+        body.dark-mode .modal select:focus {
+            background: var(--surface) !important;
+            color: var(--text-primary) !important;
+            border-color: var(--primary) !important;
+            box-shadow: 0 0 0 3px rgba(110, 215, 157, 0.15) !important;
+        }
+        
+        /* Ensure readonly inputs also have proper dark mode styling */
+        body.dark-mode .readonly-input {
+            background: var(--surface-elevated) !important;
+            color: var(--text-secondary) !important;
+        }
+    `;
+    document.head.appendChild(style);
 }
 
 // Render all data
@@ -659,6 +705,7 @@ function setupEventListeners() {
             return;
         }
         
+        // FIXED: Check if we're editing a sub-recipe and show edit prompt
         if (editingItem.type === 'subRecipe' && editingItem.id) {
             showEditPrompt('subRecipe', editingItem.id, recipeNameInput.value);
         } else {
@@ -1429,7 +1476,7 @@ function addDirectLaborToRecipe() {
     timeRequirementUnit.textContent = "hours";
 }
 
-// Simplified function to add items to recipe
+// FIXED: Function to add items to recipe - ensures sub-recipe costs are calculated
 function addItemToRecipe() {
     const selectedValue = unifiedItemSelect.value;
     const quantity = parseFloat(addIngredientQty.value);
@@ -1458,18 +1505,6 @@ function addItemToRecipe() {
             unitCost.toFixed(2),
             'rawMaterial'
         );
-    } else if (type === 'directLabor') {
-        const labor = getCurrentDirectLabor().find(item => item.id === itemId);
-        if (!labor) return;
-
-        addRow(
-            labor.name,
-            quantity.toFixed(2),
-            labor.costUnit,
-            "100",
-            labor.costPerUnit.toFixed(2),
-            'directLabor'
-        );
     } else if (type === 'subrecipe') {
         const subRecipe = getCurrentRecipes().find(recipe => recipe.id === itemId);
         if (!subRecipe) return;
@@ -1494,9 +1529,12 @@ function addItemToRecipe() {
     addIngredientYield.value = "100";
     addIngredientUnit.textContent = "g";
     addIngredientYield.disabled = false;
+    
+    // FIXED: Force recalculation to ensure sub-recipe costs are included
+    recalc();
 }
 
-// Open sub-recipe save modal
+// FIXED: Open sub-recipe save modal - handles both new and edit cases
 function openSubRecipeSaveModal() {
     const recipeName = document.getElementById('recipeName').value.trim();
     if (!recipeName) {
@@ -1508,19 +1546,65 @@ function openSubRecipeSaveModal() {
     // Set the sub-recipe name in the modal
     document.getElementById('subRecipeNameDisplay').value = recipeName;
     
-    // Reset form to default values
-    document.getElementById('subRecipeCategory').value = 'weight';
-    document.getElementById('subRecipeYieldQuantity').value = '1';
+    // If we're editing, pre-fill with existing data, otherwise use defaults
+    if (editingItem.type === 'subRecipe' && editingItem.data) {
+        openSubRecipeSaveModalForEdit();
+    } else {
+        // Reset form to default values for new sub-recipe
+        document.getElementById('subRecipeCategory').value = 'weight';
+        document.getElementById('subRecipeYieldQuantity').value = '1';
+        updateSubRecipeUnitOptions();
+        updateSubRecipeCostDisplay();
+        
+        // Show the modal
+        document.getElementById('subRecipeSaveModal').classList.remove('hidden');
+    }
+}
+
+// FIXED: Function to open sub-recipe save modal for editing
+function openSubRecipeSaveModalForEdit() {
+    const recipeName = document.getElementById('recipeName').value.trim();
+    if (!recipeName) {
+        alert('Please enter a recipe name before saving as sub-recipe');
+        document.getElementById('recipeName').focus();
+        return;
+    }
+
+    // Set the sub-recipe name in the modal
+    document.getElementById('subRecipeNameDisplay').value = recipeName;
     
-    // Update unit options and cost display
-    updateSubRecipeUnitOptions();
-    updateSubRecipeCostDisplay();
+    // If we're editing, pre-fill with existing sub-recipe data
+    if (editingItem.type === 'subRecipe' && editingItem.data) {
+        const subRecipe = editingItem.data;
+        document.getElementById('subRecipeCategory').value = subRecipe.category || 'weight';
+        document.getElementById('subRecipeYieldQuantity').value = subRecipe.yieldQuantity || 1;
+        
+        // Update unit options and set the values
+        updateSubRecipeUnitOptions();
+        
+        // Set the unit values after a small delay to ensure options are populated
+        setTimeout(() => {
+            if (subRecipe.yieldUnit) {
+                document.getElementById('subRecipeYieldUnit').value = subRecipe.yieldUnit;
+            }
+            if (subRecipe.costUnit) {
+                document.getElementById('subRecipeCostUnit').value = subRecipe.costUnit;
+            }
+            updateSubRecipeCostDisplay();
+        }, 100);
+    } else {
+        // Reset form to default values for new sub-recipe
+        document.getElementById('subRecipeCategory').value = 'weight';
+        document.getElementById('subRecipeYieldQuantity').value = '1';
+        updateSubRecipeUnitOptions();
+        updateSubRecipeCostDisplay();
+    }
     
     // Show the modal
     document.getElementById('subRecipeSaveModal').classList.remove('hidden');
 }
 
-// Save sub-recipe function
+// FIXED: Save sub-recipe function - handles both new and edit cases
 function saveSubRecipe() {
     const name = document.getElementById('subRecipeNameDisplay').value;
     const category = document.getElementById('subRecipeCategory').value;
@@ -1590,7 +1674,7 @@ function saveSubRecipe() {
 
     // Create sub-recipe object
     const subRecipe = {
-        id: Date.now(),
+        id: editingItem.id || Date.now(), // Use existing ID if editing, otherwise create new
         name: name,
         type: 'sub',
         category: category,
@@ -1605,20 +1689,36 @@ function saveSubRecipe() {
 
     // Add to saved recipes
     const recipes = getCurrentRecipes();
-    recipes.push(subRecipe);
+    
+    if (editingItem.id) {
+        // Replace existing recipe
+        const existingIndex = recipes.findIndex(r => r.id === editingItem.id);
+        if (existingIndex !== -1) {
+            recipes[existingIndex] = subRecipe;
+        } else {
+            recipes.push(subRecipe);
+        }
+    } else {
+        // Add new recipe
+        recipes.push(subRecipe);
+    }
+    
     setCurrentRecipes(recipes);
 
     // Update displays
     renderRecipesList();
     populateUnifiedItemSelect();
     
-    // NEW: Update summary recipe selector
+    // Update summary recipe selector
     populateSummaryRecipeSelect();
     
     // Close modal
     closeSubRecipeSaveModal();
     
-    alert(`Sub-recipe "${name}" saved successfully!`);
+    // Reset editing state
+    editingItem = { type: null, id: null, data: null };
+    
+    alert(`Sub-recipe "${name}" ${editingItem.id ? 'updated' : 'saved'} successfully!`);
 }
 
 // Close sub-recipe save modal
@@ -1977,31 +2077,21 @@ function showEditPrompt(type, id, name) {
     editPromptModal.classList.remove("hidden");
 }
 
-// Handle edit prompt choice
+// FIXED: Handle edit prompt choice - properly handles sub-recipe editing
 function handleEditPromptChoice(choice) {
     closeEditPromptModal();
     
     if (choice === 'replace') {
-        // Replace existing recipe
-        if (editingItem.type === 'mainRecipe') {
-            saveRecipe('main');
-        } else if (editingItem.type === 'subRecipe') {
-            saveRecipe('sub');
+        // Replace existing recipe - open sub-recipe save modal for editing
+        if (editingItem.type === 'subRecipe') {
+            openSubRecipeSaveModalForEdit();
         } else {
-            // Handle other types if needed
             saveRecipe(editingItem.type === 'mainRecipe' ? 'main' : 'sub');
         }
     } else if (choice === 'new') {
-        // Save as new recipe (generate new ID)
+        // Save as new recipe (generate new ID) - open sub-recipe save modal
         editingItem.id = null;
-        if (editingItem.type === 'mainRecipe') {
-            saveRecipe('main');
-        } else if (editingItem.type === 'subRecipe') {
-            saveRecipe('sub');
-        } else {
-            // Handle other types if needed
-            saveRecipe(editingItem.type === 'mainRecipe' ? 'main' : 'sub');
-        }
+        openSubRecipeSaveModal();
     }
 }
 
@@ -2020,7 +2110,7 @@ function closeEditPromptModal() {
     editPromptModal.classList.add("hidden");
 }
 
-// NEW: Function to flatten sub-recipes for display and calculation
+// FIXED: Function to flatten sub-recipes for display and calculation
 function flattenSubRecipes(recipeItems, batchScale = 1) {
     const flattenedItems = [];
     
@@ -2030,35 +2120,39 @@ function flattenSubRecipes(recipeItems, batchScale = 1) {
             const subRecipe = getCurrentRecipes().find(r => r.id === item.subRecipeId);
             if (subRecipe) {
                 // Calculate the scaling factor for this sub-recipe usage
-                const subRecipeScaling = item.quantity / subRecipe.yieldQuantity;
+                const subRecipeScaling = item.quantity / (subRecipe.yieldQuantity || 1);
                 
                 // Flatten raw materials from sub-recipe
-                subRecipe.rawMaterialItems.forEach(subItem => {
-                    const scaledQuantity = subItem.quantity * subRecipeScaling * batchScale;
-                    flattenedItems.push({
-                        name: `${subItem.name} (from ${subRecipe.name})`,
-                        quantity: scaledQuantity,
-                        unit: subItem.unit,
-                        yield: subItem.yield,
-                        unitCost: subItem.unitCost,
-                        type: 'rawMaterial',
-                        isFromSubRecipe: true
+                if (subRecipe.rawMaterialItems) {
+                    subRecipe.rawMaterialItems.forEach(subItem => {
+                        const scaledQuantity = subItem.quantity * subRecipeScaling * batchScale;
+                        flattenedItems.push({
+                            name: `${subItem.name} (from ${subRecipe.name})`,
+                            quantity: scaledQuantity,
+                            unit: subItem.unit,
+                            yield: subItem.yield,
+                            unitCost: subItem.unitCost,
+                            type: 'rawMaterial',
+                            isFromSubRecipe: true
+                        });
                     });
-                });
+                }
                 
                 // Flatten direct labor from sub-recipe
-                subRecipe.directLaborItems.forEach(subItem => {
-                    const scaledQuantity = subItem.quantity * subRecipeScaling * batchScale;
-                    flattenedItems.push({
-                        name: `${subItem.name} (from ${subRecipe.name})`,
-                        quantity: scaledQuantity,
-                        unit: subItem.unit,
-                        yield: subItem.yield,
-                        unitCost: subItem.unitCost,
-                        type: 'directLabor',
-                        isFromSubRecipe: true
+                if (subRecipe.directLaborItems) {
+                    subRecipe.directLaborItems.forEach(subItem => {
+                        const scaledQuantity = subItem.quantity * subRecipeScaling * batchScale;
+                        flattenedItems.push({
+                            name: `${subItem.name} (from ${subRecipe.name})`,
+                            quantity: scaledQuantity,
+                            unit: subItem.unit,
+                            yield: subItem.yield,
+                            unitCost: subItem.unitCost,
+                            type: 'directLabor',
+                            isFromSubRecipe: true
+                        });
                     });
-                });
+                }
             }
         } else {
             // Regular item, just scale it
