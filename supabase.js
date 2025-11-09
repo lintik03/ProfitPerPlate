@@ -1,187 +1,158 @@
-// supabase.js - Supabase configuration and functions
+// Supabase Configuration
+const SUPABASE_URL = 'https://nlpuyubpmexdqqyfjlcs.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5scHV5dWJwbWV4ZHFxeWZqbGNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI2NTcwMzgsImV4cCI6MjA3ODIzMzAzOH0.aD4E1vVUNfOpDAWvKETpaXw9V0PkUPnpTLZpgBsN3Nc'; // Replace with your Supabase anon key
 
 // Initialize Supabase client
-const SUPABASE_URL = 'https://nlpuyubpmexdqqyfjlcs.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5scHV5dWJwbWV4ZHFxeWZqbGNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI2NTcwMzgsImV4cCI6MjA3ODIzMzAzOH0.aD4E1vVUNfOpDAWvKETpaXw9V0PkUPnpTLZpgBsN3Nc';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Auth state management
+let currentUser = null;
 
 // Auth functions
-class SupabaseAuth {
-  // Sign up with email and password
-  static async signUp(email, password) {
+async function signUp(email, password) {
     try {
-      const { user, error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-      
-      if (error) throw error;
-      return { success: true, user };
-    } catch (error) {
-      console.error('Sign up error:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Sign in with email and password
-  static async signIn(email, password) {
-    try {
-      const { user, error } = await supabase.auth.signIn({
-        email,
-        password,
-      });
-      
-      if (error) throw error;
-      return { success: true, user };
-    } catch (error) {
-      console.error('Sign in error:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Sign out
-  static async signOut() {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      return { success: true };
-    } catch (error) {
-      console.error('Sign out error:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Get current user
-  static getCurrentUser() {
-    return supabase.auth.user();
-  }
-
-  // Auth state change listener
-  static onAuthStateChange(callback) {
-    return supabase.auth.onAuthStateChange(callback);
-  }
-}
-
-// Data synchronization functions
-class SupabaseSync {
-  // Save user profiles to Supabase
-  static async saveProfiles(profiles, currentProfile) {
-    const user = SupabaseAuth.getCurrentUser();
-    
-    if (!user) {
-      // Fallback to localStorage if not authenticated
-      localStorage.setItem("profitPerPlate_profiles", JSON.stringify({
-        profiles: profiles,
-        currentProfile: currentProfile
-      }));
-      return { success: true, source: 'local' };
-    }
-
-    try {
-      const profileData = {
-        profiles: profiles,
-        currentProfile: currentProfile,
-        updated_at: new Date().toISOString()
-      };
-
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .upsert({
-          id: user.id,
-          profile_data: profileData,
-          updated_at: new Date().toISOString()
+        const { data, error } = await supabase.auth.signUp({
+            email: email,
+            password: password,
         });
-
-      if (error) throw error;
-
-      // Also save to localStorage as backup
-      localStorage.setItem("profitPerPlate_profiles", JSON.stringify({
-        profiles: profiles,
-        currentProfile: currentProfile
-      }));
-
-      return { success: true, source: 'cloud' };
-    } catch (error) {
-      console.error('Save profiles error:', error);
-      // Fallback to localStorage
-      localStorage.setItem("profitPerPlate_profiles", JSON.stringify({
-        profiles: profiles,
-        currentProfile: currentProfile
-      }));
-      return { success: false, error: error.message, source: 'local' };
-    }
-  }
-
-  // Load user profiles from Supabase
-  static async loadProfiles() {
-    const user = SupabaseAuth.getCurrentUser();
-    
-    if (!user) {
-      // Load from localStorage if not authenticated
-      return this.loadFromLocalStorage();
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('profile_data')
-        .eq('id', user.id)
-        .single();
-
-      if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "not found"
-      
-      if (data && data.profile_data) {
-        // Also update localStorage
-        localStorage.setItem("profitPerPlate_profiles", JSON.stringify({
-          profiles: data.profile_data.profiles,
-          currentProfile: data.profile_data.currentProfile
-        }));
         
-        return {
-          profiles: data.profile_data.profiles,
-          currentProfile: data.profile_data.currentProfile,
-          source: 'cloud'
-        };
-      } else {
-        // No cloud data, try localStorage
-        return this.loadFromLocalStorage();
-      }
+        if (error) throw error;
+        return { success: true, data };
     } catch (error) {
-      console.error('Load profiles error:', error);
-      return this.loadFromLocalStorage();
+        return { success: false, error: error.message };
     }
-  }
-
-  // Load from localStorage
-  static loadFromLocalStorage() {
-    const savedProfiles = localStorage.getItem("profitPerPlate_profiles");
-    if (savedProfiles) {
-      const data = JSON.parse(savedProfiles);
-      return {
-        profiles: data.profiles,
-        currentProfile: data.currentProfile,
-        source: 'local'
-      };
-    }
-    
-    // Return default if nothing exists
-    return {
-      profiles: {
-        "Default": {
-          rawMaterials: [],
-          directLabor: [],
-          recipes: [],
-          currency: "₱"
-        }
-      },
-      currentProfile: "Default",
-      source: 'default'
-    };
-  }
 }
+
+async function signIn(email, password) {
+    try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email: email,
+            password: password,
+        });
+        
+        if (error) throw error;
+        return { success: true, data };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+async function signOut() {
+    try {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+// Check current auth state
+async function checkAuthState() {
+    const { data: { session } } = await supabase.auth.getSession();
+    currentUser = session?.user || null;
+    updateAuthUI();
+    return currentUser;
+}
+
+// Update UI based on auth state
+function updateAuthUI() {
+    const authButtons = document.getElementById('authButtons');
+    const userInfo = document.getElementById('userInfo');
+    const userEmail = document.getElementById('userEmail');
+    
+    if (currentUser) {
+        authButtons.classList.add('hidden');
+        userInfo.classList.remove('hidden');
+        userEmail.textContent = currentUser.email;
+        
+        // Load user data
+        loadUserData();
+    } else {
+        authButtons.classList.remove('hidden');
+        userInfo.classList.add('hidden');
+        
+        // Clear data when logged out
+        clearLocalData();
+    }
+}
+
+// Data storage functions
+async function saveUserData(data) {
+    if (!currentUser) return { success: false, error: 'Not authenticated' };
+    
+    try {
+        const { data: result, error } = await supabase
+            .from('user_data')
+            .upsert({
+                user_id: currentUser.id,
+                data: data,
+                updated_at: new Date().toISOString()
+            }, {
+                onConflict: 'user_id'
+            });
+            
+        if (error) throw error;
+        return { success: true };
+    } catch (error) {
+        console.error('Error saving data:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+async function loadUserData() {
+    if (!currentUser) return null;
+    
+    try {
+        const { data, error } = await supabase
+            .from('user_data')
+            .select('data')
+            .eq('user_id', currentUser.id)
+            .single();
+            
+        if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "not found"
+        return data?.data || getDefaultData();
+    } catch (error) {
+        console.error('Error loading data:', error);
+        return getDefaultData();
+    }
+}
+
+function getDefaultData() {
+    return {
+        rawMaterials: [],
+        directLabor: [],
+        recipes: [],
+        currency: "₱",
+        currentRecipeState: null
+    };
+}
+
+function clearLocalData() {
+    // Clear all local data when user logs out
+    userData = getDefaultData();
+    renderAllData();
+}
+
+// Initialize auth state on page load
+document.addEventListener('DOMContentLoaded', async () => {
+    await checkAuthState();
+    
+    // Listen for auth state changes
+    supabase.auth.onAuthStateChange((event, session) => {
+        currentUser = session?.user || null;
+        updateAuthUI();
+    });
+});
 
 // Export for use in other files
-window.SupabaseAuth = SupabaseAuth;
-window.SupabaseSync = SupabaseSync;
-window.supabase = supabase;
+window.supabaseClient = {
+    supabase,
+    signUp,
+    signIn,
+    signOut,
+    checkAuthState,
+    saveUserData,
+    loadUserData,
+    getCurrentUser: () => currentUser
+};

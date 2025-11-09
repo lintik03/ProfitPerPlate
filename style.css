@@ -200,6 +200,69 @@ body {
   box-shadow: var(--shadow-md);
 }
 
+/* Auth Section */
+.auth-section {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+}
+
+.auth-buttons {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.user-email {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--primary);
+  cursor: pointer;
+  text-decoration: underline;
+  font-family: var(--font-stack);
+  font-size: 14px;
+  padding: 0;
+}
+
+.link-btn:hover {
+  color: var(--primary-dark);
+}
+
+.error-message {
+  background: rgba(255, 59, 48, 0.1);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  margin: var(--space-md) 0;
+  font-size: 13px;
+}
+
+.auth-switch {
+  text-align: center;
+  margin-top: var(--space-lg);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
 /* Tabs Navigation (Full-width, single row, non-wrapping, centered) */
 .tabs {
   display: flex;
@@ -901,34 +964,6 @@ td span:not(:has(input, select)) {
   min-width: 150px;
 }
 
-/* Profile Section */
-.profile-section {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  flex-shrink: 0;
-}
-
-.profile-btn {
-  background: var(--primary);
-  color: white;
-  border: none;
-  padding: var(--space-sm) var(--space-md);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  transition: var(--transition);
-  box-shadow: var(--shadow-sm);
-  min-height: 44px;
-}
-
-.profile-btn:hover {
-  background: var(--primary-dark);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-
 /* Direct Labor section styles */
 .labor-section {
   margin-top: var(--space-xl);
@@ -1415,137 +1450,6 @@ td span:not(:has(input, select)) {
   margin-top: var(--space-lg);
 }
 
-/* Profile selector styles */
-.profile-selector {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-.profile-selector select {
-  padding: var(--space-sm) var(--space-md);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-  font-family: var(--font-stack);
-  font-size: 13px;
-  background: var(--surface);
-  min-width: 150px;
-  max-width: 100px;
-  box-shadow: var(--shadow-sm);
-  transition: var(--transition);
-}
-
-.profile-selector select:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(45, 90, 61, 0.15);
-}
-
-.profile-badge {
-  background: var(--primary);
-  color: white;
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-/* Profile list styles */
-.profile-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  margin: var(--space-md) 0;
-}
-
-.profile-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--space-md);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  transition: var(--transition);
-  box-shadow: var(--shadow-sm);
-}
-
-.profile-item:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-
-.profile-item.current {
-  border-color: var(--primary);
-  background: var(--primary-light);
-}
-
-.profile-item-actions {
-  display: flex;
-  gap: var(--space-sm);
-}
-
-.profile-stats {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-/* Data management buttons */
-.data-management {
-  display: flex;
-  gap: var(--space-md);
-  margin-top: var(--space-lg);
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.data-management button {
-  flex: 1;
-  min-width: 140px;
-  max-width: 200px;
-}
-
-/* Import/Export modal */
-.import-export-content {
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.data-format {
-  background: var(--surface-elevated);
-  padding: var(--space-md);
-  border-radius: var(--radius-md);
-  margin-top: var(--space-md);
-  font-size: 13px;
-  box-shadow: var(--shadow-sm);
-}
-
-.data-format pre {
-  background: var(--surface);
-  padding: var(--space-md);
-  border-radius: var(--radius-sm);
-  overflow-x: auto;
-  border: 1px solid var(--border-light);
-}
-
-/* Data warning banner */
-.data-warning {
-  background: rgba(255, 149, 0, 0.08);
-  border: 1px solid var(--warning);
-  border-radius: var(--radius-md);
-  padding: var(--space-md);
-  margin: var(--space-md) 0;
-  font-size: 13px;
-  box-shadow: var(--shadow-sm);
-}
-
-.data-warning h4 {
-  margin: 0 0 var(--space-sm) 0;
-  color: var(--warning);
-  font-size: 14px;
-  font-weight: 600;
-}
-
 /* Cost Breakdown Preview Styles (NEW) */
 .cost-breakdown-preview {
   background: var(--surface);
@@ -1945,20 +1849,13 @@ td span:not(:has(input, select)) {
     display: none;
   }
   
-  #currencySelect, .profile-selector {
+  #currencySelect, .auth-section {
     width: auto;
   }
   
-  .profile-selector {
+  .auth-section {
     flex-direction: row;
     gap: var(--space-sm);
-  }
-  
-  .profile-selector select {
-    min-width: auto;
-    width: 120px;
-    font-size: 12px;
-    padding: var(--space-xs) var(--space-sm);
   }
 
   .theme-toggle-label {
@@ -2085,21 +1982,6 @@ td span:not(:has(input, select)) {
     width: auto;
   }
 
-  /* FIX: Profile Modal input field fix */
-  #profileModal .form-group div[style*="display: flex"] {
-    flex-direction: column;
-    gap: var(--space-md);
-  }
-  
-  #profileModal .form-group div[style*="display: flex"] input {
-    width: 100%;
-    margin-bottom: 0;
-  }
-  
-  #profileModal .form-group div[style*="display: flex"] button {
-    width: 100%;
-  }
-
   /* FIXED: Mobile Layout for Add Item to Recipe - Now matches Add Direct Labor */
   .add-ingredient-section {
     grid-template-columns: 1fr !important;
@@ -2219,7 +2101,7 @@ td span:not(:has(input, select)) {
     overflow-y: auto;
   }
 
-  .profile-section {
+  .auth-section {
     margin-left: 0;
     margin-top: 0;
     width: auto;
@@ -2304,17 +2186,6 @@ td span:not(:has(input, select)) {
   /* Direct Labor section mobile adjustments */
   .modal {
     padding: var(--space-md);
-  }
-  
-  /* Data management buttons mobile */
-  .data-management {
-    flex-direction: column;
-    align-items: center;
-  }
-  
-  .data-management button {
-    max-width: none;
-    width: 100%;
   }
 
   /* Improved touch targets */
@@ -2563,7 +2434,6 @@ body.dark-mode .add-ingredient-section,
 body.dark-mode .add-labor-section,
 body.dark-mode .total-cost,
 body.dark-mode .recipe-item,
-body.dark-mode .profile-item,
 body.dark-mode .cost-breakdown-preview,
 body.dark-mode .data-format,
 body.dark-mode .cost-calculation,
@@ -2654,7 +2524,6 @@ body.dark-mode .loaded-recipe-info strong {
 /* Dark mode green button styling */
 body.dark-mode .btn-primary,
 body.dark-mode .add-btn,
-body.dark-mode .profile-btn,
 body.dark-mode .print-btn {
   background: var(--primary);
   color: white;
@@ -2662,38 +2531,8 @@ body.dark-mode .print-btn {
 
 body.dark-mode .btn-primary:hover,
 body.dark-mode .add-btn:hover,
-body.dark-mode .profile-btn:hover,
 body.dark-mode .print-btn:hover {
   background: var(--primary-dark);
-}
-
-/* NEW: Dark mode auth styles */
-body.dark-mode .auth-tabs {
-  border-bottom-color: var(--border);
-}
-
-body.dark-mode .auth-tab {
-  color: var(--text-secondary);
-}
-
-body.dark-mode .auth-tab.active {
-  color: var(--primary);
-  border-bottom-color: var(--primary);
-}
-
-body.dark-mode .user-menu {
-  background: var(--surface-elevated);
-  border-color: var(--border);
-}
-
-body.dark-mode .cloud-status {
-  background: rgba(52, 199, 89, 0.2);
-  color: #34c759;
-}
-
-body.dark-mode .cloud-status.offline {
-  background: rgba(255, 149, 0, 0.2);
-  color: #ff9500;
 }
 
 @media (min-width: 1024px) {
@@ -2706,71 +2545,6 @@ body.dark-mode .cloud-status.offline {
   body.dark-mode .tabs button.active::before {
     background: #6ed79d;
   }
-}
-
-/* Auth Styles */
-.auth-tabs {
-  display: flex;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: var(--space-lg);
-}
-
-.auth-tab {
-  flex: 1;
-  padding: var(--space-md);
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  cursor: pointer;
-}
-
-.auth-tab.active {
-  border-bottom-color: var(--primary);
-  color: var(--primary);
-  font-weight: 600;
-}
-
-.auth-form {
-  margin-bottom: var(--space-lg);
-}
-
-.auth-footer {
-  text-align: center;
-  padding-top: var(--space-md);
-  border-top: 1px solid var(--border);
-}
-
-.user-menu {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-sm) var(--space-lg);
-  background: var(--surface);
-  border-radius: var(--radius-md);
-  margin-top: var(--space-sm);
-  border: 1px solid var(--border-light);
-  box-shadow: var(--shadow-sm);
-}
-
-.user-email {
-  font-size: 0.9em;
-  color: var(--text-secondary);
-}
-
-.cloud-status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
-  font-size: 0.8em;
-  padding: 2px 8px;
-  border-radius: 12px;
-  background: var(--success-light);
-  color: var(--success);
-}
-
-.cloud-status.offline {
-  background: var(--warning-light);
-  color: var(--warning);
 }
 
 /* Theme Toggle Switch */

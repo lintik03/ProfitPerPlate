@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ProfitPerPlate - Restaurant Costing Tool</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   </head>
   <body>
     <!-- Header -->
@@ -45,27 +46,20 @@
             <option value="₫">₫ VND</option>
           </select>
 
-          <!-- Profile Section -->
-          <div class="profile-section">
-            <div class="profile-selector">
-              <select id="profileSelect">
-                <!-- Profiles will be populated here -->
-              </select>
-              <button id="profileBtn" class="profile-btn">Profiles</button>
+          <!-- Auth Section -->
+          <div class="auth-section">
+            <div id="authButtons" class="auth-buttons">
+              <button id="loginBtn" class="btn-secondary">Login</button>
+              <button id="signupBtn" class="btn-primary">Sign Up</button>
+            </div>
+            <div id="userInfo" class="user-info hidden">
+              <span id="userEmail" class="user-email"></span>
+              <button id="logoutBtn" class="btn-secondary small">Logout</button>
             </div>
           </div>
 
-          <!-- NEW: Cloud Sync Button -->
-          <button id="cloudSyncBtn" class="btn-secondary" style="white-space: nowrap;">☁️ Cloud Sync</button>
-
           <button id="helpBtn" class="help-btn">?</button>
         </div>
-      </div>
-
-      <!-- User Menu (Hidden by default) -->
-      <div id="userMenu" class="user-menu hidden">
-        <span id="userEmail" class="user-email"></span>
-        <button id="signOutBtn" class="btn-secondary small">Sign Out</button>
       </div>
 
       <!-- Navigation (Full-width, non-wrapping) -->
@@ -79,14 +73,14 @@
     <!-- Data Storage Notice -->
     <section class="global-notice" aria-label="Data Storage Notice">
       <div class="data-warning">
-        <h4>💾 Data Storage</h4>
-        <p>Your data is stored locally in this browser and can be synced to the cloud when you sign in. Use the Cloud Sync feature to backup your data across devices.</p>
+        <h4>☁️ Cloud Storage</h4>
+        <p>Your data is now securely stored in the cloud. Login to access your recipes from any device.</p>
       </div>
     </section>
 
     <div class="app-layout">
-      <div class="main-container">
-        <div class="content-area">
+      <!-- Main content area only - ad removed from here -->
+      <div class="content-area">
         <!-- RAW MATERIALS AND DIRECT LABOR TAB -->
         <section id="raw-materials-tab" class="tab-content active panel">
           <!-- Raw Materials Section -->
@@ -156,13 +150,6 @@
                 <!-- Direct labor items will be populated here -->
               </tbody>
             </table>
-          </div>
-          
-          <!-- Data Management Buttons -->
-          <div class="data-management">
-            <button class="btn-secondary" onclick="exportData()">Export Data</button>
-            <button class="btn-secondary" onclick="importData()">Import Data</button>
-            <button class="btn-secondary" onclick="backupData()">Backup Profile</button>
           </div>
         </section>
 
@@ -570,21 +557,18 @@
           </div>
         </section>
       </div>
+    </div>
 
-      <!-- Ad Space -->
-      <aside class="ad-space panel">
-        <h3>Advertisement</h3>
-        <div class="ad-content">
-          <p>Your ad could be here</p>
-          <div style="margin-top: var(--space-md); font-size: 13px; color: var(--text-secondary);">
-            Desktop: Right Side<br>
-            Mobile: Bottom
-          </div>
+    <!-- Ad Space moved to bottom -->
+    <aside class="ad-space panel">
+      <h3>Advertisement</h3>
+      <div class="ad-content">
+        <p>Your ad could be here</p>
+        <div style="margin-top: var(--space-md); font-size: 13px; color: var(--text-secondary);">
+          Advertisement Space - Bottom
         </div>
-      </aside>
-    </div>
-
-    </div>
+      </div>
+    </aside>
 
     <!-- Print Preview Modal -->
     <div id="printPreviewModal" class="modal hidden">
@@ -982,98 +966,49 @@
       </div>
     </div>
 
-    <!-- Profile Management Modal -->
-    <div id="profileModal" class="modal hidden">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>Profile Management</h3>
-          <button class="close-btn" onclick="closeProfileModal()">×</button>
-        </div>
-        
-        <div class="data-warning">
-          <h4>⚠️ Local Storage Notice</h4>
-          <p>Profiles are stored in your browser's local storage. Data will be lost if you clear browser data or use a different browser/device.</p>
-        </div>
-
-        <div class="form-group">
-          <label for="newProfileName">Create New Profile:</label>
-          <div style="display: flex; gap: var(--space-sm)">
-            <input
-              type="text"
-              id="newProfileName"
-              class="text-input"
-              placeholder="Enter profile name"
-              style="flex: 1"
-            />
-            <button class="btn-primary" onclick="createNewProfile()">Create</button>
-          </div>
-        </div>
-
-        <div class="profile-list" id="profileList">
-          <!-- Profiles will be listed here -->
-        </div>
-
-        <div class="modal-actions">
-          <button class="btn-secondary" onclick="closeProfileModal()">Close</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Import/Export Modal -->
-    <div id="importExportModal" class="modal hidden">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3 id="importExportModalTitle">Data Management</h3>
-          <button class="close-btn" onclick="closeImportExportModal()">×</button>
-        </div>
-        <div class="import-export-content" id="importExportContent">
-          <!-- Content will be populated dynamically -->
-        </div>
-      </div>
-    </div>
-
-    <!-- NEW: Auth Modal -->
+    <!-- Auth Modal -->
     <div id="authModal" class="modal hidden">
       <div class="modal-content">
         <div class="modal-header">
-          <h3>Cloud Sync & Backup</h3>
+          <h3 id="authModalTitle">Login to ProfitPerPlate</h3>
           <button class="close-btn" onclick="closeAuthModal()">×</button>
         </div>
-        
-        <div class="auth-tabs">
-          <button class="auth-tab active" data-tab="login">Login</button>
-          <button class="auth-tab" data-tab="signup">Sign Up</button>
-        </div>
-
-        <!-- Login Form -->
-        <div id="loginForm" class="auth-form">
+        <form id="authForm">
           <div class="form-group">
-            <label>Email:</label>
-            <input type="email" id="loginEmail" class="text-input" placeholder="your@email.com">
+            <label for="authEmail">Email:</label>
+            <input
+              type="email"
+              id="authEmail"
+              required
+              class="text-input"
+              placeholder="your@email.com"
+            />
           </div>
           <div class="form-group">
-            <label>Password:</label>
-            <input type="password" id="loginPassword" class="text-input" placeholder="Your password">
+            <label for="authPassword">Password:</label>
+            <input
+              type="password"
+              id="authPassword"
+              required
+              class="text-input"
+              placeholder="Enter your password"
+              minlength="6"
+            />
           </div>
-          <button id="loginBtn" class="btn-primary">Login & Sync to Cloud</button>
-        </div>
-
-        <!-- Sign Up Form -->
-        <div id="signupForm" class="auth-form hidden">
-          <div class="form-group">
-            <label>Email:</label>
-            <input type="email" id="signupEmail" class="text-input" placeholder="your@email.com">
+          <div id="authError" class="error-message hidden"></div>
+          <div class="modal-actions">
+            <button type="button" class="btn-secondary" onclick="closeAuthModal()">
+              Cancel
+            </button>
+            <button type="button" class="btn-primary" id="authSubmitBtn">
+              Login
+            </button>
           </div>
-          <div class="form-group">
-            <label>Password:</label>
-            <input type="password" id="signupPassword" class="text-input" placeholder="Minimum 6 characters">
+          <div class="auth-switch">
+            <span id="authSwitchText">Don't have an account? </span>
+            <button type="button" id="authSwitchBtn" class="link-btn">Sign up</button>
           </div>
-          <button id="signupBtn" class="btn-primary">Create Account & Backup</button>
-        </div>
-
-        <div class="auth-footer">
-          <p><small>Your data will be securely backed up and synced across devices</small></p>
-        </div>
+        </form>
       </div>
     </div>
 
@@ -1090,8 +1025,6 @@
       </div>
     </div>
 
-    <!-- Add Supabase and new scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase.js"></script>
     <script src="script.js"></script>
   </body>
