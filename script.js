@@ -459,6 +459,23 @@ function initAuth() {
   updateAuthUI();
 }
 
+// NEW: Auth tab switching
+function setupAuthTabs() {
+  document.querySelectorAll('.auth-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+      const tabName = this.dataset.tab;
+      
+      // Update active tab
+      document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+      this.classList.add('active');
+      
+      // Show correct form
+      document.getElementById('loginForm').classList.toggle('hidden', tabName !== 'login');
+      document.getElementById('signupForm').classList.toggle('hidden', tabName !== 'signup');
+    });
+  });
+}
+
 // Profile Management
 function loadCurrentProfileData() {
   const profile = profiles[currentProfile];
@@ -752,6 +769,9 @@ function setupEventListeners() {
   // Profile Button - FIXED: Now properly connected
   profileBtn.addEventListener("click", openProfileModal);
 
+  // NEW: Cloud sync button
+  document.getElementById("cloudSyncBtn").addEventListener("click", openAuthModal);
+
   // Recipe inputs
   [
     markupInput,
@@ -952,6 +972,9 @@ function setupEventListeners() {
   document.querySelectorAll('.breakdown-content').forEach(content => {
     content.style.display = 'block';
   });
+
+  // NEW: Setup auth tabs
+  setupAuthTabs();
 
   // Escape key handler
   document.addEventListener("keydown", (e) => {

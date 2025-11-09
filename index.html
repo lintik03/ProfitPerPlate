@@ -65,7 +65,7 @@
       <!-- User Menu (Hidden by default) -->
       <div id="userMenu" class="user-menu hidden">
         <span id="userEmail" class="user-email"></span>
-        <button onclick="handleSignOut()" class="btn-secondary small">Sign Out</button>
+        <button id="signOutBtn" class="btn-secondary small">Sign Out</button>
       </div>
 
       <!-- Navigation (Full-width, non-wrapping) -->
@@ -79,8 +79,8 @@
     <!-- Data Storage Notice -->
     <section class="global-notice" aria-label="Data Storage Notice">
       <div class="data-warning">
-        <h4>⚠️ Data Storage Notice</h4>
-        <p>Your data is stored locally in this browser only. Use the Export/Backup features below to save your data permanently or transfer it to another device.</p>
+        <h4>💾 Data Storage</h4>
+        <p>Your data is stored locally in this browser and can be synced to the cloud when you sign in. Use the Cloud Sync feature to backup your data across devices.</p>
       </div>
     </section>
 
@@ -1055,7 +1055,7 @@
             <label>Password:</label>
             <input type="password" id="loginPassword" class="text-input" placeholder="Your password">
           </div>
-          <button class="btn-primary" onclick="handleLogin()">Login & Sync to Cloud</button>
+          <button id="loginBtn" class="btn-primary">Login & Sync to Cloud</button>
         </div>
 
         <!-- Sign Up Form -->
@@ -1068,7 +1068,7 @@
             <label>Password:</label>
             <input type="password" id="signupPassword" class="text-input" placeholder="Minimum 6 characters">
           </div>
-          <button class="btn-primary" onclick="handleSignUp()">Create Account & Backup</button>
+          <button id="signupBtn" class="btn-primary">Create Account & Backup</button>
         </div>
 
         <div class="auth-footer">

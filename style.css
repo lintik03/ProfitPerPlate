@@ -2667,6 +2667,35 @@ body.dark-mode .print-btn:hover {
   background: var(--primary-dark);
 }
 
+/* NEW: Dark mode auth styles */
+body.dark-mode .auth-tabs {
+  border-bottom-color: var(--border);
+}
+
+body.dark-mode .auth-tab {
+  color: var(--text-secondary);
+}
+
+body.dark-mode .auth-tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+body.dark-mode .user-menu {
+  background: var(--surface-elevated);
+  border-color: var(--border);
+}
+
+body.dark-mode .cloud-status {
+  background: rgba(52, 199, 89, 0.2);
+  color: #34c759;
+}
+
+body.dark-mode .cloud-status.offline {
+  background: rgba(255, 149, 0, 0.2);
+  color: #ff9500;
+}
+
 @media (min-width: 1024px) {
   body.dark-mode .tabs button:hover,
   body.dark-mode .tabs button.active {
@@ -2742,25 +2771,6 @@ body.dark-mode .print-btn:hover {
 .cloud-status.offline {
   background: var(--warning-light);
   color: var(--warning);
-}
-
-/* Dark mode auth styles */
-body.dark-mode .auth-tabs {
-  border-bottom-color: var(--border);
-}
-
-body.dark-mode .auth-tab {
-  color: var(--text-secondary);
-}
-
-body.dark-mode .auth-tab.active {
-  color: var(--primary);
-  border-bottom-color: var(--primary);
-}
-
-body.dark-mode .user-menu {
-  background: var(--surface-elevated);
-  border-color: var(--border);
 }
 
 /* Theme Toggle Switch */
