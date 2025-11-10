@@ -19,62 +19,179 @@
         </div>
         
         <div class="right-group">
-          <!-- Dark Mode Toggle -->
-          <div class="theme-toggle-container">
-            <label for="themeToggle" class="theme-toggle-label">
-              <span class="theme-icon">🌙</span>
-              <input type="checkbox" id="themeToggle" class="theme-toggle" />
-              <span class="theme-slider"></span>
-              <span class="theme-icon">☀️</span>
-            </label>
+          <!-- User Menu Dropdown -->
+          <div class="user-menu-container">
+            <button id="userMenuBtn" class="user-menu-btn">
+              <svg class="user-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </button>
+            
+            <!-- Dropdown Menu -->
+            <div id="userMenuDropdown" class="user-menu-dropdown hidden">
+              <!-- Dark Mode Toggle -->
+              <div class="dropdown-item">
+                <div class="dropdown-label">
+                  <svg class="dropdown-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                  </svg>
+                  <span>Dark Mode</span>
+                </div>
+                <label class="theme-toggle-container dropdown-toggle">
+                  <input type="checkbox" id="themeToggle" class="theme-toggle" />
+                  <span class="theme-slider"></span>
+                </label>
+              </div>
+
+              <!-- Currency Selector -->
+              <div class="dropdown-item">
+                <div class="dropdown-label">
+                  <svg class="dropdown-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                  </svg>
+                  <span>Currency</span>
+                </div>
+                <select id="currencySelect" class="dropdown-select">
+                  <option value="₱">₱ PHP</option>
+                  <option value="$">$ USD</option>
+                  <option value="¥">¥ JPY</option>
+                  <option value="₩">₩ KRW</option>
+                  <option value="€">€ EUR</option>
+                  <option value="£">£ GBP</option>
+                  <option value="₹">₹ INR</option>
+                  <option value="₽">₽ RUB</option>
+                  <option value="₴">₴ UAH</option>
+                  <option value="R$">R$ BRL</option>
+                  <option value="₮">₮ MNT</option>
+                  <option value="₵">₵ GHS</option>
+                  <option value="₫">₫ VND</option>
+                </select>
+              </div>
+
+              <!-- Auth Section -->
+              <div class="dropdown-item">
+                <div class="dropdown-label">
+                  <svg class="dropdown-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                  </svg>
+                  <span>Account</span>
+                </div>
+                <div class="auth-section dropdown-auth">
+                  <div id="authButtons" class="auth-buttons">
+                    <button id="loginBtn" class="btn-secondary small">Login</button>
+                    <button id="signupBtn" class="btn-primary small">Sign Up</button>
+                  </div>
+                  <div id="userInfo" class="user-info hidden">
+                    <span id="userEmail" class="user-email"></span>
+                    <button id="logoutBtn" class="btn-secondary small">Logout</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Help Button -->
+              <div class="dropdown-item">
+                <button id="helpBtn" class="btn-secondary full-width">
+                  <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                    <line x1="12" y1="17" x2="12" y2="17"></line>
+                  </svg>
+                  Help & Guide
+                </button>
+              </div>
+            </div>
           </div>
 
-          <label for="currencySelect" class="currency-label">Currency →</label>
-          <select id="currencySelect">
-            <option value="₱">₱ PHP</option>
-            <option value="$">$ USD</option>
-            <option value="¥">¥ JPY</option>
-            <option value="₩">₩ KRW</option>
-            <option value="€">€ EUR</option>
-            <option value="£">£ GBP</option>
-            <option value="₹">₹ INR</option>
-            <option value="₽">₽ RUB</option>
-            <option value="₴">₴ UAH</option>
-            <option value="R$">R$ BRL</option>
-            <option value="₮">₮ MNT</option>
-            <option value="₵">₵ GHS</option>
-            <option value="₫">₫ VND</option>
-          </select>
-
-          <!-- Auth Section -->
-          <div class="auth-section">
-            <div id="authButtons" class="auth-buttons">
-              <button id="loginBtn" class="btn-secondary">Login</button>
-              <button id="signupBtn" class="btn-primary">Sign Up</button>
-            </div>
-            <div id="userInfo" class="user-info hidden">
-              <span id="userEmail" class="user-email"></span>
-              <button id="logoutBtn" class="btn-secondary small">Logout</button>
-            </div>
-          </div>
-
-          <button id="helpBtn" class="help-btn">?</button>
+          <!-- Mobile Menu Button -->
+          <button id="mobileMenuBtn" class="mobile-menu-btn">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
         </div>
       </div>
 
       <!-- Navigation (Full-width, non-wrapping) -->
       <nav class="tabs" role="navigation" aria-label="Primary">
-        <button class="tab-btn active" data-tab="raw-materials">Raw Materials and Direct Labor</button>
-        <button class="tab-btn" data-tab="recipes">Recipe Calculator</button>
-        <button class="tab-btn" data-tab="summary">Summary</button>
+        <button class="tab-btn active" data-tab="raw-materials">
+          <svg class="tab-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <path d="M16 10a4 4 0 0 1-8 0"></path>
+          </svg>
+          Raw Materials and Direct Labor
+        </button>
+        <button class="tab-btn" data-tab="recipes">
+          <svg class="tab-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14,2 14,8 20,8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10,9 9,9 8,9"></polyline>
+          </svg>
+          Recipe Calculator
+        </button>
+        <button class="tab-btn" data-tab="summary">
+          <svg class="tab-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+          </svg>
+          Summary
+        </button>
       </nav>
     </header>
 
-    <!-- Data Storage Notice -->
+    <!-- Sidebar Navigation for Desktop -->
+    <nav class="sidebar-nav" role="navigation" aria-label="Primary">
+      <div class="sidebar-nav-inner">
+        <button class="sidebar-tab-btn active" data-tab="raw-materials">
+          <svg class="tab-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <path d="M16 10a4 4 0 0 1-8 0"></path>
+          </svg>
+          <span class="sidebar-tab-label">Raw Materials & Labor</span>
+        </button>
+        <button class="sidebar-tab-btn" data-tab="recipes">
+          <svg class="tab-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14,2 14,8 20,8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10,9 9,9 8,9"></polyline>
+          </svg>
+          <span class="sidebar-tab-label">Recipe Calculator</span>
+        </button>
+        <button class="sidebar-tab-btn" data-tab="summary">
+          <svg class="tab-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+          </svg>
+          <span class="sidebar-tab-label">Summary</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Data Storage Notice - More Subtle -->
     <section class="global-notice" aria-label="Data Storage Notice">
-      <div class="data-warning">
-        <h4>☁️ Cloud Storage</h4>
-        <p>Your data is now securely stored in the cloud. Login to access your recipes from any device.</p>
+      <div class="data-warning subtle">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+          <polyline points="7.5 4.21 12 6.81 16.5 4.21"></polyline>
+          <polyline points="7.5 19.79 7.5 14.6 3 12"></polyline>
+          <polyline points="21 12 16.5 14.6 16.5 19.79"></polyline>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+          <line x1="12" y1="22.08" x2="12" y2="12"></line>
+        </svg>
+        <div class="data-warning-text">
+          <p>Your data is securely stored in the cloud. Login to access from any device.</p>
+        </div>
       </div>
     </section>
 
@@ -87,7 +204,11 @@
           <div class="section-header">
             <h2>Master Raw Material List</h2>
             <button class="add-btn" onclick="openRawMaterialModal()">
-              + Add Raw Material
+              <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              Add Raw Material
             </button>
           </div>
 
@@ -95,7 +216,7 @@
             <input
               type="text"
               id="rawMaterialSearch"
-              placeholder="🔍 Search raw materials..."
+              placeholder="Search raw materials..."
               class="search-input"
               oninput="renderRawMaterials()"
             />
@@ -121,7 +242,11 @@
           <div class="section-header" style="margin-top: var(--space-2xl);">
             <h2>Direct Labor List</h2>
             <button class="add-btn" onclick="openDirectLaborModal()">
-              + Add Direct Labor
+              <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              Add Direct Labor
             </button>
           </div>
 
@@ -129,7 +254,7 @@
             <input
               type="text"
               id="directLaborSearch"
-              placeholder="🔍 Search direct labor..."
+              placeholder="Search direct labor..."
               class="search-input"
               oninput="renderDirectLabor()"
             />
@@ -174,7 +299,15 @@
                 </div>
               </div>
 
-              <button id="resetRecipe" class="reset-btn">Reset Recipe</button>
+              <button id="resetRecipe" class="reset-btn">
+                <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 2v6h6"></path>
+                  <path d="M21 12A9 9 0 0 0 6 5.3L3 8"></path>
+                  <path d="M21 22v-6h-6"></path>
+                  <path d="M3 12a9 9 0 0 0 15 6.7l3-2.7"></path>
+                </svg>
+                Reset Recipe
+              </button>
             </div>
 
             <!-- Add Item section moved above the table -->
@@ -235,6 +368,10 @@
               <div class="input-group">
                 <label>&nbsp;</label>
                 <button class="btn-primary" onclick="addItemToRecipe()">
+                  <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
                   Add to Recipe
                 </button>
               </div>
@@ -303,6 +440,10 @@
                 <div class="input-group">
                   <label>&nbsp;</label>
                   <button class="btn-primary" onclick="addDirectLaborToRecipe()">
+                    <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="12" y1="5" x2="12" y2="19"></line>
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
                     Add Direct Labor
                   </button>
                 </div>
@@ -349,9 +490,21 @@
             <!-- Two save buttons instead of one -->
             <div class="save-recipe-buttons">
               <button id="saveMainRecipeBtn" class="add-btn">
+                <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                  <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                  <polyline points="7 3 7 8 15 8"></polyline>
+                </svg>
                 Save to Main Recipe
               </button>
               <button id="saveSubRecipeBtn" class="btn-secondary">
+                <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14,2 14,8 20,8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10,9 9,9 8,9"></polyline>
+                </svg>
                 Save to Sub-Recipe
               </button>
             </div>
@@ -553,7 +706,14 @@
 
           <div class="summary-actions">
             <!-- Print button now shows preview first -->
-            <button id="printBtn" class="print-btn">🖨️ Print Costing</button>
+            <button id="printBtn" class="print-btn">
+              <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                <rect x="6" y="14" width="12" height="8"></rect>
+              </svg>
+              Print Costing
+            </button>
           </div>
         </section>
       </div>
@@ -569,6 +729,90 @@
         </div>
       </div>
     </aside>
+
+    <!-- Mobile User Menu Modal -->
+    <div id="mobileUserMenuModal" class="modal hidden mobile-user-menu">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Menu</h3>
+          <button class="close-btn" onclick="closeMobileUserMenu()">×</button>
+        </div>
+        
+        <div class="mobile-menu-content">
+          <!-- Dark Mode Toggle -->
+          <div class="mobile-menu-item">
+            <div class="mobile-menu-label">
+              <svg class="dropdown-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+              </svg>
+              <span>Dark Mode</span>
+            </div>
+            <label class="theme-toggle-container mobile-toggle">
+              <input type="checkbox" id="mobileThemeToggle" class="theme-toggle" />
+              <span class="theme-slider"></span>
+            </label>
+          </div>
+
+          <!-- Currency Selector -->
+          <div class="mobile-menu-item">
+            <div class="mobile-menu-label">
+              <svg class="dropdown-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+              </svg>
+              <span>Currency</span>
+            </div>
+            <select id="mobileCurrencySelect" class="mobile-select">
+              <option value="₱">₱ PHP</option>
+              <option value="$">$ USD</option>
+              <option value="¥">¥ JPY</option>
+              <option value="₩">₩ KRW</option>
+              <option value="€">€ EUR</option>
+              <option value="£">£ GBP</option>
+              <option value="₹">₹ INR</option>
+              <option value="₽">₽ RUB</option>
+              <option value="₴">₴ UAH</option>
+              <option value="R$">R$ BRL</option>
+              <option value="₮">₮ MNT</option>
+              <option value="₵">₵ GHS</option>
+              <option value="₫">₫ VND</option>
+            </select>
+          </div>
+
+          <!-- Auth Section -->
+          <div class="mobile-menu-item">
+            <div class="mobile-menu-label">
+              <svg class="dropdown-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              <span>Account</span>
+            </div>
+            <div class="auth-section mobile-auth">
+              <div id="mobileAuthButtons" class="auth-buttons">
+                <button id="mobileLoginBtn" class="btn-secondary small">Login</button>
+                <button id="mobileSignupBtn" class="btn-primary small">Sign Up</button>
+              </div>
+              <div id="mobileUserInfo" class="user-info hidden">
+                <span id="mobileUserEmail" class="user-email"></span>
+                <button id="mobileLogoutBtn" class="btn-secondary small">Logout</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Help Button -->
+          <div class="mobile-menu-item">
+            <button id="mobileHelpBtn" class="btn-secondary full-width">
+              <svg class="btn-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                <line x1="12" y1="17" x2="12" y2="17"></line>
+              </svg>
+              Help & Guide
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Print Preview Modal -->
     <div id="printPreviewModal" class="modal hidden">

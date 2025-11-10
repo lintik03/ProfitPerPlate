@@ -62,7 +62,6 @@ const fieldDefinitions = {
     selectItem: {
         title: "Select Item",
         content: "Choose a raw material from your master list, a direct labor item, or a saved sub-recipe to add to the current recipe.",
-
         example: "Example: Select 'Beef Brisket' from raw materials or 'Kitchen Work' from direct labor to add to your burger recipe."
     },
     quantity: {
@@ -288,6 +287,25 @@ const summaryBatchRevenue = document.getElementById("summaryBatchRevenue");
 const summaryBatchProfit = document.getElementById("summaryBatchProfit");
 const summaryBatchProfitMargin = document.getElementById("summaryBatchProfitMargin");
 
+// NEW: User Menu Elements
+const userMenuBtn = document.getElementById("userMenuBtn");
+const userMenuDropdown = document.getElementById("userMenuDropdown");
+const mobileMenuBtn = document.getElementById("mobileMenuBtn");
+const mobileUserMenuModal = document.getElementById("mobileUserMenuModal");
+const mobileThemeToggle = document.getElementById("mobileThemeToggle");
+const mobileCurrencySelect = document.getElementById("mobileCurrencySelect");
+const mobileLoginBtn = document.getElementById("mobileLoginBtn");
+const mobileSignupBtn = document.getElementById("mobileSignupBtn");
+const mobileLogoutBtn = document.getElementById("mobileLogoutBtn");
+const mobileUserEmail = document.getElementById("mobileUserEmail");
+const mobileUserInfo = document.getElementById("mobileUserInfo");
+const mobileAuthButtons = document.getElementById("mobileAuthButtons");
+const mobileHelpBtn = document.getElementById("mobileHelpBtn");
+
+// NEW: Sidebar Navigation Elements
+const sidebarNav = document.querySelector('.sidebar-nav');
+const sidebarTabBtns = document.querySelectorAll('.sidebar-tab-btn');
+
 // Currency
 let currency = "₱";
 
@@ -320,6 +338,24 @@ async function initApp() {
     
     // NEW: Update cost breakdown preview
     updateCostBreakdownPreview();
+    
+    // NEW: Initialize sidebar layout based on screen size
+    initSidebarLayout();
+}
+
+// NEW: Initialize sidebar layout
+function initSidebarLayout() {
+    const isDesktop = window.innerWidth >= 1025;
+    
+    if (isDesktop) {
+        document.body.classList.add('with-sidebar');
+        document.querySelector('.app-layout').classList.add('with-sidebar');
+        document.querySelector('.global-notice').classList.add('with-sidebar');
+    } else {
+        document.body.classList.remove('with-sidebar');
+        document.querySelector('.app-layout').classList.remove('with-sidebar');
+        document.querySelector('.global-notice').classList.remove('with-sidebar');
+    }
 }
 
 // Add dark mode CSS fixes
@@ -380,14 +416,63 @@ function loadTheme() {
     
     document.body.classList.toggle('dark-mode', isDark);
     const themeToggle = document.getElementById('themeToggle');
+    const mobileThemeToggle = document.getElementById('mobileThemeToggle');
+    
     if (themeToggle) {
         themeToggle.checked = isDark;
+    }
+    if (mobileThemeToggle) {
+        mobileThemeToggle.checked = isDark;
     }
 }
 
 function toggleTheme() {
     const isDark = document.body.classList.toggle('dark-mode');
     localStorage.setItem("profitPerPlate_theme", isDark ? 'dark' : 'light');
+    
+    // Sync both theme toggles
+    const themeToggle = document.getElementById('themeToggle');
+    const mobileThemeToggle = document.getElementById('mobileThemeToggle');
+    
+    if (themeToggle) {
+        themeToggle.checked = isDark;
+    }
+    if (mobileThemeToggle) {
+        mobileThemeToggle.checked = isDark;
+    }
+}
+
+// NEW: User Menu Functions
+function toggleUserMenu() {
+    userMenuDropdown.classList.toggle('hidden');
+}
+
+function closeUserMenu() {
+    userMenuDropdown.classList.add('hidden');
+}
+
+function openMobileUserMenu() {
+    mobileUserMenuModal.classList.remove('hidden');
+}
+
+function closeMobileUserMenu() {
+    mobileUserMenuModal.classList.add('hidden');
+}
+
+// NEW: Sidebar Navigation Functions
+function setupSidebarNavigation() {
+    sidebarTabBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const tabName = this.dataset.tab;
+            
+            // Update active states
+            sidebarTabBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Switch to the tab
+            switchTab(tabName);
+        });
+    });
 }
 
 // Auth Functions
@@ -489,6 +574,18 @@ async function handleLogout() {
     }
 }
 
+// NEW: Update mobile auth display
+function updateMobileAuthDisplay(user) {
+    if (user) {
+        mobileAuthButtons.classList.add('hidden');
+        mobileUserInfo.classList.remove('hidden');
+        mobileUserEmail.textContent = user.email;
+    } else {
+        mobileAuthButtons.classList.remove('hidden');
+        mobileUserInfo.classList.add('hidden');
+    }
+}
+
 // Data saving and loading
 async function saveUserData() {
     const result = await window.supabaseClient.saveUserData(userData);
@@ -503,6 +600,7 @@ async function loadUserData() {
         userData = data;
         currency = userData.currency || "₱";
         currencySelect.value = currency;
+        mobileCurrencySelect.value = currency;
         
         // Update UI
         renderAllData();
@@ -650,8 +748,13 @@ function loadCurrentRecipeState() {
 function setupEventListeners() {
     // Dark Mode Toggle
     const themeToggle = document.getElementById('themeToggle');
+    const mobileThemeToggle = document.getElementById('mobileThemeToggle');
+    
     if (themeToggle) {
         themeToggle.addEventListener('change', toggleTheme);
+    }
+    if (mobileThemeToggle) {
+        mobileThemeToggle.addEventListener('change', toggleTheme);
     }
     
     // Tab Navigation
@@ -665,10 +768,14 @@ function setupEventListeners() {
         });
     });
 
+    // NEW: Sidebar Navigation
+    setupSidebarNavigation();
+
     // Currency Selector
     currencySelect.addEventListener("change", () => {
         currency = currencySelect.value;
         userData.currency = currency;
+        mobileCurrencySelect.value = currency;
         document
             .querySelectorAll(".unit-currency")
             .forEach((e) => (e.textContent = currency));
@@ -676,6 +783,19 @@ function setupEventListeners() {
         saveUserData();
         
         // NEW: Update cost breakdown preview
+        updateCostBreakdownPreview();
+    });
+
+    // NEW: Mobile Currency Selector
+    mobileCurrencySelect.addEventListener("change", () => {
+        currency = mobileCurrencySelect.value;
+        userData.currency = currency;
+        currencySelect.value = currency;
+        document
+            .querySelectorAll(".unit-currency")
+            .forEach((e) => (e.textContent = currency));
+        recalc();
+        saveUserData();
         updateCostBreakdownPreview();
     });
 
@@ -755,6 +875,16 @@ function setupEventListeners() {
         helpModalTitle.textContent = "Complete Field Guide — ProfitPerPlate";
         helpModalContent.innerHTML = generateCompleteHelpContent();
         helpModal.classList.remove("hidden");
+        closeUserMenu();
+    });
+    
+    // NEW: Mobile Help button
+    mobileHelpBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        helpModalTitle.textContent = "Complete Field Guide — ProfitPerPlate";
+        helpModalContent.innerHTML = generateCompleteHelpContent();
+        helpModal.classList.remove("hidden");
+        closeMobileUserMenu();
     });
     
     closeHelpBtn.addEventListener("click", closeHelpModal);
@@ -767,6 +897,37 @@ function setupEventListeners() {
         generatePrintPreview();
         printPreviewModal.classList.remove("hidden");
     });
+
+    // NEW: User Menu Events
+    userMenuBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggleUserMenu();
+    });
+
+    // Close user menu when clicking outside
+    document.addEventListener("click", (e) => {
+        if (!userMenuBtn.contains(e.target) && !userMenuDropdown.contains(e.target)) {
+            closeUserMenu();
+        }
+    });
+
+    // NEW: Mobile Menu Events
+    mobileMenuBtn.addEventListener("click", openMobileUserMenu);
+
+    // NEW: Mobile Auth Events
+    mobileLoginBtn.addEventListener("click", () => {
+        isSignUpMode = false;
+        closeMobileUserMenu();
+        openAuthModal();
+    });
+
+    mobileSignupBtn.addEventListener("click", () => {
+        isSignUpMode = true;
+        closeMobileUserMenu();
+        openAuthModal();
+    });
+
+    mobileLogoutBtn.addEventListener("click", handleLogout);
 
     // Close modal on background click
     document
@@ -806,6 +967,12 @@ function setupEventListeners() {
     document.getElementById("authModal").addEventListener("click", (e) => {
         if (e.target.id === "authModal") {
             closeAuthModal();
+        }
+    });
+
+    document.getElementById("mobileUserMenuModal").addEventListener("click", (e) => {
+        if (e.target.id === "mobileUserMenuModal") {
+            closeMobileUserMenu();
         }
     });
 
@@ -887,16 +1054,21 @@ function setupEventListeners() {
     loginBtn.addEventListener("click", () => {
         isSignUpMode = false;
         openAuthModal();
+        closeUserMenu();
     });
     
     signupBtn.addEventListener("click", () => {
         isSignUpMode = true;
         openAuthModal();
+        closeUserMenu();
     });
     
     logoutBtn.addEventListener("click", handleLogout);
     authSubmitBtn.addEventListener("click", handleAuth);
     authSwitchBtn.addEventListener("click", toggleAuthMode);
+
+    // NEW: Window resize handler for responsive sidebar
+    window.addEventListener('resize', initSidebarLayout);
 
     // Escape key handler
     document.addEventListener("keydown", (e) => {
@@ -915,6 +1087,10 @@ function setupEventListeners() {
                 closeSubRecipeSaveModal();
             } else if (!document.getElementById("editPromptModal").classList.contains("hidden")) {
                 closeEditPromptModal();
+            } else if (!document.getElementById("mobileUserMenuModal").classList.contains("hidden")) {
+                closeMobileUserMenu();
+            } else if (!userMenuDropdown.classList.contains("hidden")) {
+                closeUserMenu();
             }
         }
     });
