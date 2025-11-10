@@ -135,154 +135,25 @@ body {
   overflow-x: auto;
 }
 
-/* User Menu Styles */
-.user-menu-container {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.user-menu-btn {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  color: var(--text-primary);
-  padding: var(--space-sm);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  font-family: var(--font-stack);
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: var(--transition);
-  font-weight: 600;
-  box-shadow: var(--shadow-sm);
-  flex-shrink: 0;
-}
-
-.user-menu-btn:hover {
-  background: var(--surface-elevated);
-  border-color: var(--primary);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-
-.user-icon {
-  transition: var(--transition);
-}
-
-.user-menu-btn:hover .user-icon {
-  transform: scale(1.1);
-}
-
-.user-menu-dropdown {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-md);
-  min-width: 280px;
-  box-shadow: var(--shadow-xl);
-  z-index: 1000;
-  margin-top: var(--space-sm);
-  animation: dropdownAppear 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-@keyframes dropdownAppear {
-  from {
-    opacity: 0;
-    transform: translateY(-8px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.dropdown-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--space-md);
-  border-radius: var(--radius-md);
-  transition: var(--transition);
-  margin-bottom: var(--space-xs);
-}
-
-.dropdown-item:hover {
-  background: var(--primary-light);
-}
-
-.dropdown-item:last-child {
-  margin-bottom: 0;
-}
-
-.dropdown-label {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  font-weight: 500;
-  color: var(--text-primary);
-  flex: 1;
-}
-
-.dropdown-icon {
-  flex-shrink: 0;
-  color: var(--text-secondary);
-}
-
-.dropdown-toggle {
-  transform: scale(0.8);
-}
-
-.dropdown-select {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: var(--space-sm) var(--space-md);
-  font-size: 13px;
-  min-width: 120px;
-  transition: var(--transition);
-}
-
-.dropdown-select:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(45, 90, 61, 0.15);
-}
-
-.dropdown-auth {
-  display: flex;
-  gap: var(--space-sm);
-}
-
-.dropdown-auth .auth-buttons {
-  display: flex;
-  gap: var(--space-sm);
-}
-
+/* Remove all user menu styles since we're removing the user button */
+.user-menu-container,
+.user-menu-btn,
+.user-menu-dropdown,
+.user-icon,
+.dropdown-item,
+.dropdown-label,
+.dropdown-icon,
+.dropdown-toggle,
+.dropdown-select,
+.dropdown-auth,
+.dropdown-auth .auth-buttons,
 .dropdown-auth .user-info {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
+  display: none !important;
 }
 
-.full-width {
-  width: 100%;
-  justify-content: flex-start;
-}
-
-.btn-icon {
-  margin-right: var(--space-sm);
-  flex-shrink: 0;
-}
-
-/* Mobile Menu Button */
+/* Mobile Menu Button - Now shown on desktop too */
 .mobile-menu-btn {
-  display: none;
+  display: flex;
   background: var(--surface);
   border: 1px solid var(--border);
   color: var(--text-primary);
@@ -2669,9 +2540,9 @@ td span:not(:has(input, select)) {
     margin-left: 240px;
   }
 
-  /* Hide mobile menu button on desktop */
+  /* Keep mobile menu button visible on desktop */
   .mobile-menu-btn {
-    display: none;
+    display: flex;
   }
 
   /* Hide top navigation tabs on desktop when sidebar is active */
