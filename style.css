@@ -135,7 +135,7 @@ body {
   overflow-x: auto;
 }
 
-/* User Menu Styles */
+/* User Menu Styles - FIXED */
 .user-menu-container {
   position: relative;
   display: flex;
@@ -280,32 +280,7 @@ body {
   flex-shrink: 0;
 }
 
-/* Mobile Menu Button */
-.mobile-menu-btn {
-  display: none;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  color: var(--text-primary);
-  padding: var(--space-sm);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  width: 44px;
-  height: 44px;
-  align-items: center;
-  justify-content: center;
-  transition: var(--transition);
-  box-shadow: var(--shadow-sm);
-  flex-shrink: 0;
-}
-
-.mobile-menu-btn:hover {
-  background: var(--surface-elevated);
-  border-color: var(--primary);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-
-/* Mobile User Menu Modal */
+/* Mobile User Menu Modal - FIXED: Removed mobile menu button styles */
 .mobile-user-menu .modal-content {
   max-width: 400px;
   width: 90%;
@@ -2199,17 +2174,12 @@ td span:not(:has(input, select)) {
     display: none;
   }
 
-  /* Show mobile menu button */
-  .mobile-menu-btn {
-    display: flex;
-  }
-
-  /* Hide desktop user menu dropdown on mobile */
+  /* FIXED: Hide desktop user menu dropdown on mobile */
   .user-menu-dropdown {
     display: none !important;
   }
 
-  /* Improved header layout */
+  /* FIXED: Improved header layout */
   .right-group {
     flex-direction: row;
     align-items: center;
@@ -2669,9 +2639,9 @@ td span:not(:has(input, select)) {
     margin-left: 240px;
   }
 
-  /* Hide mobile menu button on desktop */
-  .mobile-menu-btn {
-    display: none;
+  /* FIXED: Show desktop user menu dropdown on desktop */
+  .user-menu-dropdown {
+    display: block !important;
   }
 
   /* Hide top navigation tabs on desktop when sidebar is active */
