@@ -62,6 +62,7 @@ const fieldDefinitions = {
     selectItem: {
         title: "Select Item",
         content: "Choose a raw material from your master list, a direct labor item, or a saved sub-recipe to add to the current recipe.",
+
         example: "Example: Select 'Beef Brisket' from raw materials or 'Kitchen Work' from direct labor to add to your burger recipe."
     },
     quantity: {
@@ -2810,8 +2811,12 @@ function loadRecipeForSummary() {
 function updateSummaryWithLoadedRecipe(recipe) {
     const batchScale = parseFloat(batchScaleInput.value) || 1;
     
-    // FIX FOR ISSUE 1: Enhanced flattening for loaded recipes
-    const allItems = [...recipe.rawMaterialItems, ...recipe.directLaborItems];
+    // FIX FOR ISSUE 1: Enhanced flattening for loaded recipes - INCLUDE SUB-RECIPE ITEMS
+    const allItems = [
+        ...(recipe.rawMaterialItems || []),
+        ...(recipe.directLaborItems || []),
+        ...(recipe.subRecipeItems || [])
+    ];
     const flattenedItems = flattenSubRecipes(allItems, batchScale);
     
     // Calculate totals from flattened items
@@ -2878,8 +2883,12 @@ function updateSummaryWithLoadedRecipe(recipe) {
 function updateCostBreakdownPreviewWithRecipe(recipe) {
     const batchScale = parseFloat(batchScaleInput.value) || 1;
     
-    // FIX FOR ISSUE 1: Enhanced flattening for display
-    const allItems = [...recipe.rawMaterialItems, ...recipe.directLaborItems];
+    // FIX FOR ISSUE 1: Enhanced flattening for display - INCLUDE SUB-RECIPE ITEMS
+    const allItems = [
+        ...(recipe.rawMaterialItems || []),
+        ...(recipe.directLaborItems || []),
+        ...(recipe.subRecipeItems || [])
+    ];
     const flattenedItems = flattenSubRecipes(allItems, batchScale);
     
     // Separate flattened items by type
