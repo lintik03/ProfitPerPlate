@@ -522,6 +522,7 @@ function saveCurrentRecipeState() {
     // Get current recipe items
     const rawMaterialItems = [];
     const directLaborItems = [];
+    const subRecipeItems = [];
     
     recipeBody.querySelectorAll("tr").forEach(row => {
         const itemName = row.children[0].querySelector("input").value;
@@ -532,8 +533,17 @@ function saveCurrentRecipeState() {
         const type = row.dataset.type || 'rawMaterial';
         const subRecipeId = row.dataset.subRecipeId || null;
         
-        if (type === 'rawMaterial' || type === 'sub-recipe') {
+        if (type === 'rawMaterial') {
             rawMaterialItems.push({
+                name: itemName,
+                quantity: quantity,
+                unit: unit,
+                yield: yieldPct,
+                unitCost: unitCost,
+                type: type
+            });
+        } else if (type === 'sub-recipe') {
+            subRecipeItems.push({
                 name: itemName,
                 quantity: quantity,
                 unit: unit,
@@ -564,6 +574,7 @@ function saveCurrentRecipeState() {
         recipeName: recipeNameInput.value || "",
         rawMaterialItems: rawMaterialItems,
         directLaborItems: directLaborItems,
+        subRecipeItems: subRecipeItems,
         markup: parseFloat(markupInput.value) || 40,
         tax: parseFloat(taxInput.value) || 0,
         vat: parseFloat(vatInput.value) || 0,
@@ -599,8 +610,22 @@ function loadCurrentRecipeState() {
                 item.unit,
                 item.yield.toString(),
                 item.unitCost.toString(),
-                item.type || 'rawMaterial',
-                item.subRecipeId || null
+                'rawMaterial'
+            );
+        });
+    }
+    
+    // Restore sub-recipe items
+    if (state.subRecipeItems) {
+        state.subRecipeItems.forEach(item => {
+            addRow(
+                item.name,
+                item.quantity.toString(),
+                item.unit,
+                item.yield.toString(),
+                item.unitCost.toString(),
+                'sub-recipe',
+                item.subRecipeId
             );
         });
     }
@@ -1778,7 +1803,7 @@ function closeSubRecipeSaveModal() {
     document.getElementById('subRecipeSaveModal').classList.add('hidden');
 }
 
-// Save main recipe function
+// FIX FOR ISSUE 1: Save main recipe function - now properly handles sub-recipe items
 function saveRecipe(type) {
     const name = recipeNameInput.value.trim();
     if (!name) {
@@ -1787,9 +1812,10 @@ function saveRecipe(type) {
         return;
     }
 
-    // Get current recipe items
+    // Get current recipe items - FIXED: Include sub-recipe items
     const rawMaterialItems = [];
     const directLaborItems = [];
+    const subRecipeItems = [];
     
     recipeBody.querySelectorAll("tr").forEach(row => {
         const itemName = row.children[0].querySelector("input").value;
@@ -1797,9 +1823,10 @@ function saveRecipe(type) {
         const unit = row.children[1].querySelector(".quantity-unit").textContent;
         const yieldPct = parseFloat(row.children[2].querySelector("input").value) || 100;
         const unitCost = parseFloat(row.children[3].querySelector("input").value) || 0;
-        const type = row.dataset.type || 'rawMaterial';
+        const rowType = row.dataset.type || 'rawMaterial';
+        const subRecipeId = row.dataset.subRecipeId || null;
         
-        if (type === 'rawMaterial') {
+        if (rowType === 'rawMaterial') {
             rawMaterialItems.push({
                 name: itemName,
                 quantity: quantity,
@@ -1808,14 +1835,15 @@ function saveRecipe(type) {
                 unitCost: unitCost,
                 type: 'rawMaterial'
             });
-        } else if (type === 'directLabor') {
-            directLaborItems.push({
+        } else if (rowType === 'sub-recipe') {
+            subRecipeItems.push({
                 name: itemName,
                 quantity: quantity,
                 unit: unit,
                 yield: yieldPct,
                 unitCost: unitCost,
-                type: 'directLabor'
+                type: 'sub-recipe',
+                subRecipeId: subRecipeId
             });
         }
     });
@@ -1836,13 +1864,14 @@ function saveRecipe(type) {
         });
     });
 
-    // Create recipe object
+    // Create recipe object - FIXED: Include subRecipeItems for main recipes
     const recipe = {
-        id: Date.now(),
+        id: editingItem.id || Date.now(),
         name: name,
         type: type,
         rawMaterialItems: rawMaterialItems,
         directLaborItems: directLaborItems,
+        subRecipeItems: subRecipeItems, // NEW: Include sub-recipe items
         totalCost: calculateCurrentRecipeTotalCost(),
         servings: parseFloat(servingsInput.value) || 1,
         createdAt: new Date().toISOString()
@@ -1880,38 +1909,46 @@ function saveRecipe(type) {
     alert(`Recipe "${name}" saved successfully!`);
 }
 
-// Render recipes list
+// FIX FOR ISSUE 1: Render recipes list - now properly counts sub-recipe items
 function renderRecipesList() {
     const recipes = getCurrentRecipes();
     const mainRecipes = recipes.filter(recipe => recipe.type === 'main');
     const subRecipes = recipes.filter(recipe => recipe.type === 'sub');
 
-    // Render main recipes
-    mainRecipesList.innerHTML = mainRecipes.map(recipe => `
+    // Render main recipes - FIXED: Include subRecipeItems in count
+    mainRecipesList.innerHTML = mainRecipes.map(recipe => {
+        // Calculate total items including sub-recipe items
+        const totalItems = recipe.rawMaterialItems.length + 
+                          recipe.directLaborItems.length + 
+                          (recipe.subRecipeItems ? recipe.subRecipeItems.length : 0);
+        
+        return `
         <div class="recipe-item" onclick="loadRecipe(${recipe.id})">
             <h4>${escapeHtml(recipe.name)}</h4>
-            <p>Total Cost: ${formatCurrency(recipe.totalCost)} • ${recipe.rawMaterialItems.length + recipe.directLaborItems.length} items • ${recipe.servings || 1} servings</p>
+            <p>Total Cost: ${formatCurrency(recipe.totalCost)} • ${totalItems} items • ${recipe.servings || 1} servings</p>
             <div class="recipe-actions">
                 <button class="btn-secondary small" onclick="editRecipe(${recipe.id}, event)">Edit</button>
                 <button class="btn-danger small" onclick="deleteRecipe(${recipe.id}, event)">Delete</button>
             </div>
         </div>
-    `).join('');
+    `}).join('');
 
     // Render sub-recipes
-    subRecipesList.innerHTML = subRecipes.map(recipe => `
+    subRecipesList.innerHTML = subRecipes.map(recipe => {
+        const totalItems = recipe.rawMaterialItems.length + recipe.directLaborItems.length;
+        return `
         <div class="recipe-item" onclick="loadSubRecipe(${recipe.id})">
             <h4>${escapeHtml(recipe.name)}</h4>
-            <p>Cost: ${formatCurrency(recipe.costPerUnit)}/${recipe.costUnit} • ${recipe.rawMaterialItems.length + recipe.directLaborItems.length} items</p>
+            <p>Cost: ${formatCurrency(recipe.costPerUnit)}/${recipe.costUnit} • ${totalItems} items</p>
             <div class="recipe-actions">
                 <button class="btn-secondary small" onclick="editSubRecipe(${recipe.id}, event)">Edit</button>
                 <button class="btn-danger small" onclick="deleteRecipe(${recipe.id}, event)">Delete</button>
             </div>
         </div>
-    `).join('');
+    `}).join('');
 }
 
-// Load recipe into current recipe
+// FIX FOR ISSUE 1: Load recipe into current recipe - now properly loads sub-recipe items
 function loadRecipe(recipeId) {
     const recipes = getCurrentRecipes();
     const recipe = recipes.find(r => r.id === recipeId);
@@ -1938,6 +1975,21 @@ function loadRecipe(recipeId) {
             'rawMaterial'
         );
     });
+
+    // FIXED: Add sub-recipe items if they exist
+    if (recipe.subRecipeItems) {
+        recipe.subRecipeItems.forEach(item => {
+            addRow(
+                item.name,
+                item.quantity,
+                item.unit,
+                item.yield,
+                item.unitCost,
+                'sub-recipe',
+                item.subRecipeId
+            );
+        });
+    }
 
     // Add direct labor items
     recipe.directLaborItems.forEach(item => {
@@ -2349,7 +2401,7 @@ function recalc() {
     updateCostBreakdownPreview();
 }
 
-// Update summary section - FIX FOR ISSUE 2c: Tax/VAT isolation
+// FIX FOR ISSUE 2: Update summary section - Tax/VAT isolation for batch profit calculations
 function updateSummary(rawMaterialsCost, directLaborCost, totalCost, scaledServings) {
     const markup = parseFloat(markupInput.value) || 0;
     const tax = parseFloat(taxInput.value) || 0;
@@ -2365,8 +2417,8 @@ function updateSummary(rawMaterialsCost, directLaborCost, totalCost, scaledServi
     const totalCostPercent = sellingPriceBeforeTax > 0 ? (totalCost / scaledServings / sellingPriceBeforeTax) * 100 : 0;
     const grossProfitPercent = sellingPriceBeforeTax > 0 ? 100 - totalCostPercent : 0;
 
-    // NEW: Calculate batch profit (using AFTER-TAX selling price for revenue)
-    const batchRevenue = sellingPrice * scaledServings;
+    // FIX FOR ISSUE 2: Calculate batch profit (using BEFORE-TAX selling price for revenue)
+    const batchRevenue = sellingPriceBeforeTax * scaledServings; // CHANGED: Use before-tax price
     const batchProfit = batchRevenue - totalCost;
     const batchProfitMargin = batchRevenue > 0 ? (batchProfit / batchRevenue) * 100 : 0;
 
@@ -2454,8 +2506,8 @@ function generatePrintPreview() {
     const totalCostPercent = sellingPriceBeforeTax > 0 ? (totalCost / scaledServings / sellingPriceBeforeTax) * 100 : 0;
     const grossProfitPercent = sellingPriceBeforeTax > 0 ? 100 - totalCostPercent : 0;
 
-    // NEW: Batch profit calculations (using after-tax selling price)
-    const batchRevenue = sellingPrice * scaledServings;
+    // FIX FOR ISSUE 2: Batch profit calculations (using before-tax selling price)
+    const batchRevenue = sellingPriceBeforeTax * scaledServings; // CHANGED: Use before-tax price
     const batchProfit = batchRevenue - totalCost;
     const batchProfitMargin = batchRevenue > 0 ? (batchProfit / batchRevenue) * 100 : 0;
 
@@ -2741,7 +2793,12 @@ function loadRecipeForSummary() {
     currentRecipeNameDisplay.textContent = recipe.name;
     loadedRecipeTotalCost.textContent = `${currency}${recipe.totalCost.toFixed(2)}`;
     loadedRecipeServings.textContent = recipe.servings || 1;
-    loadedRecipeItemCount.textContent = `${recipe.rawMaterialItems.length + recipe.directLaborItems.length} items`;
+    
+    // FIX FOR ISSUE 1: Calculate total items including sub-recipe items
+    const totalItems = recipe.rawMaterialItems.length + 
+                      recipe.directLaborItems.length + 
+                      (recipe.subRecipeItems ? recipe.subRecipeItems.length : 0);
+    loadedRecipeItemCount.textContent = `${totalItems} items`;
     
     loadedRecipeDisplay.classList.remove('hidden');
     
@@ -2782,7 +2839,8 @@ function updateSummaryWithLoadedRecipe(recipe) {
     const sellingPriceBeforeTax = costPerServing * (1 + markup / 100);
     const sellingPrice = sellingPriceBeforeTax * (1 + (tax + vat) / 100);
     
-    const batchRevenue = sellingPrice * scaledServings;
+    // FIX FOR ISSUE 2: Use before-tax selling price for batch revenue
+    const batchRevenue = sellingPriceBeforeTax * scaledServings;
     const batchProfit = batchRevenue - totalCost;
     const batchProfitMargin = batchRevenue > 0 ? (batchProfit / batchRevenue) * 100 : 0;
     
