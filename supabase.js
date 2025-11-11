@@ -1,6 +1,6 @@
 // Supabase Configuration
 const SUPABASE_URL = 'https://nlpuyubpmexdqqyfjlcs.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5scHV5dWJwbWV4ZHFxeWZqbGNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI2NTcwMzgsImV4cCI6MjA3ODIzMzAzOH0.aD4E1vVUNfOpDAWvKETpaXw9V0PkUPnpTLZpgBsN3Nc'; // Replace with your Supabase anon key
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5scHV5dWJwbWV4ZHFxeWZqbGNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI2NTcwMzgsImV4cCI6MjA3ODIzMzAzOH0.aD4E1vVUNfOpDAWvKETpaXw9V0PkUPnpTLZpgBsN3Nc';
 
 // Initialize Supabase client
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -47,6 +47,20 @@ async function signOut() {
     }
 }
 
+// NEW: Reset Password Function
+async function resetPassword(email) {
+    try {
+        const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: window.location.origin,
+        });
+        
+        if (error) throw error;
+        return { success: true, data };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
 // Check current auth state
 async function checkAuthState() {
     const { data: { session } } = await supabase.auth.getSession();
@@ -62,15 +76,15 @@ function updateAuthUI() {
     const userEmail = document.getElementById('userEmail');
     
     if (currentUser) {
-        authButtons.classList.add('hidden');
-        userInfo.classList.remove('hidden');
-        userEmail.textContent = currentUser.email;
+        if (authButtons) authButtons.classList.add('hidden');
+        if (userInfo) userInfo.classList.remove('hidden');
+        if (userEmail) userEmail.textContent = currentUser.email;
         
         // Load user data
         loadUserData();
     } else {
-        authButtons.classList.remove('hidden');
-        userInfo.classList.add('hidden');
+        if (authButtons) authButtons.classList.remove('hidden');
+        if (userInfo) userInfo.classList.add('hidden');
         
         // Clear data when logged out
         clearLocalData();
@@ -110,7 +124,12 @@ async function loadUserData() {
             .eq('user_id', currentUser.id)
             .single();
             
-        if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "not found"
+        if (error) {
+            if (error.code === 'PGRST116') { // "not found" error code
+                return getDefaultData();
+            }
+            throw error;
+        }
         return data?.data || getDefaultData();
     } catch (error) {
         console.error('Error loading data:', error);
@@ -151,6 +170,7 @@ window.supabaseClient = {
     signUp,
     signIn,
     signOut,
+    resetPassword,
     checkAuthState,
     saveUserData,
     loadUserData,
