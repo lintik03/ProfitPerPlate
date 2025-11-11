@@ -172,140 +172,29 @@ const fieldDefinitions = {
     }
 };
 
-// DOM Elements
-const recipeBody = document.getElementById("recipeBody");
-const directLaborRecipeBody = document.getElementById("directLaborRecipeBody");
-const rawMaterialsTotalEl = document.getElementById("rawMaterialsTotal");
-const directLaborTotalEl = document.getElementById("directLaborTotal");
-const grandTotalEl = document.getElementById("grandTotal");
-const currencySelect = document.getElementById("currencySelect");
-const recipeNameInput = document.getElementById("recipeName");
-const resetBtn = document.getElementById("resetRecipe");
-const saveMainRecipeBtn = document.getElementById("saveMainRecipeBtn");
-const saveSubRecipeBtn = document.getElementById("saveSubRecipeBtn");
-
-const summaryRawMaterialsCost = document.getElementById("summaryRawMaterialsCost");
-const summaryDirectLaborCost = document.getElementById("summaryDirectLaborCost");
-const summaryTotalCost = document.getElementById("summaryTotalCost");
-const summaryCostServing = document.getElementById("summaryCostServing");
-const summarySellingPrice = document.getElementById("summarySellingPrice");
-const summaryFoodCost = document.getElementById("summaryFoodCost");
-const summaryLaborCostPercent = document.getElementById("summaryLaborCostPercent");
-const summaryTotalCostPercent = document.getElementById("summaryTotalCostPercent");
-const summaryGrossProfit = document.getElementById("summaryGrossProfit");
-const markupInput = document.getElementById("markup");
-const taxInput = document.getElementById("tax");
-const vatInput = document.getElementById("vat");
-// MOVED: servingsInput is now in Recipe Calculator tab
-const servingsInput = document.getElementById("servings");
-
-// NEW: Batch scaling input
-const batchScaleInput = document.getElementById("batchScale");
-
-// NEW: Servings display element
-const summaryServingsDisplay = document.getElementById("summaryServingsDisplay");
-
-const helpBtn = document.getElementById("helpBtn");
-const helpModal = document.getElementById("helpModal");
-const helpModalTitle = document.getElementById("helpModalTitle");
-const helpModalContent = document.getElementById("helpModalContent");
-const closeHelpBtn = document.getElementById("closeHelp");
-const printBtn = document.getElementById("printBtn");
-const printPreviewModal = document.getElementById("printPreviewModal");
-const printPreviewContent = document.getElementById("printPreviewContent");
-
-// Unified Item Select Elements
-const unifiedItemSelect = document.getElementById("unifiedItemSelect");
-const addIngredientQty = document.getElementById("addIngredientQty");
-const addIngredientYield = document.getElementById("addIngredientYield");
-const addIngredientUnit = document.getElementById("addIngredientUnit");
-
-// Direct Labor Select Elements
-const directLaborSelect = document.getElementById("directLaborSelect");
-const timeRequirement = document.getElementById("timeRequirement");
-const timeRequirementUnit = document.getElementById("timeRequirementUnit");
-
-// Sub-Recipe Save Modal Elements
-const subRecipeSaveModal = document.getElementById("subRecipeSaveModal");
-const subRecipeNameDisplay = document.getElementById("subRecipeNameDisplay");
-const subRecipeCategory = document.getElementById("subRecipeCategory");
-const subRecipeYieldQuantity = document.getElementById("subRecipeYieldQuantity");
-const subRecipeYieldUnit = document.getElementById("subRecipeYieldUnit");
-const subRecipeCostPerUnit = document.getElementById("subRecipeCostPerUnit");
-const subRecipeCostUnit = document.getElementById("subRecipeCostUnit");
-const currentRecipeCostDisplay = document.getElementById("currentRecipeCostDisplay");
-const costPerOutputUnit = document.getElementById("costPerOutputUnit");
-
-// Recipe list elements
-const mainRecipesList = document.getElementById("mainRecipesList");
-const subRecipesList = document.getElementById("subRecipesList");
-
-// Edit prompt modal elements
-const editPromptModal = document.getElementById("editPromptModal");
-const editPromptTitle = document.getElementById("editPromptTitle");
-const editPromptMessage = document.getElementById("editPromptMessage");
-
-// NEW: Raw Material Edit Prompt Modal Elements
-const rawMaterialEditPromptModal = document.getElementById("rawMaterialEditPromptModal");
-const rawMaterialEditName = document.getElementById("rawMaterialEditName");
-
-// NEW: Direct Labor Edit Prompt Modal Elements
-const directLaborEditPromptModal = document.getElementById("directLaborEditPromptModal");
-const directLaborEditName = document.getElementById("directLaborEditName");
-
-// Auth Modal Elements
-const authModal = document.getElementById("authModal");
-const authModalTitle = document.getElementById("authModalTitle");
-const authForm = document.getElementById("authForm");
-const authEmail = document.getElementById("authEmail");
-const authPassword = document.getElementById("authPassword");
-const authSubmitBtn = document.getElementById("authSubmitBtn");
-const authError = document.getElementById("authError");
-const authSwitchBtn = document.getElementById("authSwitchBtn");
-const authSwitchText = document.getElementById("authSwitchText");
-
-// NEW: Forgot Password Elements
-const forgotPasswordModal = document.getElementById("forgotPasswordModal");
-const forgotPasswordBtn = document.getElementById("forgotPasswordBtn");
-const forgotPasswordEmail = document.getElementById("forgotPasswordEmail");
-const forgotPasswordError = document.getElementById("forgotPasswordError");
-const forgotPasswordSuccess = document.getElementById("forgotPasswordSuccess");
-const sendResetEmailBtn = document.getElementById("sendResetEmailBtn");
-
-// NEW: Password Toggle Element
-const togglePassword = document.getElementById("togglePassword");
-
-// Auth Button Elements
-const loginBtn = document.getElementById("loginBtn");
-const signupBtn = document.getElementById("signupBtn");
-const logoutBtn = document.getElementById("logoutBtn");
-
-// NEW: Cost Breakdown Preview Elements
-const rawMaterialsPreviewBody = document.getElementById("rawMaterialsPreviewBody");
-const directLaborPreviewBody = document.getElementById("directLaborPreviewBody");
-const rawMaterialsCount = document.getElementById("rawMaterialsCount");
-const directLaborCount = document.getElementById("directLaborCount");
-const rawMaterialsPreviewTotal = document.getElementById("rawMaterialsPreviewTotal");
-const directLaborPreviewTotal = document.getElementById("directLaborPreviewTotal");
-const rawMaterialsPreviewSubtotal = document.getElementById("rawMaterialsPreviewSubtotal");
-const directLaborPreviewSubtotal = document.getElementById("directLaborPreviewSubtotal");
-
-// NEW: Summary Recipe Loader Elements
-const summaryRecipeSelect = document.getElementById("summaryRecipeSelect");
-const loadedRecipeDisplay = document.getElementById("loadedRecipeDisplay");
-const currentRecipeNameDisplay = document.getElementById("currentRecipeNameDisplay");
-const loadedRecipeTotalCost = document.getElementById("loadedRecipeTotalCost");
-const loadedRecipeServings = document.getElementById("loadedRecipeServings");
-const loadedRecipeItemCount = document.getElementById("loadedRecipeItemCount");
-
-// NEW: Batch Profit Analysis Elements
-const summaryBatchRevenue = document.getElementById("summaryBatchRevenue");
-const summaryBatchProfit = document.getElementById("summaryBatchProfit");
-const summaryBatchProfitMargin = document.getElementById("summaryBatchProfitMargin");
-
-// NEW: Sidebar Elements
-const sidebarBtns = document.querySelectorAll(".sidebar-btn");
-const mobileTabBtns = document.querySelectorAll(".mobile-tabs .tab-btn");
+// DOM Elements - Will be initialized in initApp
+let recipeBody, directLaborRecipeBody, rawMaterialsTotalEl, directLaborTotalEl, grandTotalEl, currencySelect;
+let recipeNameInput, resetBtn, saveMainRecipeBtn, saveSubRecipeBtn;
+let summaryRawMaterialsCost, summaryDirectLaborCost, summaryTotalCost, summaryCostServing, summarySellingPrice;
+let summaryFoodCost, summaryLaborCostPercent, summaryTotalCostPercent, summaryGrossProfit;
+let markupInput, taxInput, vatInput, servingsInput, batchScaleInput;
+let summaryServingsDisplay, helpBtn, helpModal, helpModalTitle, helpModalContent, closeHelpBtn;
+let printBtn, printPreviewModal, printPreviewContent;
+let unifiedItemSelect, addIngredientQty, addIngredientYield, addIngredientUnit;
+let directLaborSelect, timeRequirement, timeRequirementUnit;
+let subRecipeSaveModal, subRecipeNameDisplay, subRecipeCategory, subRecipeYieldQuantity;
+let subRecipeYieldUnit, subRecipeCostPerUnit, subRecipeCostUnit, currentRecipeCostDisplay, costPerOutputUnit;
+let mainRecipesList, subRecipesList, editPromptModal, editPromptTitle, editPromptMessage;
+let rawMaterialEditPromptModal, rawMaterialEditName, directLaborEditPromptModal, directLaborEditName;
+let authModal, authModalTitle, authForm, authEmail, authPassword, authSubmitBtn, authError;
+let authSwitchBtn, authSwitchText, forgotPasswordModal, forgotPasswordBtn, forgotPasswordEmail;
+let forgotPasswordError, forgotPasswordSuccess, sendResetEmailBtn, togglePassword;
+let loginBtn, signupBtn, logoutBtn, rawMaterialsPreviewBody, directLaborPreviewBody;
+let rawMaterialsCount, directLaborCount, rawMaterialsPreviewTotal, directLaborPreviewTotal;
+let rawMaterialsPreviewSubtotal, directLaborPreviewSubtotal, summaryRecipeSelect;
+let loadedRecipeDisplay, currentRecipeNameDisplay, loadedRecipeTotalCost, loadedRecipeServings;
+let loadedRecipeItemCount, summaryBatchRevenue, summaryBatchProfit, summaryBatchProfitMargin;
+let sidebarBtns, mobileTabBtns;
 
 // Currency
 let currency = "₱";
@@ -315,6 +204,9 @@ let isSignUpMode = false;
 
 // Initialize Application
 async function initApp() {
+    // Initialize DOM elements
+    initializeDOMElements();
+    
     // Load dark mode preference
     loadTheme();
     
@@ -332,10 +224,132 @@ async function initApp() {
     populateSummaryRecipeSelect();
     
     // Generate complete help content
-    helpModalContent.innerHTML = generateCompleteHelpContent();
+    if (helpModalContent) {
+        helpModalContent.innerHTML = generateCompleteHelpContent();
+    }
     
     // NEW: Clear cost breakdown preview initially
     clearCostBreakdownPreview();
+    
+    // Check for password reset tokens on page load
+    await window.supabaseClient.handlePasswordReset();
+}
+
+// Initialize DOM Elements
+function initializeDOMElements() {
+    recipeBody = document.getElementById("recipeBody");
+    directLaborRecipeBody = document.getElementById("directLaborRecipeBody");
+    rawMaterialsTotalEl = document.getElementById("rawMaterialsTotal");
+    directLaborTotalEl = document.getElementById("directLaborTotal");
+    grandTotalEl = document.getElementById("grandTotal");
+    currencySelect = document.getElementById("currencySelect");
+    recipeNameInput = document.getElementById("recipeName");
+    resetBtn = document.getElementById("resetRecipe");
+    saveMainRecipeBtn = document.getElementById("saveMainRecipeBtn");
+    saveSubRecipeBtn = document.getElementById("saveSubRecipeBtn");
+
+    summaryRawMaterialsCost = document.getElementById("summaryRawMaterialsCost");
+    summaryDirectLaborCost = document.getElementById("summaryDirectLaborCost");
+    summaryTotalCost = document.getElementById("summaryTotalCost");
+    summaryCostServing = document.getElementById("summaryCostServing");
+    summarySellingPrice = document.getElementById("summarySellingPrice");
+    summaryFoodCost = document.getElementById("summaryFoodCost");
+    summaryLaborCostPercent = document.getElementById("summaryLaborCostPercent");
+    summaryTotalCostPercent = document.getElementById("summaryTotalCostPercent");
+    summaryGrossProfit = document.getElementById("summaryGrossProfit");
+    markupInput = document.getElementById("markup");
+    taxInput = document.getElementById("tax");
+    vatInput = document.getElementById("vat");
+    servingsInput = document.getElementById("servings");
+    batchScaleInput = document.getElementById("batchScale");
+    summaryServingsDisplay = document.getElementById("summaryServingsDisplay");
+
+    helpBtn = document.getElementById("helpBtn");
+    helpModal = document.getElementById("helpModal");
+    helpModalTitle = document.getElementById("helpModalTitle");
+    helpModalContent = document.getElementById("helpModalContent");
+    closeHelpBtn = document.getElementById("closeHelp");
+    printBtn = document.getElementById("printBtn");
+    printPreviewModal = document.getElementById("printPreviewModal");
+    printPreviewContent = document.getElementById("printPreviewContent");
+
+    unifiedItemSelect = document.getElementById("unifiedItemSelect");
+    addIngredientQty = document.getElementById("addIngredientQty");
+    addIngredientYield = document.getElementById("addIngredientYield");
+    addIngredientUnit = document.getElementById("addIngredientUnit");
+
+    directLaborSelect = document.getElementById("directLaborSelect");
+    timeRequirement = document.getElementById("timeRequirement");
+    timeRequirementUnit = document.getElementById("timeRequirementUnit");
+
+    subRecipeSaveModal = document.getElementById("subRecipeSaveModal");
+    subRecipeNameDisplay = document.getElementById("subRecipeNameDisplay");
+    subRecipeCategory = document.getElementById("subRecipeCategory");
+    subRecipeYieldQuantity = document.getElementById("subRecipeYieldQuantity");
+    subRecipeYieldUnit = document.getElementById("subRecipeYieldUnit");
+    subRecipeCostPerUnit = document.getElementById("subRecipeCostPerUnit");
+    subRecipeCostUnit = document.getElementById("subRecipeCostUnit");
+    currentRecipeCostDisplay = document.getElementById("currentRecipeCostDisplay");
+    costPerOutputUnit = document.getElementById("costPerOutputUnit");
+
+    mainRecipesList = document.getElementById("mainRecipesList");
+    subRecipesList = document.getElementById("subRecipesList");
+
+    editPromptModal = document.getElementById("editPromptModal");
+    editPromptTitle = document.getElementById("editPromptTitle");
+    editPromptMessage = document.getElementById("editPromptMessage");
+
+    rawMaterialEditPromptModal = document.getElementById("rawMaterialEditPromptModal");
+    rawMaterialEditName = document.getElementById("rawMaterialEditName");
+
+    directLaborEditPromptModal = document.getElementById("directLaborEditPromptModal");
+    directLaborEditName = document.getElementById("directLaborEditName");
+
+    authModal = document.getElementById("authModal");
+    authModalTitle = document.getElementById("authModalTitle");
+    authForm = document.getElementById("authForm");
+    authEmail = document.getElementById("authEmail");
+    authPassword = document.getElementById("authPassword");
+    authSubmitBtn = document.getElementById("authSubmitBtn");
+    authError = document.getElementById("authError");
+    authSwitchBtn = document.getElementById("authSwitchBtn");
+    authSwitchText = document.getElementById("authSwitchText");
+
+    forgotPasswordModal = document.getElementById("forgotPasswordModal");
+    forgotPasswordBtn = document.getElementById("forgotPasswordBtn");
+    forgotPasswordEmail = document.getElementById("forgotPasswordEmail");
+    forgotPasswordError = document.getElementById("forgotPasswordError");
+    forgotPasswordSuccess = document.getElementById("forgotPasswordSuccess");
+    sendResetEmailBtn = document.getElementById("sendResetEmailBtn");
+
+    togglePassword = document.getElementById("togglePassword");
+
+    loginBtn = document.getElementById("loginBtn");
+    signupBtn = document.getElementById("signupBtn");
+    logoutBtn = document.getElementById("logoutBtn");
+
+    rawMaterialsPreviewBody = document.getElementById("rawMaterialsPreviewBody");
+    directLaborPreviewBody = document.getElementById("directLaborPreviewBody");
+    rawMaterialsCount = document.getElementById("rawMaterialsCount");
+    directLaborCount = document.getElementById("directLaborCount");
+    rawMaterialsPreviewTotal = document.getElementById("rawMaterialsPreviewTotal");
+    directLaborPreviewTotal = document.getElementById("directLaborPreviewTotal");
+    rawMaterialsPreviewSubtotal = document.getElementById("rawMaterialsPreviewSubtotal");
+    directLaborPreviewSubtotal = document.getElementById("directLaborPreviewSubtotal");
+
+    summaryRecipeSelect = document.getElementById("summaryRecipeSelect");
+    loadedRecipeDisplay = document.getElementById("loadedRecipeDisplay");
+    currentRecipeNameDisplay = document.getElementById("currentRecipeNameDisplay");
+    loadedRecipeTotalCost = document.getElementById("loadedRecipeTotalCost");
+    loadedRecipeServings = document.getElementById("loadedRecipeServings");
+    loadedRecipeItemCount = document.getElementById("loadedRecipeItemCount");
+
+    summaryBatchRevenue = document.getElementById("summaryBatchRevenue");
+    summaryBatchProfit = document.getElementById("summaryBatchProfit");
+    summaryBatchProfitMargin = document.getElementById("summaryBatchProfitMargin");
+
+    sidebarBtns = document.querySelectorAll(".sidebar-btn");
+    mobileTabBtns = document.querySelectorAll(".mobile-tabs .tab-btn");
 }
 
 // Render all data
@@ -394,6 +408,21 @@ function togglePasswordVisibility() {
     }
 }
 
+// NEW: Enhanced password toggle function for multiple fields
+function togglePasswordVisibilityGeneric(fieldId, button) {
+    const passwordInput = document.getElementById(fieldId);
+    const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+    passwordInput.setAttribute('type', type);
+    
+    // Update icon
+    const icon = button.querySelector('svg');
+    if (type === 'text') {
+        icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+    } else {
+        icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
+    }
+}
+
 // NEW: Forgot Password Functions
 function openForgotPasswordModal() {
     closeAuthModal();
@@ -436,6 +465,81 @@ function showForgotPasswordError(message) {
     forgotPasswordError.textContent = message;
     forgotPasswordError.classList.remove("hidden");
     forgotPasswordSuccess.classList.add("hidden");
+}
+
+// NEW: Reset Password Modal Functions
+function showResetPasswordModal() {
+    closeAllModals();
+    document.getElementById('resetPasswordModal').classList.remove('hidden');
+}
+
+function closeResetPasswordModal() {
+    document.getElementById('resetPasswordModal').classList.add('hidden');
+    document.getElementById('resetPasswordForm').reset();
+    document.getElementById('resetPasswordError').classList.add('hidden');
+    document.getElementById('resetPasswordSuccess').classList.add('hidden');
+}
+
+// Handle password reset submission
+async function handlePasswordReset() {
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    
+    if (!newPassword || !confirmPassword) {
+        showResetPasswordError('Please enter both fields');
+        return;
+    }
+    
+    if (newPassword.length < 6) {
+        showResetPasswordError('Password must be at least 6 characters long');
+        return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+        showResetPasswordError('Passwords do not match');
+        return;
+    }
+    
+    const submitBtn = document.getElementById('submitResetPasswordBtn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Resetting...";
+    
+    // Use Supabase to update the password
+    const { data, error } = await window.supabaseClient.supabase.auth.updateUser({
+        password: newPassword
+    });
+    
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Reset Password";
+    
+    if (error) {
+        showResetPasswordError(error.message);
+    } else {
+        document.getElementById('resetPasswordError').classList.add('hidden');
+        document.getElementById('resetPasswordSuccess').textContent = 'Password reset successfully! You can now log in with your new password.';
+        document.getElementById('resetPasswordSuccess').classList.remove('hidden');
+        
+        // Close the modal after a delay
+        setTimeout(() => {
+            closeResetPasswordModal();
+            // Show login modal
+            openAuthModal();
+        }, 2000);
+    }
+}
+
+function showResetPasswordError(message) {
+    const errorEl = document.getElementById('resetPasswordError');
+    errorEl.textContent = message;
+    errorEl.classList.remove('hidden');
+    document.getElementById('resetPasswordSuccess').classList.add('hidden');
+}
+
+// Utility function to close all modals
+function closeAllModals() {
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.classList.add('hidden');
+    });
 }
 
 // Auth Functions
@@ -664,41 +768,53 @@ function setupEventListeners() {
     }
     
     // NEW: Password Toggle
-    togglePassword.addEventListener('click', togglePasswordVisibility);
+    if (togglePassword) {
+        togglePassword.addEventListener('click', togglePasswordVisibility);
+    }
     
     // NEW: Forgot Password
-    forgotPasswordBtn.addEventListener('click', openForgotPasswordModal);
-    sendResetEmailBtn.addEventListener('click', sendPasswordReset);
+    if (forgotPasswordBtn) {
+        forgotPasswordBtn.addEventListener('click', openForgotPasswordModal);
+    }
+    if (sendResetEmailBtn) {
+        sendResetEmailBtn.addEventListener('click', sendPasswordReset);
+    }
     
     // NEW: Sidebar Navigation
-    sidebarBtns.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            switchTab(e.target.closest('.sidebar-btn').dataset.tab);
+    if (sidebarBtns) {
+        sidebarBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                switchTab(e.target.closest('.sidebar-btn').dataset.tab);
+            });
         });
-    });
+    }
     
     // NEW: Mobile Tabs Navigation
-    mobileTabBtns.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            switchTab(e.target.dataset.tab);
+    if (mobileTabBtns) {
+        mobileTabBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                switchTab(e.target.dataset.tab);
+            });
         });
-    });
+    }
 
     // Currency Selector
-    currencySelect.addEventListener("change", () => {
-        currency = currencySelect.value;
-        userData.currency = currency;
-        document
-            .querySelectorAll(".unit-currency")
-            .forEach((e) => (e.textContent = currency));
-        recalc();
-        saveUserData();
-        
-        // NEW: Update cost breakdown preview if recipe is loaded
-        if (loadedRecipeForSummary) {
-            updateCostBreakdownPreview();
-        }
-    });
+    if (currencySelect) {
+        currencySelect.addEventListener("change", () => {
+            currency = currencySelect.value;
+            userData.currency = currency;
+            document
+                .querySelectorAll(".unit-currency")
+                .forEach((e) => (e.textContent = currency));
+            recalc();
+            saveUserData();
+            
+            // NEW: Update cost breakdown preview if recipe is loaded
+            if (loadedRecipeForSummary) {
+                updateCostBreakdownPreview();
+            }
+        });
+    }
 
     // Recipe inputs
     [
@@ -707,209 +823,179 @@ function setupEventListeners() {
         vatInput,
         servingsInput,
         recipeNameInput,
-        // NEW: Batch scaling input
         batchScaleInput
     ].forEach((el) => {
-        el.addEventListener("input", () => {
-            recalc();
-            saveCurrentRecipeState();
-            
-            // NEW: If a recipe is loaded for summary, update it too
-            if (loadedRecipeForSummary) {
-                updateLoadedRecipeSummary();
-            }
-        });
+        if (el) {
+            el.addEventListener("input", () => {
+                recalc();
+                saveCurrentRecipeState();
+                
+                // NEW: If a recipe is loaded for summary, update it too
+                if (loadedRecipeForSummary) {
+                    updateLoadedRecipeSummary();
+                }
+            });
+        }
     });
 
     // Reset button - ENHANCED
-    resetBtn.addEventListener("click", resetRecipe);
+    if (resetBtn) {
+        resetBtn.addEventListener("click", resetRecipe);
+    }
 
     // Save Recipe buttons
-    saveMainRecipeBtn.addEventListener("click", () => {
-        if (!recipeNameInput.value.trim()) {
-            alert("Please enter a recipe name before saving");
-            recipeNameInput.focus();
-            return;
-        }
-        
-        if (editingItem.type === 'mainRecipe' && editingItem.id) {
-            showEditPrompt('mainRecipe', editingItem.id, recipeNameInput.value);
-        } else {
-            saveRecipe('main');
-        }
-    });
-    saveSubRecipeBtn.addEventListener("click", openSubRecipeSaveModal);
+    if (saveMainRecipeBtn) {
+        saveMainRecipeBtn.addEventListener("click", () => {
+            if (!recipeNameInput.value.trim()) {
+                alert("Please enter a recipe name before saving");
+                recipeNameInput.focus();
+                return;
+            }
+            
+            if (editingItem.type === 'mainRecipe' && editingItem.id) {
+                showEditPrompt('mainRecipe', editingItem.id, recipeNameInput.value);
+            } else {
+                saveRecipe('main');
+            }
+        });
+    }
+    
+    if (saveSubRecipeBtn) {
+        saveSubRecipeBtn.addEventListener("click", openSubRecipeSaveModal);
+    }
 
     // Save Raw Material button
-    document
-        .getElementById("saveRawMaterialBtn")
-        .addEventListener("click", saveRawMaterial);
+    const saveRawMaterialBtn = document.getElementById("saveRawMaterialBtn");
+    if (saveRawMaterialBtn) {
+        saveRawMaterialBtn.addEventListener("click", saveRawMaterial);
+    }
 
     // Save Direct Labor button
-    document
-        .getElementById("saveDirectLaborBtn")
-        .addEventListener("click", saveDirectLabor);
+    const saveDirectLaborBtn = document.getElementById("saveDirectLaborBtn");
+    if (saveDirectLaborBtn) {
+        saveDirectLaborBtn.addEventListener("click", saveDirectLabor);
+    }
 
     // Help modal
-    helpBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        helpModalTitle.textContent = "Complete Field Guide — ProfitPerPlate";
-        helpModalContent.innerHTML = generateCompleteHelpContent();
-        helpModal.classList.remove("hidden");
-    });
+    if (helpBtn) {
+        helpBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            helpModalTitle.textContent = "Complete Field Guide — ProfitPerPlate";
+            helpModalContent.innerHTML = generateCompleteHelpContent();
+            helpModal.classList.remove("hidden");
+        });
+    }
     
-    closeHelpBtn.addEventListener("click", closeHelpModal);
-    helpModal.addEventListener("click", (e) => {
-        if (e.target === helpModal) closeHelpModal();
-    });
+    if (closeHelpBtn) {
+        closeHelpBtn.addEventListener("click", closeHelpModal);
+    }
+    
+    if (helpModal) {
+        helpModal.addEventListener("click", (e) => {
+            if (e.target === helpModal) closeHelpModal();
+        });
+    }
 
     // Print button
-    printBtn.addEventListener("click", () => {
-        generatePrintPreview();
-        printPreviewModal.classList.remove("hidden");
-    });
+    if (printBtn) {
+        printBtn.addEventListener("click", () => {
+            generatePrintPreview();
+            printPreviewModal.classList.remove("hidden");
+        });
+    }
 
     // Close modal on background click
-    document
-        .getElementById("rawMaterialModal")
-        .addEventListener("click", (e) => {
+    const rawMaterialModal = document.getElementById("rawMaterialModal");
+    if (rawMaterialModal) {
+        rawMaterialModal.addEventListener("click", (e) => {
             if (e.target.id === "rawMaterialModal") {
                 closeRawMaterialModal();
             }
         });
+    }
 
-    document
-        .getElementById("directLaborModal")
-        .addEventListener("click", (e) => {
+    const directLaborModal = document.getElementById("directLaborModal");
+    if (directLaborModal) {
+        directLaborModal.addEventListener("click", (e) => {
             if (e.target.id === "directLaborModal") {
                 closeDirectLaborModal();
             }
         });
+    }
 
-    document.getElementById("printPreviewModal").addEventListener("click", (e) => {
-        if (e.target.id === "printPreviewModal") {
-            closePrintPreview();
-        }
-    });
-
-    document.getElementById("subRecipeSaveModal").addEventListener("click", (e) => {
-        if (e.target.id === "subRecipeSaveModal") {
-            closeSubRecipeSaveModal();
-        }
-    });
-    
-    document.getElementById("editPromptModal").addEventListener("click", (e) => {
-        if (e.target.id === "editPromptModal") {
-            closeEditPromptModal();
-        }
-    });
-    
-    // NEW: Raw Material Edit Prompt Modal
-    document.getElementById("rawMaterialEditPromptModal").addEventListener("click", (e) => {
-        if (e.target.id === "rawMaterialEditPromptModal") {
-            closeRawMaterialEditPromptModal();
-        }
-    });
-    
-    // NEW: Direct Labor Edit Prompt Modal
-    document.getElementById("directLaborEditPromptModal").addEventListener("click", (e) => {
-        if (e.target.id === "directLaborEditPromptModal") {
-            closeDirectLaborEditPromptModal();
-        }
-    });
-
-    document.getElementById("authModal").addEventListener("click", (e) => {
-        if (e.target.id === "authModal") {
-            closeAuthModal();
-        }
-    });
-    
-    document.getElementById("forgotPasswordModal").addEventListener("click", (e) => {
-        if (e.target.id === "forgotPasswordModal") {
-            closeForgotPasswordModal();
-        }
-    });
-
-    // Update unit display when item is selected in unified dropdown
-    unifiedItemSelect.addEventListener("change", function () {
-        const value = this.value;
-        if (!value) {
-            addIngredientUnit.textContent = "g";
-            addIngredientYield.disabled = false;
-            return;
-        }
-
-        const [type, id] = value.split('-');
-        if (type === 'rawMaterial') {
-            const rawMaterial = userData.rawMaterials.find(item => item.id === parseInt(id));
-            if (rawMaterial) {
-                addIngredientUnit.textContent = rawMaterial.costUnit;
-                addIngredientYield.disabled = false;
-            }
-        } else if (type === 'subrecipe') {
-            const subRecipe = userData.recipes.find(recipe => recipe.id === parseInt(id));
-            if (subRecipe && subRecipe.type === 'sub') {
-                addIngredientUnit.textContent = subRecipe.costUnit || subRecipe.outputUnit || 'batch';
-                addIngredientYield.disabled = false;
-            }
-        }
-    });
-
-    // Update time requirement unit when direct labor item is selected
-    directLaborSelect.addEventListener("change", function() {
-        const value = this.value;
-        if (!value) {
-            timeRequirementUnit.textContent = "hours";
-            return;
-        }
-
-        const labor = userData.directLabor.find(item => item.id === parseInt(value));
-        if (labor) {
-            timeRequirementUnit.textContent = labor.costUnit;
-        }
-    });
-
-    // Update sub-recipe cost calculation when inputs change
-    subRecipeYieldQuantity.addEventListener('input', updateSubRecipeCostDisplay);
-    subRecipeYieldUnit.addEventListener('change', updateSubRecipeCostDisplay);
-    subRecipeCostUnit.addEventListener('change', updateSubRecipeCostDisplay);
-    subRecipeCategory.addEventListener('change', updateSubRecipeCostDisplay);
-
-    // NEW: Cost breakdown collapsible sections
-    document.querySelectorAll('.breakdown-header').forEach(header => {
-        header.addEventListener('click', function() {
-            const section = this.dataset.section;
-            const content = document.getElementById(`${section}Preview`);
-            const chevron = this.querySelector('span');
-            
-            if (content.style.display === 'none') {
-                content.style.display = 'block';
-                chevron.textContent = '▾';
-                this.classList.remove('collapsed');
-            } else {
-                content.style.display = 'none';
-                chevron.textContent = '▸';
-                this.classList.add('collapsed');
+    if (printPreviewModal) {
+        printPreviewModal.addEventListener("click", (e) => {
+            if (e.target.id === "printPreviewModal") {
+                closePrintPreview();
             }
         });
-    });
+    }
 
-    // NEW: Initialize breakdown sections as expanded
-    document.querySelectorAll('.breakdown-content').forEach(content => {
-        content.style.display = 'block';
-    });
+    if (subRecipeSaveModal) {
+        subRecipeSaveModal.addEventListener("click", (e) => {
+            if (e.target.id === "subRecipeSaveModal") {
+                closeSubRecipeSaveModal();
+            }
+        });
+    }
+    
+    if (editPromptModal) {
+        editPromptModal.addEventListener("click", (e) => {
+            if (e.target.id === "editPromptModal") {
+                closeEditPromptModal();
+            }
+        });
+    }
+    
+    // NEW: Raw Material Edit Prompt Modal
+    if (rawMaterialEditPromptModal) {
+        rawMaterialEditPromptModal.addEventListener("click", (e) => {
+            if (e.target.id === "rawMaterialEditPromptModal") {
+                closeRawMaterialEditPromptModal();
+            }
+        });
+    }
+    
+    // NEW: Direct Labor Edit Prompt Modal
+    if (directLaborEditPromptModal) {
+        directLaborEditPromptModal.addEventListener("click", (e) => {
+            if (e.target.id === "directLaborEditPromptModal") {
+                closeDirectLaborEditPromptModal();
+            }
+        });
+    }
 
-    // Auth event listeners
-    loginBtn.addEventListener("click", () => {
-        openAuthModal();
-    });
-    signupBtn.addEventListener("click", () => {
-        isSignUpMode = true;
-        openAuthModal();
-    });
-    logoutBtn.addEventListener("click", handleLogout);
-    authSubmitBtn.addEventListener("click", handleAuth);
-    authSwitchBtn.addEventListener("click", toggleAuthMode);
+    if (authModal) {
+        authModal.addEventListener("click", (e) => {
+            if (e.target.id === "authModal") {
+                closeAuthModal();
+            }
+        });
+    }
+    
+    if (forgotPasswordModal) {
+        forgotPasswordModal.addEventListener("click", (e) => {
+            if (e.target.id === "forgotPasswordModal") {
+                closeForgotPasswordModal();
+            }
+        });
+    }
+    
+    // NEW: Reset Password Modal background click
+    const resetPasswordModal = document.getElementById("resetPasswordModal");
+    if (resetPasswordModal) {
+        resetPasswordModal.addEventListener("click", (e) => {
+            if (e.target.id === "resetPasswordModal") {
+                closeResetPasswordModal();
+            }
+        });
+    }
+
+    // NEW: Reset Password Form
+    const submitResetPasswordBtn = document.getElementById('submitResetPasswordBtn');
+    if (submitResetPasswordBtn) {
+        submitResetPasswordBtn.addEventListener('click', handlePasswordReset);
+    }
 
     // Escape key handler
     document.addEventListener("keydown", (e) => {
@@ -934,6 +1020,8 @@ function setupEventListeners() {
                 closeDirectLaborEditPromptModal();
             } else if (!document.getElementById("forgotPasswordModal").classList.contains("hidden")) {
                 closeForgotPasswordModal();
+            } else if (!document.getElementById("resetPasswordModal").classList.contains("hidden")) {
+                closeResetPasswordModal(); // NEW: Add this line
             }
         }
     });
@@ -2075,15 +2163,6 @@ function saveSubRecipe() {
                 type: type,
                 subRecipeId: subRecipeId
             });
-        } else if (type === 'directLabor') {
-            directLaborItems.push({
-                name: itemName,
-                quantity: quantity,
-                unit: unit,
-                yield: yieldPct,
-                unitCost: unitCost,
-                type: 'directLabor'
-            });
         }
     });
 
@@ -2991,6 +3070,8 @@ function printCostingReport() {
 
 // NEW: Populate summary recipe selector
 function populateSummaryRecipeSelect() {
+    if (!summaryRecipeSelect) return;
+    
     summaryRecipeSelect.innerHTML = '<option value="">Select a recipe to analyze...</option>';
     
     const mainRecipes = getCurrentRecipes().filter(recipe => recipe.type === 'main');
@@ -3100,6 +3181,8 @@ function updateCostBreakdownPreview() {
 
 // NEW: Clear cost breakdown preview
 function clearCostBreakdownPreview() {
+    if (!rawMaterialsCount) return;
+    
     rawMaterialsCount.textContent = "0 items";
     directLaborCount.textContent = "0 items";
     rawMaterialsPreviewTotal.textContent = `${currency}0.00`;
@@ -3214,9 +3297,13 @@ function showFieldHelp(fieldKey, event) {
 
 // Update sub-recipe unit options based on category
 function updateSubRecipeUnitOptions() {
+    if (!subRecipeCategory) return;
+    
     const category = subRecipeCategory.value;
     
     [subRecipeYieldUnit, subRecipeCostUnit].forEach(unitSelect => {
+        if (!unitSelect) return;
+        
         unitSelect.innerHTML = '';
         
         categoryUnits[category].forEach((unit) => {
@@ -3232,6 +3319,8 @@ function updateSubRecipeUnitOptions() {
 
 // Update sub-recipe cost display
 function updateSubRecipeCostDisplay() {
+    if (!currentRecipeCostDisplay) return;
+    
     const totalCost = calculateCurrentRecipeTotalCost();
     const yieldQty = parseFloat(subRecipeYieldQuantity.value) || 1;
     const yieldUnit = subRecipeYieldUnit.value;
@@ -3245,8 +3334,12 @@ function updateSubRecipeCostDisplay() {
     }
     
     currentRecipeCostDisplay.textContent = `${currency}${totalCost.toFixed(2)}`;
-    subRecipeCostPerUnit.value = costPerUnit.toFixed(4);
-    costPerOutputUnit.textContent = `${currency}${costPerUnit.toFixed(4)} per ${costUnit}`;
+    if (subRecipeCostPerUnit) {
+        subRecipeCostPerUnit.value = costPerUnit.toFixed(4);
+    }
+    if (costPerOutputUnit) {
+        costPerOutputUnit.textContent = `${currency}${costPerUnit.toFixed(4)} per ${costUnit}`;
+    }
 }
 
 // Calculate current recipe total cost (raw materials + direct labor)
@@ -3332,6 +3425,8 @@ function updateUnitOptions() {
     ).value;
     const unitSelect = document.getElementById("modalRawMaterialUnit");
     const costUnitSelect = document.getElementById("modalCostUnit");
+
+    if (!unitSelect || !costUnitSelect) return;
 
     unitSelect.innerHTML = "";
     costUnitSelect.innerHTML = "";
@@ -3473,3 +3568,11 @@ function updateAuthUI() {
 
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', initApp);
+
+// Make functions globally available for HTML onclick handlers
+window.showResetPasswordModal = showResetPasswordModal;
+window.closeResetPasswordModal = closeResetPasswordModal;
+window.togglePasswordVisibilityGeneric = togglePasswordVisibilityGeneric;
+window.handlePasswordReset = handlePasswordReset;
+window.showResetPasswordError = showResetPasswordError;
+window.closeAllModals = closeAllModals;

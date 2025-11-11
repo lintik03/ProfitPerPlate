@@ -242,6 +242,44 @@ body {
   font-size: 13px;
 }
 
+/* NEW: Password Reset Modal Styles */
+.success-message {
+  background-color: var(--success-light);
+  color: var(--success);
+  padding: var(--space-sm);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--success);
+  margin: var(--space-sm) 0;
+  font-size: 14px;
+}
+
+.password-input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-group .text-input {
+  padding-right: 40px;
+  flex: 1;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+}
+
+.password-toggle:hover {
+  background: var(--primary-light);
+  color: var(--text-primary);
+}
+
 /* FIXED: Sidebar Navigation - Ensure proper display */
 .sidebar {
   position: fixed;

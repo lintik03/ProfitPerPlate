@@ -1122,6 +1122,66 @@
       </div>
     </div>
 
+    <!-- Reset Password Modal -->
+    <div id="resetPasswordModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Set New Password</h3>
+          <button class="close-btn" onclick="closeResetPasswordModal()">×</button>
+        </div>
+        <form id="resetPasswordForm">
+          <div class="form-group">
+            <label for="newPassword">New Password:</label>
+            <div class="password-input-group">
+              <input
+                type="password"
+                id="newPassword"
+                required
+                class="text-input"
+                placeholder="Enter new password"
+                minlength="6"
+              />
+              <button type="button" class="password-toggle" onclick="togglePasswordVisibility('newPassword', this)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="confirmPassword">Confirm New Password:</label>
+            <div class="password-input-group">
+              <input
+                type="password"
+                id="confirmPassword"
+                required
+                class="text-input"
+                placeholder="Confirm new password"
+                minlength="6"
+              />
+              <button type="button" class="password-toggle" onclick="togglePasswordVisibility('confirmPassword', this)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div id="resetPasswordError" class="error-message hidden"></div>
+          <div id="resetPasswordSuccess" class="success-message hidden"></div>
+          <div class="modal-actions">
+            <button type="button" class="btn-secondary" onclick="closeResetPasswordModal()">
+              Cancel
+            </button>
+            <button type="button" class="btn-primary" id="submitResetPasswordBtn">
+              Reset Password
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- Help modal -->
     <div id="helpModal" class="modal hidden" role="dialog" aria-modal="true">
       <div class="modal-content">

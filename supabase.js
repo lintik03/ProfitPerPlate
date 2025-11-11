@@ -47,7 +47,7 @@ async function signOut() {
     }
 }
 
-// NEW: Reset Password Function
+// Reset Password Function
 async function resetPassword(email) {
     try {
         const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -59,6 +59,38 @@ async function resetPassword(email) {
     } catch (error) {
         return { success: false, error: error.message };
     }
+}
+
+// NEW: Handle password reset from URL
+async function handlePasswordReset() {
+    // Check if we have a recovery token in the URL
+    const urlParams = new URLSearchParams(window.location.hash.substring(1));
+    const accessToken = urlParams.get('access_token');
+    const refreshToken = urlParams.get('refresh_token');
+    const type = urlParams.get('type');
+    
+    if (type === 'recovery' && accessToken) {
+        // We have a password reset token
+        console.log('Password reset token detected');
+        
+        // Store the tokens for the reset process
+        sessionStorage.setItem('reset_access_token', accessToken);
+        if (refreshToken) {
+            sessionStorage.setItem('reset_refresh_token', refreshToken);
+        }
+        
+        // Clear the URL parameters
+        window.location.hash = '';
+        
+        // Show the reset password modal
+        if (window.showResetPasswordModal) {
+            window.showResetPasswordModal();
+        }
+        
+        return true;
+    }
+    
+    return false;
 }
 
 // Check current auth state
@@ -149,18 +181,33 @@ function getDefaultData() {
 
 function clearLocalData() {
     // Clear all local data when user logs out
-    userData = getDefaultData();
-    renderAllData();
+    if (window.userData) {
+        window.userData = getDefaultData();
+    }
+    if (window.renderAllData) {
+        window.renderAllData();
+    }
 }
 
 // Initialize auth state on page load
 document.addEventListener('DOMContentLoaded', async () => {
     await checkAuthState();
     
+    // Check for password reset tokens on page load
+    await handlePasswordReset();
+    
     // Listen for auth state changes
     supabase.auth.onAuthStateChange((event, session) => {
         currentUser = session?.user || null;
         updateAuthUI();
+        
+        // NEW: Handle password recovery event
+        if (event === 'PASSWORD_RECOVERY') {
+            console.log('Password recovery event detected');
+            if (window.showResetPasswordModal) {
+                window.showResetPasswordModal();
+            }
+        }
     });
 });
 
@@ -171,6 +218,7 @@ window.supabaseClient = {
     signIn,
     signOut,
     resetPassword,
+    handlePasswordReset,
     checkAuthState,
     saveUserData,
     loadUserData,
