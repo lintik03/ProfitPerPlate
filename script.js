@@ -16,6 +16,10 @@ let editingItem = {
 // NEW: Track loaded recipe for summary
 let loadedRecipeForSummary = null;
 
+// NEW: Track currently editing rows
+window.currentEditingRow = null;
+window.currentEditingLaborRow = null;
+
 // Unit Conversion Factors (to base units)
 const UNIT_CONVERSIONS = {
     // Weight (base unit: grams)
@@ -69,10 +73,10 @@ const fieldDefinitions = {
         content: "The amount of the selected item needed for this recipe. For raw materials: quantity in units. For labor: time required in the selected unit.",
         example: "Example: For a burger recipe, you might use 0.15 kg of beef patty or 0.5 hours of kitchen work."
     },
-    yield: {
+    yieldPercentage: {
         title: "Yield Percentage",
-        content: "The usable percentage after preparation (e.g., peeling, trimming, cooking loss). 100% means all purchased quantity is usable. Not applicable to labor.",
-        example: "Example: If you buy carrots but peel them, only 85% might be usable. For pre-cut vegetables, you might have 100% yield."
+        content: "The usable percentage after preparation (e.g., peeling, trimming, cooking loss). This automatically increases the cost per unit to reflect the true cost of usable product.",
+        example: "Example: Carrots with 85% yield: $1000 for 1kg → $1.18/g (not $1.00/g) because only 850g is usable."
     },
     markup: {
         title: "Mark-up Percentage",
@@ -135,9 +139,9 @@ const fieldDefinitions = {
         example: "Example: For the 1kg beef package, select 'kg'. For the 50 eggs, select 'pc'. For 1L milk, select 'L'."
     },
     costPerUnit: {
-        title: "Cost Per Unit",
-        content: "The calculated cost for one unit of measurement. Automatically calculated from purchase details.",
-        example: "Example: Total recipe cost ₱100 for 500ml yield = ₱0.20 per ml. If cost unit is L, then ₱200 per L (₱0.20/ml * 1000)."
+        title: "Cost Per Unit (Yield-Inclusive)",
+        content: "The calculated cost for one unit of measurement INCLUDING yield loss. Automatically calculated from purchase details and yield percentage.",
+        example: "Example: Total recipe cost ₱100 for 500ml yield = ₱0.20 per ml. With 80% yield, cost becomes ₱0.25 per ml."
     },
     laborName: {
         title: "Direct Labor Name",
@@ -164,11 +168,11 @@ const fieldDefinitions = {
         content: "The unit of measurement for displaying the cost per unit (hours or minutes).",
         example: "Example: Select 'hours' to see cost per hour, 'minutes' to see cost per minute."
     },
-    // NEW: Batch scaling field definition
-    batchScale: {
-        title: "Batch Scaling Factor",
-        content: "Multiply the entire recipe by this factor to calculate costs for multiple batches. Useful for production planning and bulk preparation.",
-        example: "Example: Enter '4' to calculate costs for making 4 batches of this recipe. All ingredient quantities, labor time, and costs will be multiplied by 4."
+    // REPLACED: Batch scaling with serving scale
+    servingScale: {
+        title: "Serving Scale",
+        content: "The target number of servings you want to produce. The total cost will be calculated as: (Base Recipe Cost ÷ Base Servings) × Serving Scale. When loading a saved recipe, this automatically sets to match the recipe's base servings.",
+        example: "Example: If your beef stew recipe costs $20.00 for 10 servings and you want to make 50 servings, enter 50. The cost will be calculated as ($20.00 ÷ 10) × 50 = $100.00 for 50 servings. When loading a 15-serving recipe, this automatically sets to 15."
     }
 };
 
@@ -177,10 +181,10 @@ let recipeBody, directLaborRecipeBody, rawMaterialsTotalEl, directLaborTotalEl, 
 let recipeNameInput, resetBtn, saveMainRecipeBtn, saveSubRecipeBtn;
 let summaryRawMaterialsCost, summaryDirectLaborCost, summaryTotalCost, summaryCostServing, summarySellingPrice;
 let summaryFoodCost, summaryLaborCostPercent, summaryTotalCostPercent, summaryGrossProfit;
-let markupInput, taxInput, vatInput, servingsInput, batchScaleInput;
+let markupInput, taxInput, vatInput, servingsInput, servingScaleInput;
 let summaryServingsDisplay, helpBtn, helpModal, helpModalTitle, helpModalContent, closeHelpBtn;
 let printBtn, printPreviewModal, printPreviewContent;
-let unifiedItemSelect, addIngredientQty, addIngredientYield, addIngredientUnit;
+let unifiedItemSelect, addIngredientQty, addIngredientUnit;
 let directLaborSelect, timeRequirement, timeRequirementUnit;
 let subRecipeSaveModal, subRecipeNameDisplay, subRecipeCategory, subRecipeYieldQuantity;
 let subRecipeYieldUnit, subRecipeCostPerUnit, subRecipeCostUnit, currentRecipeCostDisplay, costPerOutputUnit;
@@ -189,11 +193,11 @@ let rawMaterialEditPromptModal, rawMaterialEditName, directLaborEditPromptModal,
 let authModal, authModalTitle, authForm, authEmail, authPassword, authSubmitBtn, authError;
 let authSwitchBtn, authSwitchText, forgotPasswordModal, forgotPasswordBtn, forgotPasswordEmail;
 let forgotPasswordError, forgotPasswordSuccess, sendResetEmailBtn, togglePassword;
-let loginBtn, signupBtn, logoutBtn, rawMaterialsPreviewBody, directLaborPreviewBody;
+let loginBtn, logoutBtn, rawMaterialsPreviewBody, directLaborPreviewBody;
 let rawMaterialsCount, directLaborCount, rawMaterialsPreviewTotal, directLaborPreviewTotal;
 let rawMaterialsPreviewSubtotal, directLaborPreviewSubtotal, summaryRecipeSelect;
 let loadedRecipeDisplay, currentRecipeNameDisplay, loadedRecipeTotalCost, loadedRecipeServings;
-let loadedRecipeItemCount, summaryBatchRevenue, summaryBatchProfit, summaryBatchProfitMargin;
+let loadedRecipeItemCount, summaryBatchRevenue, summaryBatchProfit;
 let sidebarBtns, mobileTabBtns;
 
 // Currency
@@ -202,154 +206,567 @@ let currency = "₱";
 // Auth state
 let isSignUpMode = false;
 
-// Initialize Application
-async function initApp() {
-    // Initialize DOM elements
-    initializeDOMElements();
-    
-    // Load dark mode preference
-    loadTheme();
-    
-    // Check auth state
-    await window.supabaseClient.checkAuthState();
-    
-    setupEventListeners();
-    renderAllData();
-    recalc();
-    populateUnifiedItemSelect();
-    populateDirectLaborSelect();
-    updateSubRecipeUnitOptions();
-    
-    // NEW: Populate summary recipe selector
-    populateSummaryRecipeSelect();
-    
-    // Generate complete help content
-    if (helpModalContent) {
-        helpModalContent.innerHTML = generateCompleteHelpContent();
+// FIX: Enhanced auth initialization with retry logic
+async function initAuthSystem() {
+    try {
+        console.log("Initializing auth system...");
+        
+        // Wait for Supabase client to be ready
+        if (!window.supabaseClient) {
+            console.warn("Supabase client not ready, retrying...");
+            setTimeout(initAuthSystem, 100);
+            return;
+        }
+        
+        // Setup auth event listeners
+        setupAuthEventListeners();
+        
+        // Check current auth state
+        await window.supabaseClient.checkAuthState();
+        
+        // Check for password reset tokens
+        await window.supabaseClient.handlePasswordReset();
+        
+        console.log("✓ Auth system initialized");
+    } catch (error) {
+        console.error("✗ Auth initialization failed:", error);
+        // Continue without auth - app should work locally
+        updateAuthUI();
     }
-    
-    // NEW: Clear cost breakdown preview initially
-    clearCostBreakdownPreview();
-    
-    // Check for password reset tokens on page load
-    await window.supabaseClient.handlePasswordReset();
 }
 
-// Initialize DOM Elements
+// FIX: Enhanced auth event listeners
+function setupAuthEventListeners() {
+    console.log("Setting up auth event listeners...");
+    
+    // Login button
+    const loginBtn = document.getElementById('loginBtn');
+    if (loginBtn) {
+        loginBtn.addEventListener('click', openAuthModal);
+        console.log("✓ Login button listener attached");
+    } else {
+        console.error("✗ Login button not found!");
+    }
+
+    // Logout button
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', handleLogout);
+    }
+
+    // Auth modal submit
+    const authSubmitBtn = document.getElementById('authSubmitBtn');
+    if (authSubmitBtn) {
+        authSubmitBtn.addEventListener('click', handleAuth);
+    }
+
+    // Auth mode toggle
+    const authSwitchBtn = document.getElementById('authSwitchBtn');
+    if (authSwitchBtn) {
+        authSwitchBtn.addEventListener('click', toggleAuthMode);
+    }
+
+    // Forgot password
+    const forgotPasswordBtn = document.getElementById('forgotPasswordBtn');
+    if (forgotPasswordBtn) {
+        forgotPasswordBtn.addEventListener('click', openForgotPasswordModal);
+    }
+
+    // Password reset submission
+    const sendResetEmailBtn = document.getElementById('sendResetEmailBtn');
+    if (sendResetEmailBtn) {
+        sendResetEmailBtn.addEventListener('click', sendPasswordReset);
+    }
+
+    // Password visibility toggles
+    setupPasswordToggles();
+}
+
+// NEW: Setup all password visibility toggles
+function setupPasswordToggles() {
+    // Auth modal password toggle
+    const togglePassword = document.getElementById('togglePassword');
+    if (togglePassword) {
+        togglePassword.addEventListener('click', function() {
+            togglePasswordVisibilityGeneric('authPassword', this);
+        });
+    }
+
+    // Reset password modal toggles
+    const resetToggles = document.querySelectorAll('#resetPasswordModal .password-toggle');
+    resetToggles.forEach((toggle, index) => {
+        const fieldId = index === 0 ? 'newPassword' : 'confirmPassword';
+        toggle.addEventListener('click', function() {
+            togglePasswordVisibilityGeneric(fieldId, this);
+        });
+    });
+}
+
+// FIX: Enhanced navigation initialization
+function setupNavigation() {
+    console.log("Setting up navigation...");
+    
+    // Desktop sidebar navigation
+    const sidebarBtns = document.querySelectorAll(".sidebar-btn");
+    if (sidebarBtns.length > 0) {
+        sidebarBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const tab = e.currentTarget.dataset.tab;
+                console.log("Sidebar navigation to:", tab);
+                switchTab(tab);
+            });
+        });
+        console.log("✓ Sidebar navigation initialized");
+    } else {
+        console.warn("✗ No sidebar buttons found");
+    }
+
+    // Mobile tabs navigation
+    const mobileTabBtns = document.querySelectorAll(".mobile-tabs .tab-btn");
+    if (mobileTabBtns.length > 0) {
+        mobileTabBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const tab = e.currentTarget.dataset.tab;
+                console.log("Mobile navigation to:", tab);
+                switchTab(tab);
+            });
+        });
+        console.log("✓ Mobile navigation initialized");
+    } else {
+        console.warn("✗ No mobile tab buttons found");
+    }
+
+    // Ensure first tab is active on load
+    setTimeout(() => {
+        const firstTab = document.querySelector('.tab-content.active');
+        if (!firstTab) {
+            switchTab('raw-materials');
+        }
+    }, 100);
+}
+
+// FIX: Comprehensive modal system
+function setupModalSystem() {
+    console.log("Setting up modal system...");
+    
+    const modals = [
+        { id: "rawMaterialModal", closeFn: closeRawMaterialModal },
+        { id: "directLaborModal", closeFn: closeDirectLaborModal },
+        { id: "printPreviewModal", closeFn: closePrintPreview },
+        { id: "subRecipeSaveModal", closeFn: closeSubRecipeSaveModal },
+        { id: "editPromptModal", closeFn: closeEditPromptModal },
+        { id: "rawMaterialEditPromptModal", closeFn: closeRawMaterialEditPromptModal },
+        { id: "directLaborEditPromptModal", closeFn: closeDirectLaborEditPromptModal },
+        { id: "authModal", closeFn: closeAuthModal },
+        { id: "forgotPasswordModal", closeFn: closeForgotPasswordModal },
+        { id: "resetPasswordModal", closeFn: closeResetPasswordModal },
+        { id: "helpModal", closeFn: closeHelpModal }
+    ];
+
+    modals.forEach(modalConfig => {
+        const modal = document.getElementById(modalConfig.id);
+        if (modal) {
+            // Background click to close
+            modal.addEventListener("click", (e) => {
+                if (e.target === modal) {
+                    modalConfig.closeFn();
+                }
+            });
+
+            // Escape key to close
+            document.addEventListener("keydown", (e) => {
+                if (e.key === "Escape" && modal.classList.contains('hidden') === false) {
+                    modalConfig.closeFn();
+                }
+            });
+
+            console.log(`✓ Modal ${modalConfig.id} initialized`);
+        } else {
+            console.warn(`✗ Modal ${modalConfig.id} not found`);
+        }
+    });
+
+    // Help modal specific setup
+    const helpBtn = document.getElementById('helpBtn');
+    const closeHelpBtn = document.getElementById('closeHelp');
+    
+    if (helpBtn && closeHelpBtn) {
+        helpBtn.addEventListener('click', openHelpModal);
+        closeHelpBtn.addEventListener('click', closeHelpModal);
+    }
+    
+    // ADD GLOBAL MODAL CLOSE FUNCTION
+    window.closeAllModals = function() {
+        modals.forEach(modalConfig => {
+            const modal = document.getElementById(modalConfig.id);
+            if (modal) modal.classList.add('hidden');
+        });
+    };
+}
+
+// NEW: Event delegation for dynamic content
+function setupEventDelegation() {
+    console.log("Setting up event delegation...");
+    
+    // Delegate for dynamically created delete buttons
+    document.addEventListener('click', function(e) {
+        // Recipe row delete buttons
+        if (e.target.classList.contains('delRow')) {
+            const row = e.target.closest('tr');
+            if (row) {
+                row.remove();
+                recalc();
+                saveCurrentRecipeState();
+            }
+        }
+        
+        // Direct labor row delete buttons
+        if (e.target.classList.contains('delDirectLaborRow')) {
+            const row = e.target.closest('tr');
+            if (row) {
+                row.remove();
+                recalc();
+                saveCurrentRecipeState();
+            }
+        }
+        
+        // Edit buttons
+        if (e.target.classList.contains('edit-recipe-btn')) {
+            const row = e.target.closest('tr');
+            if (row) {
+                const rowId = row.id;
+                editRecipeRow(rowId);
+            }
+        }
+        
+        if (e.target.classList.contains('edit-labor-btn')) {
+            const row = e.target.closest('tr');
+            if (row) {
+                const rowId = row.id;
+                editDirectLaborRow(rowId);
+            }
+        }
+    });
+    
+    // Input change delegation
+    document.addEventListener('input', function(e) {
+        if (e.target.matches('#recipeBody input[type="number"], #directLaborRecipeBody input[type="number"]')) {
+            recalc();
+            saveCurrentRecipeState();
+        }
+    });
+}
+
+// NEW: Open help modal function
+function openHelpModal() {
+    const helpModal = document.getElementById('helpModal');
+    const helpModalContent = document.getElementById('helpModalContent');
+    
+    if (helpModal && helpModalContent) {
+        helpModalContent.innerHTML = generateCompleteHelpContent();
+        helpModal.classList.remove('hidden');
+    }
+}
+
+// FIX: Comprehensive button initialization
+function setupButtonHandlers() {
+    console.log("Setting up button handlers...");
+    
+    // Raw Material buttons
+    const saveRawMaterialBtn = document.getElementById('saveRawMaterialBtn');
+    if (saveRawMaterialBtn) {
+        saveRawMaterialBtn.addEventListener('click', saveRawMaterial);
+    }
+
+    // Direct Labor buttons
+    const saveDirectLaborBtn = document.getElementById('saveDirectLaborBtn');
+    if (saveDirectLaborBtn) {
+        saveDirectLaborBtn.addEventListener('click', saveDirectLabor);
+    }
+
+    // Recipe buttons
+    const saveMainRecipeBtn = document.getElementById('saveMainRecipeBtn');
+    const saveSubRecipeBtn = document.getElementById('saveSubRecipeBtn');
+    const resetBtn = document.getElementById('resetRecipe');
+    
+    if (saveMainRecipeBtn) {
+        saveMainRecipeBtn.addEventListener('click', () => {
+            if (!recipeNameInput?.value?.trim()) {
+                alert("Please enter a recipe name before saving");
+                recipeNameInput?.focus();
+                return;
+            }
+            saveRecipe('main');
+        });
+    }
+    
+    if (saveSubRecipeBtn) {
+        saveSubRecipeBtn.addEventListener('click', openSubRecipeSaveModal);
+    }
+    
+    if (resetBtn) {
+        resetBtn.addEventListener('click', resetRecipe);
+    }
+
+    // Print button
+    const printBtn = document.getElementById('printBtn');
+    if (printBtn) {
+        printBtn.addEventListener('click', generatePrintPreview);
+    }
+
+    // Summary recipe load button
+    const loadRecipeBtn = document.querySelector('.load-recipe-controls button');
+    if (loadRecipeBtn) {
+        loadRecipeBtn.addEventListener('click', loadRecipeForSummary);
+    }
+
+    console.log("✓ Button handlers initialized");
+}
+
+// FIX: Enhanced app initialization
+async function initApp() {
+    console.log("🚀 Initializing ProfitPerPlate...");
+    
+    try {
+        // Phase 1: DOM Initialization
+        console.log("Phase 1: DOM Initialization");
+        initializeDOMElements();
+        
+        // Phase 2: Theme & UI
+        console.log("Phase 2: Theme & UI");
+        loadTheme();
+        setupDarkModeToggle();
+        
+        // Phase 3: Core Systems
+        console.log("Phase 3: Core Systems");
+        await initAuthSystem();
+        setupNavigation();
+        setupModalSystem();
+        setupEventDelegation(); // NEW: Added event delegation
+        setupButtonHandlers();
+        
+        // Phase 4: Data & Content
+        console.log("Phase 4: Data & Content");
+        await loadUserData();
+        renderAllData();
+        populateUnifiedItemSelect();
+        populateDirectLaborSelect();
+        populateSummaryRecipeSelect();
+        
+        // Phase 5: Final Setup
+        console.log("Phase 5: Final Setup");
+        setupBeforeUnloadListener();
+        changeSummaryTerminology();
+        
+        // Load current recipe state LAST
+        loadCurrentRecipeState();
+        
+        console.log("✅ App initialization completed successfully");
+        
+    } catch (error) {
+        console.error("❌ App initialization failed:", error);
+        showNotification("App initialization failed. Some features may not work.", "error");
+    }
+}
+
+// NEW: Dark mode toggle setup
+function setupDarkModeToggle() {
+    const darkModeToggle = document.getElementById('darkModeToggle');
+    if (darkModeToggle) {
+        darkModeToggle.addEventListener('click', toggleTheme);
+        console.log("✓ Dark mode toggle initialized");
+    }
+}
+
+// NEW: Change Summary Tab terminology
+function changeSummaryTerminology() {
+    // Change labels for Total Revenue and Total Profit
+    const batchProfitAnalysisLabels = document.querySelectorAll('.batch-profit-analysis label');
+    if (batchProfitAnalysisLabels.length >= 2) {
+        batchProfitAnalysisLabels[0].textContent = 'Total Revenue:';
+        batchProfitAnalysisLabels[1].textContent = 'Total Profit:';
+    }
+    // Remove the batch profit margin row
+    const batchProfitMarginRow = document.querySelector('.batch-profit-analysis:nth-child(3)');
+    if (batchProfitMarginRow) {
+        batchProfitMarginRow.remove();
+    }
+}
+
+// NEW: Setup beforeunload listener for final save
+function setupBeforeUnloadListener() {
+    window.addEventListener('beforeunload', (event) => {
+        // Save current state before leaving
+        saveCurrentRecipeState();
+    });
+}
+
+// NEW: Get current active tab
+function getCurrentActiveTab() {
+    const activeTab = document.querySelector('.tab-content.active');
+    if (activeTab) {
+        return activeTab.id.replace('-tab', '');
+    }
+    return 'raw-materials'; // Default tab
+}
+
+// =============================================================================
+// FIX: CORRECTED DOM ELEMENT INITIALIZATION WITH FALLBACK FOR servingScaleInput
+// =============================================================================
 function initializeDOMElements() {
-    recipeBody = document.getElementById("recipeBody");
-    directLaborRecipeBody = document.getElementById("directLaborRecipeBody");
-    rawMaterialsTotalEl = document.getElementById("rawMaterialsTotal");
-    directLaborTotalEl = document.getElementById("directLaborTotal");
-    grandTotalEl = document.getElementById("grandTotal");
-    currencySelect = document.getElementById("currencySelect");
-    recipeNameInput = document.getElementById("recipeName");
-    resetBtn = document.getElementById("resetRecipe");
-    saveMainRecipeBtn = document.getElementById("saveMainRecipeBtn");
-    saveSubRecipeBtn = document.getElementById("saveSubRecipeBtn");
+    console.log("Initializing DOM elements...");
+    
+    try {
+        // Core recipe elements
+        recipeBody = document.getElementById("recipeBody");
+        if (!recipeBody) console.warn("recipeBody not found");
+        
+        directLaborRecipeBody = document.getElementById("directLaborRecipeBody");
+        rawMaterialsTotalEl = document.getElementById("rawMaterialsTotal");
+        directLaborTotalEl = document.getElementById("directLaborTotal");
+        grandTotalEl = document.getElementById("grandTotal");
+        currencySelect = document.getElementById("currencySelect");
+        recipeNameInput = document.getElementById("recipeName");
+        resetBtn = document.getElementById("resetRecipe");
+        saveMainRecipeBtn = document.getElementById("saveMainRecipeBtn");
+        saveSubRecipeBtn = document.getElementById("saveSubRecipeBtn");
 
-    summaryRawMaterialsCost = document.getElementById("summaryRawMaterialsCost");
-    summaryDirectLaborCost = document.getElementById("summaryDirectLaborCost");
-    summaryTotalCost = document.getElementById("summaryTotalCost");
-    summaryCostServing = document.getElementById("summaryCostServing");
-    summarySellingPrice = document.getElementById("summarySellingPrice");
-    summaryFoodCost = document.getElementById("summaryFoodCost");
-    summaryLaborCostPercent = document.getElementById("summaryLaborCostPercent");
-    summaryTotalCostPercent = document.getElementById("summaryTotalCostPercent");
-    summaryGrossProfit = document.getElementById("summaryGrossProfit");
-    markupInput = document.getElementById("markup");
-    taxInput = document.getElementById("tax");
-    vatInput = document.getElementById("vat");
-    servingsInput = document.getElementById("servings");
-    batchScaleInput = document.getElementById("batchScale");
-    summaryServingsDisplay = document.getElementById("summaryServingsDisplay");
+        // Summary display elements
+        summaryRawMaterialsCost = document.getElementById("summaryRawMaterialsCost");
+        summaryDirectLaborCost = document.getElementById("summaryDirectLaborCost");
+        summaryTotalCost = document.getElementById("summaryTotalCost");
+        summaryCostServing = document.getElementById("summaryCostServing");
+        summarySellingPrice = document.getElementById("summarySellingPrice");
+        summaryFoodCost = document.getElementById("summaryFoodCost");
+        summaryLaborCostPercent = document.getElementById("summaryLaborCostPercent");
+        summaryTotalCostPercent = document.getElementById("summaryTotalCostPercent");
+        summaryGrossProfit = document.getElementById("summaryGrossProfit");
+        
+        // Input controls
+        markupInput = document.getElementById("markup");
+        taxInput = document.getElementById("tax");
+        vatInput = document.getElementById("vat");
+        servingsInput = document.getElementById("servings");
+        
+        // CRITICAL FIX: Ensure servingScale input exists with fallback
+        servingScaleInput = document.getElementById("servingScale");
+        if (!servingScaleInput) {
+            console.error("servingScale input not found - creating fallback");
+            servingScaleInput = document.createElement('input');
+            servingScaleInput.id = 'servingScale';
+            servingScaleInput.type = 'number';
+            servingScaleInput.value = '1';
+            servingScaleInput.min = '1';
+            servingScaleInput.className = 'hidden';
+            document.body.appendChild(servingScaleInput);
+        }
+        
+        summaryServingsDisplay = document.getElementById("summaryServingsDisplay");
 
-    helpBtn = document.getElementById("helpBtn");
-    helpModal = document.getElementById("helpModal");
-    helpModalTitle = document.getElementById("helpModalTitle");
-    helpModalContent = document.getElementById("helpModalContent");
-    closeHelpBtn = document.getElementById("closeHelp");
-    printBtn = document.getElementById("printBtn");
-    printPreviewModal = document.getElementById("printPreviewModal");
-    printPreviewContent = document.getElementById("printPreviewContent");
+        // Modal and UI elements
+        helpBtn = document.getElementById("helpBtn");
+        helpModal = document.getElementById("helpModal");
+        helpModalTitle = document.getElementById("helpModalTitle");
+        helpModalContent = document.getElementById("helpModalContent");
+        closeHelpBtn = document.getElementById("closeHelp");
+        printBtn = document.getElementById("printBtn");
+        printPreviewModal = document.getElementById("printPreviewModal");
+        printPreviewContent = document.getElementById("printPreviewContent");
 
-    unifiedItemSelect = document.getElementById("unifiedItemSelect");
-    addIngredientQty = document.getElementById("addIngredientQty");
-    addIngredientYield = document.getElementById("addIngredientYield");
-    addIngredientUnit = document.getElementById("addIngredientUnit");
+        // Recipe ingredient selection
+        unifiedItemSelect = document.getElementById("unifiedItemSelect");
+        addIngredientQty = document.getElementById("addIngredientQty");
+        addIngredientUnit = document.getElementById("addIngredientUnit");
 
-    directLaborSelect = document.getElementById("directLaborSelect");
-    timeRequirement = document.getElementById("timeRequirement");
-    timeRequirementUnit = document.getElementById("timeRequirementUnit");
+        // Direct labor selection
+        directLaborSelect = document.getElementById("directLaborSelect");
+        timeRequirement = document.getElementById("timeRequirement");
+        timeRequirementUnit = document.getElementById("timeRequirementUnit");
 
-    subRecipeSaveModal = document.getElementById("subRecipeSaveModal");
-    subRecipeNameDisplay = document.getElementById("subRecipeNameDisplay");
-    subRecipeCategory = document.getElementById("subRecipeCategory");
-    subRecipeYieldQuantity = document.getElementById("subRecipeYieldQuantity");
-    subRecipeYieldUnit = document.getElementById("subRecipeYieldUnit");
-    subRecipeCostPerUnit = document.getElementById("subRecipeCostPerUnit");
-    subRecipeCostUnit = document.getElementById("subRecipeCostUnit");
-    currentRecipeCostDisplay = document.getElementById("currentRecipeCostDisplay");
-    costPerOutputUnit = document.getElementById("costPerOutputUnit");
+        // Sub-recipe modal
+        subRecipeSaveModal = document.getElementById("subRecipeSaveModal");
+        subRecipeNameDisplay = document.getElementById("subRecipeNameDisplay");
+        subRecipeCategory = document.getElementById("subRecipeCategory");
+        subRecipeYieldQuantity = document.getElementById("subRecipeYieldQuantity");
+        subRecipeYieldUnit = document.getElementById("subRecipeYieldUnit");
+        subRecipeCostPerUnit = document.getElementById("subRecipeCostPerUnit");
+        subRecipeCostUnit = document.getElementById("subRecipeCostUnit");
+        currentRecipeCostDisplay = document.getElementById("currentRecipeCostDisplay");
+        costPerOutputUnit = document.getElementById("costPerOutputUnit");
 
-    mainRecipesList = document.getElementById("mainRecipesList");
-    subRecipesList = document.getElementById("subRecipesList");
+        // Recipe lists
+        mainRecipesList = document.getElementById("mainRecipesList");
+        subRecipesList = document.getElementById("subRecipesList");
 
-    editPromptModal = document.getElementById("editPromptModal");
-    editPromptTitle = document.getElementById("editPromptTitle");
-    editPromptMessage = document.getElementById("editPromptMessage");
+        // Edit prompts
+        editPromptModal = document.getElementById("editPromptModal");
+        editPromptTitle = document.getElementById("editPromptTitle");
+        editPromptMessage = document.getElementById("editPromptMessage");
 
-    rawMaterialEditPromptModal = document.getElementById("rawMaterialEditPromptModal");
-    rawMaterialEditName = document.getElementById("rawMaterialEditName");
+        rawMaterialEditPromptModal = document.getElementById("rawMaterialEditPromptModal");
+        rawMaterialEditName = document.getElementById("rawMaterialEditName");
 
-    directLaborEditPromptModal = document.getElementById("directLaborEditPromptModal");
-    directLaborEditName = document.getElementById("directLaborEditName");
+        directLaborEditPromptModal = document.getElementById("directLaborEditPromptModal");
+        directLaborEditName = document.getElementById("directLaborEditName");
 
-    authModal = document.getElementById("authModal");
-    authModalTitle = document.getElementById("authModalTitle");
-    authForm = document.getElementById("authForm");
-    authEmail = document.getElementById("authEmail");
-    authPassword = document.getElementById("authPassword");
-    authSubmitBtn = document.getElementById("authSubmitBtn");
-    authError = document.getElementById("authError");
-    authSwitchBtn = document.getElementById("authSwitchBtn");
-    authSwitchText = document.getElementById("authSwitchText");
+        // Auth elements
+        authModal = document.getElementById("authModal");
+        authModalTitle = document.getElementById("authModalTitle");
+        authForm = document.getElementById("authForm");
+        authEmail = document.getElementById("authEmail");
+        authPassword = document.getElementById("authPassword");
+        authSubmitBtn = document.getElementById("authSubmitBtn");
+        authError = document.getElementById("authError");
+        authSwitchBtn = document.getElementById("authSwitchBtn");
+        authSwitchText = document.getElementById("authSwitchText");
 
-    forgotPasswordModal = document.getElementById("forgotPasswordModal");
-    forgotPasswordBtn = document.getElementById("forgotPasswordBtn");
-    forgotPasswordEmail = document.getElementById("forgotPasswordEmail");
-    forgotPasswordError = document.getElementById("forgotPasswordError");
-    forgotPasswordSuccess = document.getElementById("forgotPasswordSuccess");
-    sendResetEmailBtn = document.getElementById("sendResetEmailBtn");
+        // Password reset
+        forgotPasswordModal = document.getElementById("forgotPasswordModal");
+        forgotPasswordBtn = document.getElementById("forgotPasswordBtn");
+        forgotPasswordEmail = document.getElementById("forgotPasswordEmail");
+        forgotPasswordError = document.getElementById("forgotPasswordError");
+        forgotPasswordSuccess = document.getElementById("forgotPasswordSuccess");
+        sendResetEmailBtn = document.getElementById("sendResetEmailBtn");
 
-    togglePassword = document.getElementById("togglePassword");
+        togglePassword = document.getElementById("togglePassword");
 
-    loginBtn = document.getElementById("loginBtn");
-    signupBtn = document.getElementById("signupBtn");
-    logoutBtn = document.getElementById("logoutBtn");
+        // Auth buttons - ONLY INITIALIZE EXISTING ELEMENTS
+        loginBtn = document.getElementById("loginBtn");
+        logoutBtn = document.getElementById("logoutBtn");
 
-    rawMaterialsPreviewBody = document.getElementById("rawMaterialsPreviewBody");
-    directLaborPreviewBody = document.getElementById("directLaborPreviewBody");
-    rawMaterialsCount = document.getElementById("rawMaterialsCount");
-    directLaborCount = document.getElementById("directLaborCount");
-    rawMaterialsPreviewTotal = document.getElementById("rawMaterialsPreviewTotal");
-    directLaborPreviewTotal = document.getElementById("directLaborPreviewTotal");
-    rawMaterialsPreviewSubtotal = document.getElementById("rawMaterialsPreviewSubtotal");
-    directLaborPreviewSubtotal = document.getElementById("directLaborPreviewSubtotal");
+        // Cost breakdown preview
+        rawMaterialsPreviewBody = document.getElementById("rawMaterialsPreviewBody");
+        directLaborPreviewBody = document.getElementById("directLaborPreviewBody");
+        rawMaterialsCount = document.getElementById("rawMaterialsCount");
+        directLaborCount = document.getElementById("directLaborCount");
+        rawMaterialsPreviewTotal = document.getElementById("rawMaterialsPreviewTotal");
+        directLaborPreviewTotal = document.getElementById("directLaborPreviewTotal");
+        rawMaterialsPreviewSubtotal = document.getElementById("rawMaterialsPreviewSubtotal");
+        directLaborPreviewSubtotal = document.getElementById("directLaborPreviewSubtotal");
 
-    summaryRecipeSelect = document.getElementById("summaryRecipeSelect");
-    loadedRecipeDisplay = document.getElementById("loadedRecipeDisplay");
-    currentRecipeNameDisplay = document.getElementById("currentRecipeNameDisplay");
-    loadedRecipeTotalCost = document.getElementById("loadedRecipeTotalCost");
-    loadedRecipeServings = document.getElementById("loadedRecipeServings");
-    loadedRecipeItemCount = document.getElementById("loadedRecipeItemCount");
+        // Summary recipe selection
+        summaryRecipeSelect = document.getElementById("summaryRecipeSelect");
+        loadedRecipeDisplay = document.getElementById("loadedRecipeDisplay");
+        currentRecipeNameDisplay = document.getElementById("currentRecipeNameDisplay");
+        loadedRecipeTotalCost = document.getElementById("loadedRecipeTotalCost");
+        loadedRecipeServings = document.getElementById("loadedRecipeServings");
+        loadedRecipeItemCount = document.getElementById("loadedRecipeItemCount");
 
-    summaryBatchRevenue = document.getElementById("summaryBatchRevenue");
-    summaryBatchProfit = document.getElementById("summaryBatchProfit");
-    summaryBatchProfitMargin = document.getElementById("summaryBatchProfitMargin");
+        // Batch analysis - ONLY INITIALIZE EXISTING ELEMENTS
+        summaryBatchRevenue = document.getElementById("summaryBatchRevenue");
+        summaryBatchProfit = document.getElementById("summaryBatchProfit");
 
-    sidebarBtns = document.querySelectorAll(".sidebar-btn");
-    mobileTabBtns = document.querySelectorAll(".mobile-tabs .tab-btn");
+        // Navigation
+        sidebarBtns = document.querySelectorAll(".sidebar-btn");
+        mobileTabBtns = document.querySelectorAll(".mobile-tabs .tab-btn");
+        
+        console.log("DOM element initialization completed");
+    } catch (error) {
+        console.error("DOM initialization failed:", error);
+        showNotification("UI initialization failed - some features may not work", "error");
+    }
 }
 
 // Render all data
@@ -656,7 +1073,9 @@ async function loadUserData() {
     }
 }
 
-// Auto-save current recipe state
+// =============================================================================
+// FIX: ENHANCED STATE PERSISTENCE FOR SUMMARY TAB
+// =============================================================================
 function saveCurrentRecipeState() {
     // Get current recipe items
     const rawMaterialItems = [];
@@ -666,8 +1085,7 @@ function saveCurrentRecipeState() {
         const itemName = row.children[0].querySelector("input").value;
         const quantity = parseFloat(row.children[1].querySelector("input").value) || 0;
         const unit = row.children[1].querySelector(".quantity-unit")?.textContent || "g";
-        const yieldPct = parseFloat(row.children[2].querySelector("input").value) || 100;
-        const unitCost = parseFloat(row.children[3].querySelector("input").value) || 0;
+        const unitCost = parseFloat(row.children[3].querySelector("input").value) || 0; // FIXED: Index 3 for unit cost (after yield column)
         const type = row.dataset.type || 'rawMaterial';
         const subRecipeId = row.dataset.subRecipeId || null;
         
@@ -676,7 +1094,6 @@ function saveCurrentRecipeState() {
                 name: itemName,
                 quantity: quantity,
                 unit: unit,
-                yield: yieldPct,
                 unitCost: unitCost,
                 type: type,
                 subRecipeId: subRecipeId
@@ -698,7 +1115,7 @@ function saveCurrentRecipeState() {
         });
     });
     
-    // Save current recipe state
+    // ENHANCED: Save current recipe state with additional UI state and loaded recipe
     userData.currentRecipeState = {
         recipeName: recipeNameInput.value || "",
         rawMaterialItems: rawMaterialItems,
@@ -706,332 +1123,112 @@ function saveCurrentRecipeState() {
         markup: parseFloat(markupInput.value) || 40,
         tax: parseFloat(taxInput.value) || 0,
         vat: parseFloat(vatInput.value) || 0,
-        servings: parseFloat(servingsInput.value) || 1
+        servings: parseFloat(servingsInput.value) || 1,
+        servingScale: parseFloat(servingScaleInput.value) || 1,
+        currentTab: getCurrentActiveTab(),
+        loadedRecipeForSummary: loadedRecipeForSummary, // NEW: Persist loaded recipe
+        lastSaved: new Date().toISOString()
     };
     
     saveUserData();
 }
 
-// Load current recipe state
+// =============================================================================
+// FIX: ENHANCED LOAD FUNCTION WITH NaN PREVENTION
+// =============================================================================
 function loadCurrentRecipeState() {
     if (!userData.currentRecipeState) return;
     
     const state = userData.currentRecipeState;
     
-    // Restore recipe name and summary inputs
+    // Restore recipe name and summary inputs with validation
     recipeNameInput.value = state.recipeName || "";
     markupInput.value = state.markup || 40;
     taxInput.value = state.tax || 0;
     vatInput.value = state.vat || 0;
     servingsInput.value = state.servings || 1;
+    servingScaleInput.value = state.servingScale || 1;
+    
+    // NEW: Restore loaded recipe for summary if it exists
+    if (state.loadedRecipeForSummary) {
+        loadedRecipeForSummary = state.loadedRecipeForSummary;
+        // Update summary display to reflect loaded recipe
+        updateLoadedRecipeDisplay();
+    }
     
     // Clear current recipe tables
     recipeBody.innerHTML = "";
     directLaborRecipeBody.innerHTML = "";
     
-    // Restore raw material items
+    // Restore raw material items with validation
     if (state.rawMaterialItems) {
         state.rawMaterialItems.forEach(item => {
-            addRow(
-                item.name,
-                item.quantity,
-                item.unit,
-                item.yield,
-                item.unitCost,
-                item.type || 'rawMaterial',
-                item.subRecipeId || null
-            );
-        });
-    }
-    
-    // Restore direct labor items
-    if (state.directLaborItems) {
-        state.directLaborItems.forEach(item => {
-            const labor = userData.directLabor.find(l => l.name === item.name);
-            if (labor) {
-                addDirectLaborRow(
+            // Validate data before adding
+            if (item.name && !isNaN(item.quantity) && !isNaN(item.unitCost)) {
+                addRow(
                     item.name,
                     item.quantity,
                     item.unit,
-                    item.rate
+                    item.unitCost,
+                    item.type || 'rawMaterial',
+                    item.subRecipeId || null
                 );
             }
         });
     }
+    
+    // Restore direct labor items with validation
+    if (state.directLaborItems) {
+        state.directLaborItems.forEach(item => {
+            // Validate data before adding
+            if (item.name && !isNaN(item.quantity) && !isNaN(item.rate)) {
+                const labor = userData.directLabor.find(l => l.name === item.name);
+                if (labor) {
+                    addDirectLaborRow(
+                        item.name,
+                        item.quantity,
+                        item.unit,
+                        item.rate
+                    );
+                }
+            }
+        });
+    }
+    
+    // Restore active tab if available
+    if (state.currentTab) {
+        setTimeout(() => {
+            switchTab(state.currentTab);
+        }, 100);
+    }
+    
+    // Recalculate after loading
+    recalc();
+    
+    // Update cost breakdown preview if recipe is loaded
+    if (loadedRecipeForSummary) {
+        updateCostBreakdownPreview();
+    }
 }
 
-function setupEventListeners() {
-    // Dark Mode Toggle - UPDATED
-    const darkModeToggle = document.getElementById('darkModeToggle');
-    if (darkModeToggle) {
-        darkModeToggle.addEventListener('click', toggleTheme);
+// =============================================================================
+// FIX: ENHANCED DUPLICATE DETECTION HELPER FUNCTION
+// =============================================================================
+function checkForDuplicateName(name, items, currentId = null) {
+    if (!name || !items || !Array.isArray(items)) {
+        console.warn("Invalid parameters for duplicate check:", { name, items, currentId });
+        return null;
     }
     
-    // NEW: Password Toggle
-    if (togglePassword) {
-        togglePassword.addEventListener('click', togglePasswordVisibility);
-    }
+    const normalizedSearchName = name.toLowerCase().trim();
     
-    // NEW: Forgot Password
-    if (forgotPasswordBtn) {
-        forgotPasswordBtn.addEventListener('click', openForgotPasswordModal);
-    }
-    if (sendResetEmailBtn) {
-        sendResetEmailBtn.addEventListener('click', sendPasswordReset);
-    }
-    
-    // NEW: Sidebar Navigation
-    if (sidebarBtns) {
-        sidebarBtns.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                switchTab(e.target.closest('.sidebar-btn').dataset.tab);
-            });
-        });
-    }
-    
-    // NEW: Mobile Tabs Navigation
-    if (mobileTabBtns) {
-        mobileTabBtns.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                switchTab(e.target.dataset.tab);
-            });
-        });
-    }
-
-    // Currency Selector
-    if (currencySelect) {
-        currencySelect.addEventListener("change", () => {
-            currency = currencySelect.value;
-            userData.currency = currency;
-            document
-                .querySelectorAll(".unit-currency")
-                .forEach((e) => (e.textContent = currency));
-            recalc();
-            saveUserData();
-            
-            // NEW: Update cost breakdown preview if recipe is loaded
-            if (loadedRecipeForSummary) {
-                updateCostBreakdownPreview();
-            }
-        });
-    }
-
-    // Recipe inputs
-    [
-        markupInput,
-        taxInput,
-        vatInput,
-        servingsInput,
-        recipeNameInput,
-        batchScaleInput
-    ].forEach((el) => {
-        if (el) {
-            el.addEventListener("input", () => {
-                recalc();
-                saveCurrentRecipeState();
-                
-                // NEW: If a recipe is loaded for summary, update it too
-                if (loadedRecipeForSummary) {
-                    updateLoadedRecipeSummary();
-                }
-            });
-        }
-    });
-
-    // Reset button - ENHANCED
-    if (resetBtn) {
-        resetBtn.addEventListener("click", resetRecipe);
-    }
-
-    // Save Recipe buttons
-    if (saveMainRecipeBtn) {
-        saveMainRecipeBtn.addEventListener("click", () => {
-            if (!recipeNameInput.value.trim()) {
-                alert("Please enter a recipe name before saving");
-                recipeNameInput.focus();
-                return;
-            }
-            
-            if (editingItem.type === 'mainRecipe' && editingItem.id) {
-                showEditPrompt('mainRecipe', editingItem.id, recipeNameInput.value);
-            } else {
-                saveRecipe('main');
-            }
-        });
-    }
-    
-    if (saveSubRecipeBtn) {
-        saveSubRecipeBtn.addEventListener("click", openSubRecipeSaveModal);
-    }
-
-    // Save Raw Material button
-    const saveRawMaterialBtn = document.getElementById("saveRawMaterialBtn");
-    if (saveRawMaterialBtn) {
-        saveRawMaterialBtn.addEventListener("click", saveRawMaterial);
-    }
-
-    // Save Direct Labor button
-    const saveDirectLaborBtn = document.getElementById("saveDirectLaborBtn");
-    if (saveDirectLaborBtn) {
-        saveDirectLaborBtn.addEventListener("click", saveDirectLabor);
-    }
-
-    // Help modal
-    if (helpBtn) {
-        helpBtn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            helpModalTitle.textContent = "Complete Field Guide — ProfitPerPlate";
-            helpModalContent.innerHTML = generateCompleteHelpContent();
-            helpModal.classList.remove("hidden");
-        });
-    }
-    
-    if (closeHelpBtn) {
-        closeHelpBtn.addEventListener("click", closeHelpModal);
-    }
-    
-    if (helpModal) {
-        helpModal.addEventListener("click", (e) => {
-            if (e.target === helpModal) closeHelpModal();
-        });
-    }
-
-    // Print button
-    if (printBtn) {
-        printBtn.addEventListener("click", () => {
-            generatePrintPreview();
-            printPreviewModal.classList.remove("hidden");
-        });
-    }
-
-    // Close modal on background click
-    const rawMaterialModal = document.getElementById("rawMaterialModal");
-    if (rawMaterialModal) {
-        rawMaterialModal.addEventListener("click", (e) => {
-            if (e.target.id === "rawMaterialModal") {
-                closeRawMaterialModal();
-            }
-        });
-    }
-
-    const directLaborModal = document.getElementById("directLaborModal");
-    if (directLaborModal) {
-        directLaborModal.addEventListener("click", (e) => {
-            if (e.target.id === "directLaborModal") {
-                closeDirectLaborModal();
-            }
-        });
-    }
-
-    if (printPreviewModal) {
-        printPreviewModal.addEventListener("click", (e) => {
-            if (e.target.id === "printPreviewModal") {
-                closePrintPreview();
-            }
-        });
-    }
-
-    if (subRecipeSaveModal) {
-        subRecipeSaveModal.addEventListener("click", (e) => {
-            if (e.target.id === "subRecipeSaveModal") {
-                closeSubRecipeSaveModal();
-            }
-        });
-    }
-    
-    if (editPromptModal) {
-        editPromptModal.addEventListener("click", (e) => {
-            if (e.target.id === "editPromptModal") {
-                closeEditPromptModal();
-            }
-        });
-    }
-    
-    // NEW: Raw Material Edit Prompt Modal
-    if (rawMaterialEditPromptModal) {
-        rawMaterialEditPromptModal.addEventListener("click", (e) => {
-            if (e.target.id === "rawMaterialEditPromptModal") {
-                closeRawMaterialEditPromptModal();
-            }
-        });
-    }
-    
-    // NEW: Direct Labor Edit Prompt Modal
-    if (directLaborEditPromptModal) {
-        directLaborEditPromptModal.addEventListener("click", (e) => {
-            if (e.target.id === "directLaborEditPromptModal") {
-                closeDirectLaborEditPromptModal();
-            }
-        });
-    }
-
-    if (authModal) {
-        authModal.addEventListener("click", (e) => {
-            if (e.target.id === "authModal") {
-                closeAuthModal();
-            }
-        });
-    }
-    
-    if (forgotPasswordModal) {
-        forgotPasswordModal.addEventListener("click", (e) => {
-            if (e.target.id === "forgotPasswordModal") {
-                closeForgotPasswordModal();
-            }
-        });
-    }
-    
-    // NEW: Reset Password Modal background click
-    const resetPasswordModal = document.getElementById("resetPasswordModal");
-    if (resetPasswordModal) {
-        resetPasswordModal.addEventListener("click", (e) => {
-            if (e.target.id === "resetPasswordModal") {
-                closeResetPasswordModal();
-            }
-        });
-    }
-
-    // NEW: Reset Password Form
-    const submitResetPasswordBtn = document.getElementById('submitResetPasswordBtn');
-    if (submitResetPasswordBtn) {
-        submitResetPasswordBtn.addEventListener('click', handlePasswordReset);
-    }
-
-    // Escape key handler
-    document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") {
-            if (!helpModal.classList.contains("hidden")) {
-                closeHelpModal();
-            } else if (!document.getElementById("rawMaterialModal").classList.contains("hidden")) {
-                closeRawMaterialModal();
-            } else if (!document.getElementById("directLaborModal").classList.contains("hidden")) {
-                closeDirectLaborModal();
-            } else if (!document.getElementById("authModal").classList.contains("hidden")) {
-                closeAuthModal();
-            } else if (!document.getElementById("printPreviewModal").classList.contains("hidden")) {
-                closePrintPreview();
-            } else if (!document.getElementById("subRecipeSaveModal").classList.contains("hidden")) {
-                closeSubRecipeSaveModal();
-            } else if (!document.getElementById("editPromptModal").classList.contains("hidden")) {
-                closeEditPromptModal();
-            } else if (!document.getElementById("rawMaterialEditPromptModal").classList.contains("hidden")) {
-                closeRawMaterialEditPromptModal();
-            } else if (!document.getElementById("directLaborEditPromptModal").classList.contains("hidden")) {
-                closeDirectLaborEditPromptModal();
-            } else if (!document.getElementById("forgotPasswordModal").classList.contains("hidden")) {
-                closeForgotPasswordModal();
-            } else if (!document.getElementById("resetPasswordModal").classList.contains("hidden")) {
-                closeResetPasswordModal(); // NEW: Add this line
-            }
-        }
-    });
-
-    // Stop propagation for all help icons to prevent modal closing
-    document.querySelectorAll('.help-icon, .field-help').forEach(button => {
-        button.addEventListener('click', (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-        });
+    return items.find(item => {
+        if (!item || !item.name) return false;
+        
+        const normalizedItemName = item.name.toLowerCase().trim();
+        const isSameId = currentId ? item.id === currentId : false;
+        
+        return normalizedItemName === normalizedSearchName && !isSameId;
     });
 }
 
@@ -1051,6 +1248,23 @@ function resetRecipe() {
     
     // Clear editing state
     editingItem = { type: null, id: null, data: null };
+    
+    // Clear current editing rows
+    window.currentEditingRow = null;
+    window.currentEditingLaborRow = null;
+    
+    // Reset add buttons to normal state
+    const addRecipeButton = document.querySelector('.add-ingredient-section .btn-primary');
+    if (addRecipeButton) {
+        addRecipeButton.textContent = 'Add to Recipe';
+        addRecipeButton.onclick = addItemToRecipe;
+    }
+    
+    const addLaborButton = document.querySelector('.add-labor-section .btn-primary');
+    if (addLaborButton) {
+        addLaborButton.textContent = 'Add Direct Labor';
+        addLaborButton.onclick = addDirectLaborToRecipe;
+    }
     
     // Recalculate
     recalc();
@@ -1152,10 +1366,10 @@ function updateRecipesUsingIngredient(updatedItem, itemType) {
 function calculateRecipeTotalCost(recipe) {
     let totalCost = 0;
     
-    // Sum raw material costs
+    // Sum raw material costs (yield-inclusive costs)
     if (recipe.rawMaterialItems) {
         recipe.rawMaterialItems.forEach(item => {
-            totalCost += item.quantity * item.unitCost * (item.yield / 100);
+            totalCost += item.quantity * item.unitCost; // Unit cost already includes yield
         });
     }
     
@@ -1177,9 +1391,13 @@ function showNotification(message, type = 'info') {
     
     const notification = document.createElement('div');
     notification.className = `global-notification ${type}`;
+    
+    // Add network status indicator for offline messages
+    const networkIcon = !window.supabaseClient.isOnline() ? '📶 ' : '';
+    
     notification.innerHTML = `
         <div class="notification-content">
-            <span class="notification-message">${message}</span>
+            <span class="notification-message">${networkIcon}${message}</span>
             <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
         </div>
     `;
@@ -1278,13 +1496,14 @@ function showNotification(message, type = 'info') {
     
     document.body.appendChild(notification);
     
-    // Auto-remove after 5 seconds
+    // Auto-remove after appropriate time
+    const duration = type === 'info' ? 3000 : 5000;
     setTimeout(() => {
         if (notification.parentElement) {
             notification.style.animation = 'slideOutRight 0.3s ease';
             setTimeout(() => notification.remove(), 300);
         }
-    }, 5000);
+    }, duration);
 }
 
 // Helper functions to get current data
@@ -1363,48 +1582,22 @@ function handleDirectLaborEditChoice(choice) {
     }
 }
 
-// ENHANCED: Save raw material function with dependency tracking and edit prompts
+// =============================================================================
+// FIX: ENHANCED SAVE RAW MATERIAL WITH AUTOMATIC DUPLICATE DETECTION
+// =============================================================================
 function saveRawMaterial() {
-    const name = document
-        .getElementById("modalRawMaterialName")
-        .value.trim();
-    const category = document.getElementById(
-        "modalRawMaterialCategory"
-    ).value;
-    const price = parseFloat(
-        document.getElementById("modalRawMaterialPrice").value
-    );
-    const quantity = parseFloat(
-        document.getElementById("modalRawMaterialQuantity").value
-    );
+    const name = document.getElementById("modalRawMaterialName").value.trim();
+    const category = document.getElementById("modalRawMaterialCategory").value;
+    const price = parseFloat(document.getElementById("modalRawMaterialPrice").value);
+    const quantity = parseFloat(document.getElementById("modalRawMaterialQuantity").value);
     const unit = document.getElementById("modalRawMaterialUnit").value;
-    const costPerUnit = parseFloat(
-        document.getElementById("modalCostPerUnit").value
-    );
+    const costPerUnit = parseFloat(document.getElementById("modalCostPerUnit").value);
     const costUnit = document.getElementById("modalCostUnit").value;
+    const yieldPercentage = parseFloat(document.getElementById("modalRawMaterialYield").value) || 100;
 
-    if (!name) {
-        alert("Please enter a raw material name");
-        return;
-    }
-
-    if (!category) {
-        alert("Please select a category");
-        return;
-    }
-
-    if (isNaN(price) || price <= 0) {
-        alert("Please enter a valid purchase price");
-        return;
-    }
-
-    if (isNaN(quantity) || quantity <= 0) {
-        alert("Please enter a valid purchase quantity");
-        return;
-    }
-
-    if (isNaN(costPerUnit) || costPerUnit <= 0) {
-        alert("Please enter valid cost calculation details");
+    // Validation
+    if (!name || !category || isNaN(price) || price <= 0 || isNaN(quantity) || quantity <= 0) {
+        alert("Please fill in all required fields with valid values");
         return;
     }
 
@@ -1415,38 +1608,47 @@ function saveRawMaterial() {
         price: parseFloat(price.toFixed(2)),
         quantity: parseFloat(quantity.toFixed(2)),
         unit,
-        costPerUnit: parseFloat(costPerUnit.toFixed(4)),
-        costUnit
+        costPerUnit: parseFloat(costPerUnit.toFixed(6)),
+        costUnit,
+        yieldPercentage: parseFloat(yieldPercentage.toFixed(1))
     };
 
-    // Check if we're editing and if name already exists (excluding current item)
-    if (editingItem.type === 'rawMaterial' && editingItem.id) {
-        const rawMaterials = getCurrentRawMaterials();
-        const existingItem = rawMaterials.find(item => 
-            item.name === name && item.id !== editingItem.id
-        );
-        
-        if (existingItem) {
-            showRawMaterialEditPrompt(editingItem.id, name);
-            return;
-        } else {
-            updateRawMaterial();
-            return;
-        }
-    }
-
+    // Save to data store
     const rawMaterials = getCurrentRawMaterials();
-    rawMaterials.push(rawMaterialData);
+    
+    // NEW: Automatic duplicate detection and handling
+    const existingItem = checkForDuplicateName(name, rawMaterials, editingItem.id);
+    
+    if (existingItem && !editingItem.id) {
+        // Show duplicate prompt for new items
+        showRawMaterialEditPrompt(existingItem.id, name);
+        return;
+    }
+    
+    if (editingItem.type === 'rawMaterial' && editingItem.id) {
+        // Update existing
+        const index = rawMaterials.findIndex(item => item.id === editingItem.id);
+        if (index !== -1) {
+            rawMaterials[index] = rawMaterialData;
+            showNotification(`Updated "${name}" with ${yieldPercentage}% yield`, "success");
+        }
+    } else {
+        // Add new
+        rawMaterials.push(rawMaterialData);
+        showNotification(`Added "${name}" with ${yieldPercentage}% yield`, "success");
+    }
+    
     setCurrentRawMaterials(rawMaterials);
-
     renderRawMaterials();
     populateUnifiedItemSelect();
     closeRawMaterialModal();
     
-    // NEW: Update recipes using this ingredient
-    updateRecipesUsingIngredient(rawMaterialData, 'rawMaterial');
-
-    showNotification("Raw material saved successfully!", "success");
+    // Show cost impact explanation for non-100% yields
+    if (yieldPercentage !== 100) {
+        const baseCost = (price / quantity).toFixed(4);
+        const effectiveCost = costPerUnit.toFixed(4);
+        console.log(`Yield impact: ${baseCost} → ${effectiveCost} (${yieldPercentage}% yield)`);
+    }
 }
 
 // NEW: Update raw material function
@@ -1458,6 +1660,7 @@ function updateRawMaterial() {
     const unit = document.getElementById("modalRawMaterialUnit").value;
     const costPerUnit = parseFloat(document.getElementById("modalCostPerUnit").value);
     const costUnit = document.getElementById("modalCostUnit").value;
+    const yieldPercentage = parseFloat(document.getElementById("modalRawMaterialYield").value) || 100;
 
     const rawMaterials = getCurrentRawMaterials();
     const index = rawMaterials.findIndex(item => item.id === editingItem.id);
@@ -1470,8 +1673,9 @@ function updateRawMaterial() {
             price: parseFloat(price.toFixed(2)),
             quantity: parseFloat(quantity.toFixed(2)),
             unit,
-            costPerUnit: parseFloat(costPerUnit.toFixed(4)),
-            costUnit
+            costPerUnit: parseFloat(costPerUnit.toFixed(6)),
+            costUnit,
+            yieldPercentage: parseFloat(yieldPercentage.toFixed(1))
         };
         
         rawMaterials[index] = updatedItem;
@@ -1484,7 +1688,7 @@ function updateRawMaterial() {
         // Update recipes using this ingredient
         updateRecipesUsingIngredient(updatedItem, 'rawMaterial');
         
-        showNotification("Raw material updated successfully!", "success");
+        showNotification(`Updated "${name}" with ${yieldPercentage}% yield`, "success");
     }
 }
 
@@ -1505,9 +1709,13 @@ function deleteRawMaterial(id) {
     }
 }
 
+// ENHANCED: Render raw materials with alphabetical sorting and yield column
 function renderRawMaterials() {
     const tableBody = document.getElementById("rawMaterialsTable");
-    const filteredRawMaterials = filterRawMaterials();
+    let filteredRawMaterials = filterRawMaterials();
+  
+    // NEW: Apply alphabetical sorting
+    filteredRawMaterials = sortRawMaterialsAlphabetically(filteredRawMaterials);
 
     tableBody.innerHTML = filteredRawMaterials
         .map(
@@ -1515,6 +1723,7 @@ function renderRawMaterials() {
                 <tr>
                     <td data-label="Raw Material">${rawMaterial.name}</td>
                     <td data-label="Category">${rawMaterial.category}</td>
+                    <td data-label="Yield">${rawMaterial.yieldPercentage || 100}%</td> <!-- NEW: Display yield -->
                     <td data-label="Cost/Unit">${formatCurrency(
                         rawMaterial.costPerUnit
                     )}/${rawMaterial.costUnit}</td>
@@ -1635,7 +1844,9 @@ function populateDirectLaborForm(directLabor) {
     updateLaborCostPerUnit();
 }
 
-// ENHANCED: Save direct labor with dependency tracking and edit prompts
+// =============================================================================
+// FIX: ENHANCED SAVE DIRECT LABOR WITH AUTOMATIC DUPLICATE DETECTION
+// =============================================================================
 function saveDirectLabor() {
     const name = document
         .getElementById("modalLaborName")
@@ -1686,24 +1897,28 @@ function saveDirectLabor() {
         costUnit
     };
 
-    // Check if we're editing and if name already exists (excluding current item)
-    if (editingItem.type === 'directLabor' && editingItem.id) {
-        const directLabor = getCurrentDirectLabor();
-        const existingItem = directLabor.find(item => 
-            item.name === name && item.id !== editingItem.id
-        );
-        
-        if (existingItem) {
-            showDirectLaborEditPrompt(editingItem.id, name);
-            return;
-        } else {
-            updateDirectLabor();
-            return;
-        }
+    // NEW: Automatic duplicate detection and handling
+    const directLabor = getCurrentDirectLabor();
+    const existingItem = checkForDuplicateName(name, directLabor, editingItem.id);
+    
+    if (existingItem && !editingItem.id) {
+        showDirectLaborEditPrompt(existingItem.id, name);
+        return;
     }
 
-    const directLabor = getCurrentDirectLabor();
-    directLabor.push(directLaborData);
+    if (editingItem.type === 'directLabor' && editingItem.id) {
+        // Update existing
+        const index = directLabor.findIndex(item => item.id === editingItem.id);
+        if (index !== -1) {
+            directLabor[index] = directLaborData;
+            showNotification("Direct labor updated successfully!", "success");
+        }
+    } else {
+        // Add new
+        directLabor.push(directLaborData);
+        showNotification("Direct labor saved successfully!", "success");
+    }
+
     setCurrentDirectLabor(directLabor);
 
     renderDirectLabor();
@@ -1779,9 +1994,13 @@ function deleteDirectLabor(id) {
     }
 }
 
+// ENHANCED: Render direct labor with alphabetical sorting
 function renderDirectLabor() {
     const tableBody = document.getElementById("directLaborTable");
-    const filteredDirectLabor = filterDirectLabor();
+    let filteredDirectLabor = filterDirectLabor();
+  
+    // NEW: Apply alphabetical sorting
+    filteredDirectLabor = sortDirectLaborAlphabetically(filteredDirectLabor);
 
     tableBody.innerHTML = filteredDirectLabor
         .map(
@@ -1815,7 +2034,7 @@ function filterDirectLabor() {
     );
 }
 
-// Populate unified item select dropdown
+// ENHANCED: Populate unified item select with alphabetical sorting and yield display
 function populateUnifiedItemSelect() {
     const select = document.getElementById("unifiedItemSelect");
     const rawMaterialsGroup = select.querySelector('optgroup[label="Raw Materials"]');
@@ -1824,91 +2043,175 @@ function populateUnifiedItemSelect() {
     rawMaterialsGroup.innerHTML = '';
     subRecipesGroup.innerHTML = '';
     
-    // Add raw materials
-    getCurrentRawMaterials().forEach(item => {
+    // NEW: Sort raw materials alphabetically and show yield percentage
+    const sortedRawMaterials = sortRawMaterialsAlphabetically(getCurrentRawMaterials());
+    sortedRawMaterials.forEach(item => {
         const option = document.createElement('option');
         option.value = `rawMaterial-${item.id}`;
-        option.textContent = `${item.name} (${formatCurrency(item.costPerUnit)}/${item.costUnit})`;
+        const yieldText = item.yieldPercentage !== 100 ? ` (${item.yieldPercentage}% yield)` : '';
+        option.textContent = `${item.name} (${formatCurrency(item.costPerUnit)}/${item.costUnit}${yieldText})`;
+        option.dataset.yield = item.yieldPercentage || 100;
         rawMaterialsGroup.appendChild(option);
     });
     
-    // Add sub-recipes
+    // NEW: Sort sub-recipes alphabetically
     const subRecipes = getCurrentRecipes().filter(recipe => recipe.type === 'sub');
-    subRecipes.forEach(recipe => {
+    const sortedSubRecipes = sortRecipesAlphabetically(subRecipes);
+    sortedSubRecipes.forEach(recipe => {
         const option = document.createElement('option');
         option.value = `subrecipe-${recipe.id}`;
-        
-        // Use costPerUnit instead of unitCost
         const unitCost = recipe.costPerUnit || 0;
         const costUnit = recipe.costUnit || recipe.outputUnit || 'batch';
-        
         option.textContent = `${recipe.name} (${formatCurrency(unitCost)}/${costUnit})`;
         subRecipesGroup.appendChild(option);
     });
 }
 
-// Populate direct labor select dropdown
+// ENHANCED: Populate direct labor select with alphabetical sorting
 function populateDirectLaborSelect() {
     const select = document.getElementById("directLaborSelect");
     select.innerHTML = '<option value="">Select direct labor...</option>';
     
-    getCurrentDirectLabor().forEach(labor => {
+    // NEW: Sort direct labor alphabetically
+    const sortedDirectLabor = sortDirectLaborAlphabetically(getCurrentDirectLabor());
+    sortedDirectLabor.forEach(labor => {
         const option = document.createElement('option');
         option.value = labor.id;
         option.textContent = `${labor.name} (${formatCurrency(labor.costPerUnit)}/${labor.costUnit})`;
+        option.dataset.unit = labor.costUnit; // Store unit for dynamic updates
         select.appendChild(option);
     });
 }
 
-// Recipe Table Management
+// =============================================================================
+// FIX: ENHANCED DIRECT LABOR RATE DISPLAY IN RECIPE CALCULATOR
+// =============================================================================
+function addDirectLaborToRecipe() {
+    const laborId = directLaborSelect.value;
+    const timeRequired = parseFloat(timeRequirement.value);
+
+    if (!laborId || !timeRequired || timeRequired <= 0) {
+        alert("Please select a direct labor item and enter a valid time requirement");
+        return;
+    }
+
+    const labor = getCurrentDirectLabor().find(item => item.id === parseInt(laborId));
+    if (!labor) {
+        console.error("Direct labor item not found:", laborId);
+        alert("Selected direct labor item not found. Please refresh the list.");
+        return;
+    }
+
+    // DEBUG: Log labor data to verify rate
+    console.log("Adding direct labor:", {
+        name: labor.name,
+        costPerUnit: labor.costPerUnit,
+        costUnit: labor.costUnit,
+        timeRequired: timeRequired
+    });
+
+    // Check if we're updating an existing row
+    if (window.currentEditingLaborRow) {
+        addDirectLaborRow(
+            labor.name,
+            timeRequired,
+            labor.costUnit,
+            labor.costPerUnit // Use the pre-calculated costPerUnit
+        );
+        
+        // Clear editing state
+        window.currentEditingLaborRow = null;
+        
+        // Reset button text and function
+        const addButton = document.querySelector('.add-labor-section .btn-primary');
+        addButton.textContent = 'Add Direct Labor';
+        addButton.onclick = addDirectLaborToRecipe;
+    } else {
+        // Create new row
+        addDirectLaborRow(
+            labor.name,
+            timeRequired,
+            labor.costUnit,
+            labor.costPerUnit // Use the pre-calculated costPerUnit
+        );
+    }
+
+    // Clear inputs
+    directLaborSelect.value = "";
+    timeRequirement.value = "";
+    timeRequirementUnit.textContent = "hours"; // Reset to default
+    
+    // Force recalculation to update display
+    recalc();
+}
+
+// =============================================================================
+// FIX: CORRECT RECIPE TABLE COLUMN INDEXES AFTER YIELD COLUMN ADDITION
+// =============================================================================
 function addRow(
     name = "",
     qtyVal = "0",
     unit = "g",
-    yieldVal = "100",
     unitCostVal = "0.00",
     type = "rawMaterial",
     subRecipeId = null
 ) {
     const tr = document.createElement("tr");
+    const rowId = 'row-' + Date.now(); // Unique ID for each row
+    
     if (type === 'sub-recipe') {
         tr.classList.add('sub-recipe-row');
     }
     
+    // NEW: Get yield percentage for display
+    let yieldPercentage = "N/A";
+    if (type === 'rawMaterial') {
+        const rawMaterial = getCurrentRawMaterials().find(item => item.name === name);
+        yieldPercentage = rawMaterial ? (rawMaterial.yieldPercentage || 100) + "%" : "100%";
+    }
+
+    // FIXED COLUMN STRUCTURE: 0:Item, 1:Qty, 2:Yield%, 3:UnitCost, 4:TotalCost, 5:Actions
     tr.innerHTML = `
             <td data-label="Item">
                 ${type === 'sub-recipe' ? `<span class="sub-recipe-badge">SUB</span> ` : ''}
-                <input type="text" value="${escapeHtml(name)}" placeholder="Item" ${type === 'sub-recipe' ? 'readonly' : ''}>
+                <input type="text" value="${escapeHtml(name)}" placeholder="Item" readonly>
             </td>
-            <td data-label="Qty/Time">
+            <td data-label="Qty">
                 <div class="quantity-input-group">
-                    <input type="number" value="${parseFloat(qtyVal).toFixed(2)}" step="0.01" placeholder="Qty/Time">
+                    <input type="number" value="${parseFloat(qtyVal).toFixed(2)}" step="0.01" placeholder="Qty" readonly>
                     <span class="quantity-unit">${unit}</span>
                 </div>
             </td>
-            <td data-label="Yield %">
-                <div class="yield-input-group">
-                    <input type="number" value="${parseFloat(yieldVal).toFixed(1)}" placeholder="Yield %" min="0" max="100" step="0.1" ${type === 'directLabor' ? 'disabled' : ''}>
-                    <span class="yield-percent">%</span>
-                </div>
+            <!-- NEW: Yield % Column (Index 2) -->
+            <td class="yield-display-cell" data-label="Yield %">
+                <span class="yield-value">${yieldPercentage}</span>
             </td>
+            <!-- Unit Cost Column (NOW Index 3) -->
             <td class="unit-cost-cell" data-label="Unit Cost">
                 <span class="unit-currency">${currency}</span>
-                <input type="number" value="${parseFloat(unitCostVal).toFixed(2)}" step="0.01" style="width:60%" ${type === 'sub-recipe' ? 'readonly' : ''}>
+                <input type="number" value="${parseFloat(unitCostVal).toFixed(2)}" step="0.01" style="width:60%" readonly>
                 <span class="unit-display">/${unit}</span>
             </td>
+            <!-- Total Cost Column (NOW Index 4) -->
             <td data-label="Total Cost">
                 <span class="unit-currency">${currency}</span>
                 <span class="total-value">0.00</span>
                 <span class="unit-suffix">/recipe</span>
             </td>
-            <td data-label="Action"><button class="delRow" style="background:var(--danger);color:var(--surface);border:none;padding:var(--space-sm) var(--space-md);border-radius:var(--radius-md);">🗑️</button></td>
+            <!-- Actions Column (NOW Index 5) -->
+            <td data-label="Actions">
+                <!-- ADDED: Edit button -->
+                <button class="btn-secondary small edit-recipe-btn" onclick="editRecipeRow('${rowId}')">Edit</button>
+                <button class="btn-danger small delRow">🗑️</button>
+            </td>
         `;
 
-    const qty = tr.children[1].querySelector("input");
-    const yieldInput = tr.children[2].querySelector("input");
-    const unitCostInput = tr.children[3].querySelector("input");
-    const totalVal = tr.children[4].querySelector(".total-value");
+    tr.id = rowId;
+    
+    // FIXED: Correct column indexes after adding yield column
+    const qty = tr.children[1].querySelector("input"); // Index 1: Quantity
+    const unitCostInput = tr.children[3].querySelector("input"); // Index 3: Unit Cost (was 2)
+    const totalVal = tr.children[4].querySelector(".total-value"); // Index 4: Total Cost (was 3)
     const delBtn = tr.querySelector(".delRow");
 
     tr.dataset.type = type;
@@ -1919,11 +2222,10 @@ function addRow(
     function updateRow() {
         const q = parseFloat(qty.value) || 0;
         const uc = parseFloat(unitCostInput.value) || 0;
-        const y = parseFloat(yieldInput.value) || 100;
-        totalVal.textContent = (q * uc * (y / 100)).toFixed(2);
-        recalc();
         
-        // Auto-save current recipe state
+        // SIMPLIFIED: No yield calculation needed - cost already includes yield
+        totalVal.textContent = (q * uc).toFixed(2);
+        recalc();
         saveCurrentRecipeState();
         
         // NEW: Update cost breakdown preview if recipe is loaded
@@ -1932,7 +2234,7 @@ function addRow(
         }
     }
 
-    [qty, yieldInput, unitCostInput].forEach((e) =>
+    [qty, unitCostInput].forEach((e) =>
         e.addEventListener("input", updateRow)
     );
     delBtn.addEventListener("click", () => {
@@ -1947,7 +2249,6 @@ function addRow(
             updateCostBreakdownPreview();
         }
     });
-
     recipeBody.appendChild(tr);
     updateRow();
     
@@ -1955,51 +2256,48 @@ function addRow(
     saveCurrentRecipeState();
 }
 
-// Add direct labor row to recipe
-function addDirectLaborToRecipe() {
-    const laborId = directLaborSelect.value;
-    const timeRequired = parseFloat(timeRequirement.value);
-
-    if (!laborId || !timeRequired || timeRequired <= 0) {
-        alert("Please select a direct labor item and enter a valid time requirement");
-        return;
-    }
-
-    const labor = getCurrentDirectLabor().find(item => item.id === parseInt(laborId));
-    if (!labor) return;
-
+// MODIFIED: Add direct labor row to recipe - readonly with Edit button
+function addDirectLaborRow(name, timeRequired, timeUnit, rate) {
     const tr = document.createElement("tr");
+    const rowId = 'labor-row-' + Date.now(); // Unique ID for each labor row
+    
     tr.classList.add('labor-row');
     
+    // MODIFIED: Made all inputs readonly and added Edit button
     tr.innerHTML = `
         <td data-label="Labor Item">
-            <input type="text" value="${escapeHtml(labor.name)}" placeholder="Labor item" readonly>
+            <input type="text" value="${escapeHtml(name)}" placeholder="Labor item" readonly>
         </td>
         <td data-label="Time Required">
             <div class="quantity-input-group">
-                <input type="number" value="${parseFloat(timeRequired).toFixed(2)}" step="0.01" placeholder="Time">
-                <span class="quantity-unit">${labor.costUnit}</span>
+                <input type="number" value="${parseFloat(timeRequired).toFixed(2)}" step="0.01" placeholder="Time" readonly>
+                <span class="quantity-unit">${timeUnit}</span>
             </div>
         </td>
         <td data-label="Rate">
             <div class="input-with-unit">
-                <input type="number" value="${labor.costPerUnit.toFixed(2)}" step="0.01" placeholder="Rate" readonly>
-                <span class="unit-display-small">/${labor.costUnit}</span>
+                <input type="number" value="${parseFloat(rate).toFixed(2)}" step="0.01" placeholder="Rate" readonly>
+                <span class="unit-display-small">/${timeUnit}</span>
             </div>
         </td>
         <td data-label="Total Cost">
             <span class="unit-currency">${currency}</span>
             <span class="total-value">0.00</span>
         </td>
-        <td data-label="Action"><button class="delDirectLaborRow" style="background:var(--danger);color:var(--surface);border:none;padding:var(--space-sm) var(--space-md);border-radius:var(--radius-md);">🗑️</button></td>
+        <td data-label="Actions">
+            <!-- ADDED: Edit button -->
+            <button class="btn-secondary small edit-labor-btn" onclick="editDirectLaborRow('${rowId}')">Edit</button>
+            <button class="btn-danger small delDirectLaborRow">🗑️</button>
+        </td>
     `;
 
+    tr.id = rowId;
     const timeInput = tr.children[1].querySelector("input");
     const rateInput = tr.children[2].querySelector("input");
     const totalVal = tr.children[3].querySelector(".total-value");
     const delBtn = tr.querySelector(".delDirectLaborRow");
 
-    tr.dataset.laborId = labor.id;
+    tr.dataset.laborId = name; // Store labor name for editing
 
     function updateRow() {
         const time = parseFloat(timeInput.value) || 0;
@@ -2029,24 +2327,223 @@ function addDirectLaborToRecipe() {
             updateCostBreakdownPreview();
         }
     });
-
     directLaborRecipeBody.appendChild(tr);
     updateRow();
     
     // Auto-save current recipe state
     saveCurrentRecipeState();
+}
+
+// MODIFIED: Add direct labor to recipe with editing support
+function addDirectLaborToRecipe() {
+    const laborId = directLaborSelect.value;
+    const timeRequired = parseFloat(timeRequirement.value);
+
+    if (!laborId || !timeRequired || timeRequired <= 0) {
+        alert("Please select a direct labor item and enter a valid time requirement");
+        return;
+    }
+
+    const labor = getCurrentDirectLabor().find(item => item.id === parseInt(laborId));
+    if (!labor) return;
+
+    // Check if we're updating an existing row
+    if (window.currentEditingLaborRow) {
+        // Remove the old row (it was already removed when editing started)
+        // Just create the updated row
+        addDirectLaborRow(
+            labor.name,
+            timeRequired,
+            labor.costUnit,
+            labor.costPerUnit
+        );
+        
+        // Clear editing state
+        window.currentEditingLaborRow = null;
+        
+        // Reset button text and function
+        const addButton = document.querySelector('.add-labor-section .btn-primary');
+        addButton.textContent = 'Add Direct Labor';
+        addButton.onclick = addDirectLaborToRecipe;
+    } else {
+        // Create new row
+        addDirectLaborRow(
+            labor.name,
+            timeRequired,
+            labor.costUnit,
+            labor.costPerUnit
+        );
+    }
 
     // Clear inputs
     directLaborSelect.value = "";
     timeRequirement.value = "";
-    timeRequirementUnit.textContent = "hours";
+    timeRequirementUnit.textContent = "hours"; // Reset to default
 }
 
-// Simplified function to add items to recipe
+// NEW: Function to edit recipe row
+function editRecipeRow(rowId) {
+    const row = document.getElementById(rowId);
+    if (!row) return;
+    
+    // Get current row data
+    const name = row.children[0].querySelector("input").value;
+    const quantity = parseFloat(row.children[1].querySelector("input").value) || 0;
+    const unit = row.children[1].querySelector(".quantity-unit").textContent;
+    const unitCost = parseFloat(row.children[3].querySelector("input").value) || 0; // FIXED: Index 3 for unit cost
+    const type = row.dataset.type || 'rawMaterial';
+    const subRecipeId = row.dataset.subRecipeId || null;
+    
+    // Store editing state
+    window.currentEditingRow = {
+        rowId: rowId,
+        type: type,
+        subRecipeId: subRecipeId
+    };
+    
+    // Remove the row temporarily (will be re-added after editing)
+    row.remove();
+    
+    // Populate the add item form with current values
+    populateRecipeFormForEditing(name, quantity, unit, unitCost, type, subRecipeId);
+    
+    // Update button text to indicate edit mode
+    const addButton = document.querySelector('.add-ingredient-section .btn-primary');
+    addButton.textContent = 'Update Item';
+    addButton.onclick = updateRecipeRow;
+    
+    // Recalculate totals
+    recalc();
+}
+
+// NEW: Function to populate recipe form for editing
+function populateRecipeFormForEditing(name, quantity, unit, unitCost, type, subRecipeId) {
+    // Find the item in the unified select dropdown
+    if (type === 'rawMaterial') {
+        const rawMaterial = getCurrentRawMaterials().find(item => item.name === name);
+        if (rawMaterial) {
+            unifiedItemSelect.value = `rawMaterial-${rawMaterial.id}`;
+            onUnifiedItemSelectChange(); // Update unit display
+        }
+    } else if (type === 'sub-recipe') {
+        const subRecipe = getCurrentRecipes().find(recipe => recipe.name === name);
+        if (subRecipe) {
+            unifiedItemSelect.value = `subrecipe-${subRecipe.id}`;
+            onUnifiedItemSelectChange(); // Update unit display
+        }
+    }
+    
+    // Populate form fields
+    addIngredientQty.value = quantity;
+    
+    // Note: Unit cost is automatically set based on selection
+}
+
+// NEW: Function to update recipe row after editing
+function updateRecipeRow() {
+    if (!window.currentEditingRow) {
+        addItemToRecipe(); // Fallback to normal add
+        return;
+    }
+    
+    // Use the normal add function but with the edited data
+    addItemToRecipe();
+    
+    // Reset button text and function
+    const addButton = document.querySelector('.add-ingredient-section .btn-primary');
+    addButton.textContent = 'Add to Recipe';
+    addButton.onclick = addItemToRecipe;
+    
+    // Clear editing state
+    window.currentEditingRow = null;
+}
+
+// NEW: Helper function to update unit when unified item selection changes
+function onUnifiedItemSelectChange() {
+    const selectedValue = unifiedItemSelect.value;
+    if (!selectedValue) {
+        addIngredientUnit.textContent = "g"; // Default unit
+        return;
+    }
+    
+    const [type, id] = selectedValue.split('-');
+    const itemId = parseInt(id);
+    
+    if (type === 'rawMaterial') {
+        const rawMaterial = getCurrentRawMaterials().find(item => item.id === itemId);
+        if (rawMaterial) {
+            addIngredientUnit.textContent = rawMaterial.costUnit;
+        }
+    } else if (type === 'subrecipe') {
+        const subRecipe = getCurrentRecipes().find(recipe => recipe.id === itemId);
+        if (subRecipe) {
+            addIngredientUnit.textContent = subRecipe.costUnit || subRecipe.outputUnit || 'batch';
+        }
+    }
+}
+
+// NEW: Function to edit direct labor row
+function editDirectLaborRow(rowId) {
+    const row = document.getElementById(rowId);
+    if (!row) return;
+    
+    // Get current row data
+    const name = row.children[0].querySelector("input").value;
+    const timeRequired = parseFloat(row.children[1].querySelector("input").value) || 0;
+    const timeUnit = row.children[1].querySelector(".quantity-unit").textContent;
+    const rate = parseFloat(row.children[2].querySelector("input").value) || 0;
+    
+    // Store editing state
+    window.currentEditingLaborRow = {
+        rowId: rowId,
+        laborName: name
+    };
+    
+    // Remove the row temporarily
+    row.remove();
+    
+    // Populate the direct labor form with current values
+    populateDirectLaborFormForEditing(name, timeRequired, timeUnit, rate);
+    
+    // Update button text to indicate edit mode
+    const addButton = document.querySelector('.add-labor-section .btn-primary');
+    addButton.textContent = 'Update Labor';
+    addButton.onclick = updateDirectLaborRow;
+    
+    // Recalculate totals
+    recalc();
+}
+
+// NEW: Function to populate direct labor form for editing
+function populateDirectLaborFormForEditing(name, timeRequired, timeUnit, rate) {
+    // Find and select the labor item
+    const labor = getCurrentDirectLabor().find(item => item.name === name);
+    if (labor) {
+        directLaborSelect.value = labor.id;
+        // Trigger the change event to update the time unit
+        const event = new Event('change');
+        directLaborSelect.dispatchEvent(event);
+    }
+    
+    // Populate time requirement
+    timeRequirement.value = timeRequired;
+}
+
+// NEW: Function to update direct labor row after editing
+function updateDirectLaborRow() {
+    if (!window.currentEditingLaborRow) {
+        addDirectLaborToRecipe(); // Fallback to normal add
+        return;
+    }
+    
+    // Use the normal add function but with the edited data
+    addDirectLaborToRecipe();
+}
+
+// MODIFIED: Simplified function to add items to recipe - uses yield-inclusive costs
 function addItemToRecipe() {
     const selectedValue = unifiedItemSelect.value;
     const quantity = parseFloat(addIngredientQty.value);
-    const yieldPercent = parseFloat(addIngredientYield.value) || 100;
 
     if (!selectedValue || !quantity) {
         alert("Please select an item and enter quantity/time");
@@ -2061,16 +2558,37 @@ function addItemToRecipe() {
         if (!rawMaterial) return;
 
         const unit = rawMaterial.costUnit;
-        const unitCost = rawMaterial.costPerUnit;
+        const unitCost = rawMaterial.costPerUnit; // Already yield-inclusive
 
-        addRow(
-            rawMaterial.name,
-            quantity.toFixed(2),
-            unit,
-            yieldPercent.toFixed(1),
-            unitCost.toFixed(2),
-            'rawMaterial'
-        );
+        // Check if we're updating an existing row
+        if (window.currentEditingRow) {
+            // Remove the old row (it was already removed when editing started)
+            // Just create the updated row
+            addRow(
+                rawMaterial.name,
+                quantity.toFixed(2),
+                unit,
+                unitCost.toFixed(2),
+                'rawMaterial'
+            );
+            
+            // Clear editing state
+            window.currentEditingRow = null;
+            
+            // Reset button text and function
+            const addButton = document.querySelector('.add-ingredient-section .btn-primary');
+            addButton.textContent = 'Add to Recipe';
+            addButton.onclick = addItemToRecipe;
+        } else {
+            // Create new row
+            addRow(
+                rawMaterial.name,
+                quantity.toFixed(2),
+                unit,
+                unitCost.toFixed(2),
+                'rawMaterial'
+            );
+        }
     } else if (type === 'subrecipe') {
         const subRecipe = getCurrentRecipes().find(recipe => recipe.id === itemId);
         if (!subRecipe) return;
@@ -2079,22 +2597,42 @@ function addItemToRecipe() {
         const unitCost = subRecipe.costPerUnit || 0;
         const unit = subRecipe.costUnit || subRecipe.outputUnit || 'batch';
 
-        addRow(
-            subRecipe.name,
-            quantity.toFixed(2),
-            unit,
-            yieldPercent.toFixed(1),
-            unitCost.toFixed(2),
-            'sub-recipe',
-            subRecipe.id
-        );
+        // Check if we're updating an existing row
+        if (window.currentEditingRow) {
+            // Remove the old row (it was already removed when editing started)
+            // Just create the updated row
+            addRow(
+                subRecipe.name,
+                quantity.toFixed(2),
+                unit,
+                unitCost.toFixed(2),
+                'sub-recipe',
+                subRecipe.id
+            );
+            
+            // Clear editing state
+            window.currentEditingRow = null;
+            
+            // Reset button text and function
+            const addButton = document.querySelector('.add-ingredient-section .btn-primary');
+            addButton.textContent = 'Add to Recipe';
+            addButton.onclick = addItemToRecipe;
+        } else {
+            // Create new row
+            addRow(
+                subRecipe.name,
+                quantity.toFixed(2),
+                unit,
+                unitCost.toFixed(2),
+                'sub-recipe',
+                subRecipe.id
+            );
+        }
     }
 
     unifiedItemSelect.value = "";
     addIngredientQty.value = "";
-    addIngredientYield.value = "100";
     addIngredientUnit.textContent = "g";
-    addIngredientYield.disabled = false;
 }
 
 // Open sub-recipe save modal
@@ -2121,8 +2659,19 @@ function openSubRecipeSaveModal() {
     document.getElementById('subRecipeSaveModal').classList.remove('hidden');
 }
 
-// ENHANCED: Save sub-recipe function with auto-reset
+// =============================================================================
+// FIX: SUB-RECIPE DUPLICATE PREVENTION - ENHANCED
+// =============================================================================
+
+// MODIFIED: Enhanced saveSubRecipe function with proper duplicate detection
 function saveSubRecipe() {
+    const servingScale = parseFloat(servingScaleInput.value) || 1;
+    
+    // Informational log for debugging
+    if (servingScale !== 1) {
+        console.log(`INFO: Saving sub-recipe with Serving Scale = ${servingScale}. Sub-recipe costs use yield system, Serving Scale ignored.`);
+    }
+    
     const name = document.getElementById('subRecipeNameDisplay').value;
     const category = document.getElementById('subRecipeCategory').value;
     const yieldQuantity = parseFloat(document.getElementById('subRecipeYieldQuantity').value);
@@ -2148,8 +2697,7 @@ function saveSubRecipe() {
         const itemName = row.children[0].querySelector("input").value;
         const quantity = parseFloat(row.children[1].querySelector("input").value) || 0;
         const unit = row.children[1].querySelector(".quantity-unit").textContent;
-        const yieldPct = parseFloat(row.children[2].querySelector("input").value) || 100;
-        const unitCost = parseFloat(row.children[3].querySelector("input").value) || 0;
+        const unitCost = parseFloat(row.children[3].querySelector("input").value) || 0; // FIXED: Index 3
         const type = row.dataset.type || 'rawMaterial';
         const subRecipeId = row.dataset.subRecipeId || null;
         
@@ -2158,7 +2706,6 @@ function saveSubRecipe() {
                 name: itemName,
                 quantity: quantity,
                 unit: unit,
-                yield: yieldPct,
                 unitCost: unitCost,
                 type: type,
                 subRecipeId: subRecipeId
@@ -2176,9 +2723,7 @@ function saveSubRecipe() {
             name: laborName,
             quantity: timeRequired,
             unit: timeUnit,
-            yield: 100,
-            unitCost: rate,
-            type: 'directLabor'
+            rate: rate
         });
     });
 
@@ -2197,40 +2742,55 @@ function saveSubRecipe() {
         totalCost: calculateCurrentRecipeTotalCost()
     };
 
-    // Add to saved recipes
+    // FIXED: Enhanced duplicate detection for sub-recipes
     const recipes = getCurrentRecipes();
+    
+    // Filter only sub-recipes for duplicate checking
+    const subRecipes = recipes.filter(recipe => recipe.type === 'sub');
+    const existingSubRecipe = checkForDuplicateName(name, subRecipes, editingItem.id);
+    
+    // DEBUG: Log duplicate detection results
+    console.log("Sub-recipe duplicate check:", {
+        name: name,
+        existingSubRecipe: existingSubRecipe,
+        editingItem: editingItem,
+        subRecipesCount: subRecipes.length
+    });
+    
+    if (existingSubRecipe && !editingItem.id) {
+        console.log("Duplicate sub-recipe detected, showing prompt");
+        showEditPrompt('subRecipe', existingSubRecipe.id, name);
+        return;
+    }
+
+    // Add to saved recipes
     recipes.push(subRecipe);
     setCurrentRecipes(recipes);
 
     // Update displays
     renderRecipesList();
     populateUnifiedItemSelect();
-    
-    // NEW: Update summary recipe selector
     populateSummaryRecipeSelect();
     
     // Close modal
     closeSubRecipeSaveModal();
     
-    // NEW: Auto-reset after save
+    // Auto-reset after save
     autoResetAfterSave();
     
     showNotification(`Sub-recipe "${name}" saved successfully!`, "success");
 }
 
-// Close sub-recipe save modal
-function closeSubRecipeSaveModal() {
-    document.getElementById('subRecipeSaveModal').classList.add('hidden');
-}
-
-// ENHANCED: Save main recipe function with auto-reset
-function saveRecipe(type) {
-    const name = recipeNameInput.value.trim();
-    if (!name) {
-        alert("Please enter a recipe name");
-        recipeNameInput.focus();
-        return;
-    }
+// =============================================================================
+// NEW: FUNCTION TO UPDATE EXISTING SUB-RECIPE
+// =============================================================================
+function updateExistingSubRecipe() {
+    const name = document.getElementById('subRecipeNameDisplay').value;
+    const category = document.getElementById('subRecipeCategory').value;
+    const yieldQuantity = parseFloat(document.getElementById('subRecipeYieldQuantity').value);
+    const yieldUnit = document.getElementById('subRecipeYieldUnit').value;
+    const costPerUnit = parseFloat(document.getElementById('subRecipeCostPerUnit').value);
+    const costUnit = document.getElementById('subRecipeCostUnit').value;
 
     // Get current recipe items
     const rawMaterialItems = [];
@@ -2240,8 +2800,7 @@ function saveRecipe(type) {
         const itemName = row.children[0].querySelector("input").value;
         const quantity = parseFloat(row.children[1].querySelector("input").value) || 0;
         const unit = row.children[1].querySelector(".quantity-unit").textContent;
-        const yieldPct = parseFloat(row.children[2].querySelector("input").value) || 100;
-        const unitCost = parseFloat(row.children[3].querySelector("input").value) || 0;
+        const unitCost = parseFloat(row.children[3].querySelector("input").value) || 0; // FIXED: Index 3
         const type = row.dataset.type || 'rawMaterial';
         const subRecipeId = row.dataset.subRecipeId || null;
         
@@ -2250,7 +2809,156 @@ function saveRecipe(type) {
                 name: itemName,
                 quantity: quantity,
                 unit: unit,
-                yield: yieldPct,
+                unitCost: unitCost,
+                type: type,
+                subRecipeId: subRecipeId
+            });
+        }
+    });
+
+    directLaborRecipeBody.querySelectorAll("tr").forEach(row => {
+        const laborName = row.children[0].querySelector("input").value;
+        const timeRequired = parseFloat(row.children[1].querySelector("input").value) || 0;
+        const timeUnit = row.children[1].querySelector(".quantity-unit").textContent;
+        const rate = parseFloat(row.children[2].querySelector("input").value) || 0;
+        
+        directLaborItems.push({
+            name: laborName,
+            quantity: timeRequired,
+            unit: timeUnit,
+            rate: rate
+        });
+    });
+
+    // Create updated sub-recipe object
+    const updatedSubRecipe = {
+        id: editingItem.id, // Keep the same ID
+        name: name,
+        type: 'sub',
+        category: category,
+        yieldQuantity: yieldQuantity,
+        yieldUnit: yieldUnit,
+        costPerUnit: costPerUnit,
+        costUnit: costUnit,
+        rawMaterialItems: rawMaterialItems,
+        directLaborItems: directLaborItems,
+        totalCost: calculateCurrentRecipeTotalCost()
+    };
+
+    // Update the existing sub-recipe
+    const recipes = getCurrentRecipes();
+    const index = recipes.findIndex(recipe => recipe.id === editingItem.id);
+    
+    if (index !== -1) {
+        recipes[index] = updatedSubRecipe;
+        setCurrentRecipes(recipes);
+        
+        // Update displays
+        renderRecipesList();
+        populateUnifiedItemSelect();
+        populateSummaryRecipeSelect();
+        
+        // Close modal
+        closeSubRecipeSaveModal();
+        
+        // Auto-reset after save
+        autoResetAfterSave();
+        
+        showNotification(`Sub-recipe "${name}" updated successfully!`, "success");
+    } else {
+        console.error("Could not find sub-recipe to update:", editingItem.id);
+        alert("Error: Could not find the existing sub-recipe to update. It may have been deleted.");
+    }
+}
+
+// =============================================================================
+// FIX: CORRECT calculateCurrentRecipeTotalCost FUNCTION - BASE COSTS ONLY
+// =============================================================================
+function calculateCurrentRecipeTotalCost() {
+    let rawMaterialsTotal = 0;
+    let directLaborTotal = 0;
+    
+    // Calculate raw materials total from current recipe table (BASE calculation)
+    recipeBody.querySelectorAll("tr").forEach((row) => {
+        const q = parseFloat(row.children[1].querySelector("input").value) || 0;
+        const uc = parseFloat(row.children[3].querySelector("input").value) || 0; // FIXED: Index 3 for unit cost
+        
+        // SIMPLIFIED: No yield calculation needed - cost already includes yield
+        rawMaterialsTotal += q * uc; // BASE cost - no scaling
+    });
+    
+    // Calculate direct labor total from current labor table (BASE calculation)  
+    directLaborRecipeBody.querySelectorAll("tr").forEach((row) => {
+        const time = parseFloat(row.children[1].querySelector("input").value) || 0;
+        const rate = parseFloat(row.children[2].querySelector("input").value) || 0;
+        directLaborTotal += time * rate; // BASE cost - no scaling
+    });
+    
+    // RETURN: Base total cost without serving scale contamination
+    return parseFloat((rawMaterialsTotal + directLaborTotal).toFixed(2));
+}
+
+// Close sub-recipe save modal
+function closeSubRecipeSaveModal() {
+    document.getElementById('subRecipeSaveModal').classList.add('hidden');
+}
+
+// =============================================================================
+// FIX: ENHANCED SERVING SCALE ISOLATION
+// =============================================================================
+function calculateScaledCostsForSummary(baseRawMaterialsCost, baseDirectLaborCost, baseServings) {
+    const servingScale = parseFloat(servingScaleInput.value) || 1;
+    
+    // Apply serving scale formula: (Base Cost ÷ Base Servings) × Target Servings
+    const scaledRawMaterialsCost = baseServings > 0 ? 
+        (baseRawMaterialsCost / baseServings) * servingScale : 0;
+    const scaledDirectLaborCost = baseServings > 0 ? 
+        (baseDirectLaborCost / baseServings) * servingScale : 0;
+    const scaledTotalCost = scaledRawMaterialsCost + scaledDirectLaborCost;
+    
+    return {
+        scaledRawMaterialsCost,
+        scaledDirectLaborCost, 
+        scaledTotalCost,
+        targetServings: servingScale
+    };
+}
+
+// =============================================================================
+// FIX: ENHANCED SAVE RECIPE WITH AUTOMATIC DUPLICATE DETECTION
+// =============================================================================
+function saveRecipe(type) {
+    const servingScale = parseFloat(servingScaleInput.value) || 1;
+    
+    // Show warning if Serving Scale ≠ 1 when saving (informational only)
+    if (servingScale !== 1) {
+        console.log(`INFO: Saving recipe with Serving Scale = ${servingScale}. This affects Summary analysis but NOT saved recipe costs.`);
+    }
+    
+    const name = recipeNameInput.value.trim();
+    if (!name) {
+        alert("Please enter a recipe name");
+        recipeNameInput.focus();
+        return;
+    }
+
+    // Get current recipe items (BASE costs)
+    const rawMaterialItems = [];
+    const directLaborItems = [];
+    
+    recipeBody.querySelectorAll("tr").forEach(row => {
+        const itemName = row.children[0].querySelector("input").value;
+        const quantity = parseFloat(row.children[1].querySelector("input").value) || 0;
+        const unit = row.children[1].querySelector(".quantity-unit").textContent;
+        const unitCost = parseFloat(row.children[3].querySelector("input").value) || 0; // FIXED: Index 3
+        const type = row.dataset.type || 'rawMaterial';
+        const subRecipeId = row.dataset.subRecipeId || null;
+        
+        if (type === 'rawMaterial' || type === 'sub-recipe') {
+            rawMaterialItems.push({
+                name: itemName,
+                quantity: quantity,
+                unit: unit,
                 unitCost: unitCost,
                 type: type,
                 subRecipeId: subRecipeId
@@ -2260,7 +2968,6 @@ function saveRecipe(type) {
                 name: itemName,
                 quantity: quantity,
                 unit: unit,
-                yield: yieldPct,
                 unitCost: unitCost,
                 type: 'directLabor'
             });
@@ -2277,29 +2984,39 @@ function saveRecipe(type) {
             name: laborName,
             quantity: timeRequired,
             unit: timeUnit,
-            yield: 100,
-            unitCost: rate,
+            rate: rate,
             type: 'directLabor'
         });
     });
 
-    // Create recipe object
+    // Create recipe object with BASE costs
     const recipe = {
         id: Date.now(),
         name: name,
         type: type,
         rawMaterialItems: rawMaterialItems,
         directLaborItems: directLaborItems,
-        totalCost: calculateCurrentRecipeTotalCost(),
+        totalCost: calculateCurrentRecipeTotalCost(), // BASE cost only
         servings: parseFloat(servingsInput.value) || 1,
         createdAt: new Date().toISOString()
     };
 
-    // Add to saved recipes
+    // NEW: Automatic duplicate detection and handling
     const recipes = getCurrentRecipes();
+    const existingRecipe = checkForDuplicateName(name, recipes, editingItem.id);
     
-    // Check if we're editing an existing recipe
+    if (existingRecipe && !editingItem.id) {
+        showEditPrompt(type === 'main' ? 'mainRecipe' : 'subRecipe', existingRecipe.id, name);
+        return;
+    }
+
+    // Add to saved recipes
     if (editingItem.type === 'mainRecipe' && editingItem.id) {
+        const existingIndex = recipes.findIndex(r => r.id === editingItem.id);
+        if (existingIndex !== -1) {
+            recipes[existingIndex] = recipe;
+        }
+    } else if (editingItem.type === 'subRecipe' && editingItem.id) {
         const existingIndex = recipes.findIndex(r => r.id === editingItem.id);
         if (existingIndex !== -1) {
             recipes[existingIndex] = recipe;
@@ -2312,24 +3029,24 @@ function saveRecipe(type) {
 
     // Update displays
     renderRecipesList();
-    
-    // NEW: Update summary recipe selector
     populateSummaryRecipeSelect();
     
     // Reset editing state
     editingItem = { type: null, id: null, data: null };
     
-    // NEW: Auto-reset after save
+    // Auto-reset after save
     autoResetAfterSave();
     
     showNotification(`Recipe "${name}" saved successfully!`, "success");
 }
 
-// Render recipes list
+// ENHANCED: Render recipes list with alphabetical sorting
 function renderRecipesList() {
     const recipes = getCurrentRecipes();
-    const mainRecipes = recipes.filter(recipe => recipe.type === 'main');
-    const subRecipes = recipes.filter(recipe => recipe.type === 'sub');
+    
+    // NEW: Apply alphabetical sorting
+    const mainRecipes = sortRecipesAlphabetically(recipes.filter(recipe => recipe.type === 'main'));
+    const subRecipes = sortRecipesAlphabetically(recipes.filter(recipe => recipe.type === 'sub'));
 
     // Render main recipes
     mainRecipesList.innerHTML = mainRecipes.map(recipe => `
@@ -2378,7 +3095,6 @@ function loadRecipe(recipeId) {
             item.name,
             item.quantity,
             item.unit,
-            item.yield,
             item.unitCost,
             item.type || 'rawMaterial',
             item.subRecipeId || null
@@ -2405,72 +3121,6 @@ function loadRecipe(recipeId) {
     recalc();
 }
 
-// Add direct labor row helper
-function addDirectLaborRow(name, timeRequired, timeUnit, rate) {
-    const tr = document.createElement("tr");
-    tr.classList.add('labor-row');
-    
-    tr.innerHTML = `
-        <td data-label="Labor Item">
-            <input type="text" value="${escapeHtml(name)}" placeholder="Labor item" readonly>
-        </td>
-        <td data-label="Time Required">
-            <div class="quantity-input-group">
-                <input type="number" value="${parseFloat(timeRequired).toFixed(2)}" step="0.01" placeholder="Time">
-                <span class="quantity-unit">${timeUnit}</span>
-            </div>
-        </td>
-        <td data-label="Rate">
-            <div class="input-with-unit">
-                <input type="number" value="${parseFloat(rate).toFixed(2)}" step="0.01" placeholder="Rate" readonly>
-                <span class="unit-display-small">/${timeUnit}</span>
-            </div>
-        </td>
-        <td data-label="Total Cost">
-            <span class="unit-currency">${currency}</span>
-            <span class="total-value">0.00</span>
-        </td>
-        <td data-label="Action"><button class="delDirectLaborRow" style="background:var(--danger);color:var(--surface);border:none;padding:var(--space-sm) var(--space-md);border-radius:var(--radius-md);">🗑️</button></td>
-    `;
-
-    const timeInput = tr.children[1].querySelector("input");
-    const rateInput = tr.children[2].querySelector("input");
-    const totalVal = tr.children[3].querySelector(".total-value");
-    const delBtn = tr.querySelector(".delDirectLaborRow");
-
-    function updateRow() {
-        const time = parseFloat(timeInput.value) || 0;
-        const rate = parseFloat(rateInput.value) || 0;
-        totalVal.textContent = (time * rate).toFixed(2);
-        recalc();
-        
-        // Auto-save current recipe state
-        saveCurrentRecipeState();
-        
-        // NEW: Update cost breakdown preview if recipe is loaded
-        if (loadedRecipeForSummary) {
-            updateCostBreakdownPreview();
-        }
-    }
-
-    timeInput.addEventListener("input", updateRow);
-    delBtn.addEventListener("click", () => {
-        tr.remove();
-        recalc();
-        
-        // Auto-save current recipe state
-        saveCurrentRecipeState();
-        
-        // NEW: Update cost breakdown preview if recipe is loaded
-        if (loadedRecipeForSummary) {
-            updateCostBreakdownPreview();
-        }
-    });
-
-    directLaborRecipeBody.appendChild(tr);
-    updateRow();
-}
-
 // Load sub-recipe into current recipe
 function loadSubRecipe(recipeId) {
     const recipes = getCurrentRecipes();
@@ -2490,7 +3140,6 @@ function loadSubRecipe(recipeId) {
             item.name,
             item.quantity,
             item.unit,
-            item.yield,
             item.unitCost,
             'rawMaterial'
         );
@@ -2576,29 +3225,90 @@ function deleteRecipe(recipeId, event) {
     showNotification("Recipe deleted successfully!", "success");
 }
 
-// Show edit prompt
+// =============================================================================
+// FIX: ENHANCED EDIT PROMPT FOR SUB-RECIPES
+// =============================================================================
+
+// MODIFIED: Enhanced showEditPrompt function for sub-recipes
 function showEditPrompt(type, id, name) {
-    editPromptTitle.textContent = "Save Changes";
-    editPromptMessage.innerHTML = `
-        <p>A recipe named "<strong>${escapeHtml(name)}</strong>" already exists.</p>
-        <p>Would you like to replace the existing recipe or save this as a new recipe?</p>
-    `;
+    console.log("Showing edit prompt for:", { type, id, name });
     
+    let title = "Save Changes";
+    let message = '';
+    
+    switch(type) {
+        case 'mainRecipe':
+            title = "Save Main Recipe";
+            message = `A main recipe named "<strong>${escapeHtml(name)}</strong>" already exists.`;
+            break;
+        case 'subRecipe':
+            title = "Save Sub-Recipe"; 
+            message = `A sub-recipe named "<strong>${escapeHtml(name)}</strong>" already exists.`;
+            break;
+        case 'rawMaterial':
+            title = "Save Raw Material";
+            message = `A raw material named "<strong>${escapeHtml(name)}</strong>" already exists.`;
+            break;
+        case 'directLabor':
+            title = "Save Direct Labor";
+            message = `A direct labor item named "<strong>${escapeHtml(name)}</strong>" already exists.`;
+            break;
+        default:
+            message = `An item named "<strong>${escapeHtml(name)}</strong>" already exists.`;
+    }
+    
+    message += `<p>Would you like to replace the existing item or save this as a new item?</p>`;
+    
+    editPromptTitle.textContent = title;
+    editPromptMessage.innerHTML = message;
+    
+    // Store editing context
     editingItem = { type, id, data: null };
+    
     editPromptModal.classList.remove("hidden");
 }
 
-// Handle edit prompt choice
+// MODIFIED: Enhanced handleEditPromptChoice for sub-recipes
 function handleEditPromptChoice(choice) {
+    console.log("Edit prompt choice:", choice, "for:", editingItem);
+    
     closeEditPromptModal();
     
     if (choice === 'replace') {
-        // Replace existing recipe
-        saveRecipe(editingItem.type === 'mainRecipe' ? 'main' : 'sub');
+        // Replace existing item based on type
+        switch(editingItem.type) {
+            case 'mainRecipe':
+                saveRecipe('main');
+                break;
+            case 'subRecipe':
+                // For sub-recipes, we need to update the existing one
+                updateExistingSubRecipe();
+                break;
+            case 'rawMaterial':
+                updateRawMaterial();
+                break;
+            case 'directLabor':
+                updateDirectLabor();
+                break;
+        }
     } else if (choice === 'new') {
-        // Save as new recipe (generate new ID)
+        // Save as new item (generate new ID)
         editingItem.id = null;
-        saveRecipe(editingItem.type === 'mainRecipe' ? 'main' : 'sub');
+        
+        switch(editingItem.type) {
+            case 'mainRecipe':
+                saveRecipe('main');
+                break;
+            case 'subRecipe':
+                saveSubRecipe();
+                break;
+            case 'rawMaterial':
+                saveRawMaterial();
+                break;
+            case 'directLabor':
+                saveDirectLabor();
+                break;
+        }
     }
 }
 
@@ -2617,48 +3327,147 @@ function closeEditPromptModal() {
     editPromptModal.classList.add("hidden");
 }
 
-// Recalculate totals
+// =============================================================================
+// FIX: UPDATE RECALC FUNCTION WITH CLEAR SEPARATION
+// =============================================================================
 function recalc() {
-    const batchScale = parseFloat(batchScaleInput.value) || 1;
+    // Recipe Calculator Tab calculations remain exactly the same - BASE costs only
     const servings = parseFloat(servingsInput.value) || 1;
-    const scaledServings = servings * batchScale;
     
     let rawMaterialsTotal = 0;
     let directLaborTotal = 0;
 
-    // Calculate raw materials total
+    // Calculate base recipe totals (UNCHANGED - no scaling)
     recipeBody.querySelectorAll("tr").forEach((row) => {
         const q = parseFloat(row.children[1].querySelector("input").value) || 0;
-        const uc = parseFloat(row.children[3].querySelector("input").value) || 0;
-        const y = parseFloat(row.children[2].querySelector("input").value) || 100;
-        rawMaterialsTotal += q * uc * (y / 100);
+        const uc = parseFloat(row.children[3].querySelector("input").value) || 0; // FIXED: Index 3 for unit cost
+        
+        // SIMPLIFIED: No yield calculation needed - cost already includes yield
+        rawMaterialsTotal += q * uc; // BASE calculation
     });
 
-    // Calculate direct labor total
     directLaborRecipeBody.querySelectorAll("tr").forEach((row) => {
         const time = parseFloat(row.children[1].querySelector("input").value) || 0;
         const rate = parseFloat(row.children[2].querySelector("input").value) || 0;
-        directLaborTotal += time * rate;
+        directLaborTotal += time * rate; // BASE calculation
     });
 
-    const scaledRawMaterialsTotal = rawMaterialsTotal * batchScale;
-    const scaledDirectLaborTotal = directLaborTotal * batchScale;
-    const grandTotal = scaledRawMaterialsTotal + scaledDirectLaborTotal;
+    // Recipe Calculator Tab displays BASE totals (UNCHANGED)
+    const grandTotal = rawMaterialsTotal + directLaborTotal;
 
-    // Update display
-    rawMaterialsTotalEl.textContent = `${currency}${scaledRawMaterialsTotal.toFixed(2)}`;
-    directLaborTotalEl.textContent = `${currency}${scaledDirectLaborTotal.toFixed(2)}`;
+    // Update Recipe Calculator Tab display (UNCHANGED)
+    rawMaterialsTotalEl.textContent = `${currency}${rawMaterialsTotal.toFixed(2)}`;
+    directLaborTotalEl.textContent = `${currency}${directLaborTotal.toFixed(2)}`;
     grandTotalEl.textContent = `${currency}${grandTotal.toFixed(2)}`;
 
-    // FIXED: Only update summary when no recipe is loaded for analysis
+    // Only update summary when no recipe is loaded for analysis
     if (!loadedRecipeForSummary) {
-        updateSummary(scaledRawMaterialsTotal, scaledDirectLaborTotal, grandTotal, scaledServings);
+        updateSummary(rawMaterialsTotal, directLaborTotal, grandTotal, servings);
     }
     
-    // NEW: Only update cost breakdown preview if a recipe is loaded for summary
+    // Update cost breakdown preview if a recipe is loaded for summary
     if (loadedRecipeForSummary) {
         updateCostBreakdownPreview();
     }
+}
+
+// =============================================================================
+// FIX: ENHANCED UPDATE SUMMARY FUNCTION WITH NaN PREVENTION
+// =============================================================================
+function updateSummary(rawMaterialsCost, directLaborCost, totalCost, baseServings) {
+    // VALIDATION: Ensure all inputs are valid numbers
+    rawMaterialsCost = Number(rawMaterialsCost) || 0;
+    directLaborCost = Number(directLaborCost) || 0;
+    totalCost = Number(totalCost) || 0;
+    baseServings = Number(baseServings) || 1;
+    
+    // Get serving scale with validation
+    const servingScale = parseFloat(servingScaleInput.value) || 1;
+    const markup = parseFloat(markupInput.value) || 0;
+    const tax = parseFloat(taxInput.value) || 0;
+    const vat = parseFloat(vatInput.value) || 0;
+
+    // Use the enhanced scaling function for Summary Tab
+    const scaledCosts = calculateScaledCostsForSummary(rawMaterialsCost, directLaborCost, baseServings);
+    
+    const scaledRawMaterialsCost = scaledCosts.scaledRawMaterialsCost;
+    const scaledDirectLaborCost = scaledCosts.scaledDirectLaborCost;
+    const scaledTotalCost = scaledCosts.scaledTotalCost;
+    const targetServings = scaledCosts.targetServings;
+
+    // Calculate cost per serving with zero division protection
+    const costPerServing = targetServings > 0 ? scaledTotalCost / targetServings : 0;
+    
+    // Calculate selling prices with validation
+    const sellingPriceBeforeTax = costPerServing * (1 + markup / 100);
+    const sellingPriceAfterTax = sellingPriceBeforeTax * (1 + (tax + vat) / 100);
+
+    // Calculate percentages with zero division protection
+    const foodCostPercent = sellingPriceBeforeTax > 0 ? (scaledRawMaterialsCost / targetServings / sellingPriceBeforeTax) * 100 : 0;
+    const laborCostPercent = sellingPriceBeforeTax > 0 ? (scaledDirectLaborCost / targetServings / sellingPriceBeforeTax) * 100 : 0;
+    const totalCostPercent = sellingPriceBeforeTax > 0 ? (scaledTotalCost / targetServings / sellingPriceBeforeTax) * 100 : 0;
+    const grossProfitPercent = sellingPriceBeforeTax > 0 ? 100 - totalCostPercent : 0;
+
+    // Update terminology and calculations
+    const totalRevenue = sellingPriceBeforeTax * targetServings;
+    const totalProfit = totalRevenue - scaledTotalCost;
+
+    // UPDATE: Show target servings
+    if (summaryServingsDisplay) {
+        summaryServingsDisplay.textContent = targetServings;
+    }
+
+    // Update Summary Tab with SCALED costs - with null checks
+    if (summaryRawMaterialsCost) summaryRawMaterialsCost.textContent = `${currency}${scaledRawMaterialsCost.toFixed(2)}`;
+    if (summaryDirectLaborCost) summaryDirectLaborCost.textContent = `${currency}${scaledDirectLaborCost.toFixed(2)}`;
+    if (summaryTotalCost) summaryTotalCost.textContent = `${currency}${scaledTotalCost.toFixed(2)}`;
+    if (summaryCostServing) summaryCostServing.textContent = `${currency}${costPerServing.toFixed(2)}`;
+    if (summarySellingPrice) summarySellingPrice.textContent = `${currency}${sellingPriceAfterTax.toFixed(2)}`;
+    
+    if (summaryFoodCost) summaryFoodCost.textContent = `${foodCostPercent.toFixed(1)}%`;
+    if (summaryLaborCostPercent) summaryLaborCostPercent.textContent = `${laborCostPercent.toFixed(1)}%`;
+    if (summaryTotalCostPercent) summaryTotalCostPercent.textContent = `${totalCostPercent.toFixed(1)}%`;
+    if (summaryGrossProfit) summaryGrossProfit.textContent = `${grossProfitPercent.toFixed(1)}%`;
+
+    // Update batch profit analysis with null checks
+    if (summaryBatchRevenue) summaryBatchRevenue.textContent = `${currency}${totalRevenue.toFixed(2)}`;
+    if (summaryBatchProfit) summaryBatchProfit.textContent = `${currency}${totalProfit.toFixed(2)}`;
+}
+
+// =============================================================================
+// FIX: ENHANCED LOADED RECIPE DISPLAY UPDATE
+// =============================================================================
+function updateLoadedRecipeDisplay() {
+    if (!loadedRecipeForSummary || !loadedRecipeDisplay) return;
+    
+    currentRecipeNameDisplay.textContent = loadedRecipeForSummary.name || "Unnamed Recipe";
+    loadedRecipeTotalCost.textContent = `${currency}${(loadedRecipeForSummary.totalCost || 0).toFixed(2)}`;
+    loadedRecipeServings.textContent = loadedRecipeForSummary.servings || 1;
+    loadedRecipeItemCount.textContent = `${(loadedRecipeForSummary.rawMaterialItems?.length || 0) + (loadedRecipeForSummary.directLaborItems?.length || 0)} items`;
+    
+    loadedRecipeDisplay.classList.remove('hidden');
+}
+
+// PURPOSE: Update loaded recipe summary with serving scale
+function updateSummaryWithLoadedRecipe(recipe) {
+    // NEW: Use serving scale instead of batch scale
+    const servingScale = parseFloat(servingScaleInput.value) || 1;
+    
+    // Calculate base totals from the loaded recipe (UNCHANGED)
+    let rawMaterialsTotal = recipe.rawMaterialItems.reduce((total, item) => {
+        // SIMPLIFIED: No yield calculation needed - cost already includes yield
+        return total + (item.quantity * item.unitCost);
+    }, 0);
+
+    let directLaborTotal = recipe.directLaborItems.reduce((total, item) => {
+        return total + (item.quantity * item.unitCost);
+    }, 0);
+
+    const baseServings = recipe.servings || 1;
+    const totalCost = rawMaterialsTotal + directLaborTotal;
+    
+    // Call updateSummary with serving scale applied
+    updateSummary(rawMaterialsTotal, directLaborTotal, totalCost, baseServings);
 }
 
 // NEW: Separate function to update loaded recipe summary
@@ -2668,355 +3477,518 @@ function updateLoadedRecipeSummary() {
     }
 }
 
-// Update summary section - FIXED TAX CALCULATIONS
-function updateSummary(rawMaterialsCost, directLaborCost, totalCost, scaledServings) {
-    const markup = parseFloat(markupInput.value) || 0;
-    const tax = parseFloat(taxInput.value) || 0;
-    const vat = parseFloat(vatInput.value) || 0;
+// =============================================================================
+// PURPOSE: NEW - Auto-set Serving Scale when loading recipes in Summary Tab
+// =============================================================================
+function loadRecipeForSummary() {
+    const recipeId = summaryRecipeSelect.value;
+    if (!recipeId) {
+        alert("Please select a recipe to load");
+        return;
+    }
 
-    // Prevent division by zero
-    if (scaledServings <= 0) scaledServings = 1;
+    const recipe = getCurrentRecipes().find(r => r.id === parseInt(recipeId));
+    if (!recipe) return;
+
+    loadedRecipeForSummary = recipe;
     
-    const costPerServing = totalCost / scaledServings;
+    // NEW: Automatically set serving scale to match the loaded recipe's base servings
+    const baseServings = recipe.servings || 1;
+    servingScaleInput.value = baseServings;
     
-    // Calculate selling price BEFORE tax (for cost percentages)
-    const sellingPriceBeforeTax = costPerServing * (1 + markup / 100);
+    // Update display
+    updateLoadedRecipeDisplay();
     
-    // Calculate selling price AFTER tax (for customer price)
-    const sellingPriceAfterTax = sellingPriceBeforeTax * (1 + (tax + vat) / 100);
-
-    // Calculate percentages based on selling price BEFORE tax (industry standard)
-    const foodCostPercent = sellingPriceBeforeTax > 0 ? (rawMaterialsCost / scaledServings / sellingPriceBeforeTax) * 100 : 0;
-    const laborCostPercent = sellingPriceBeforeTax > 0 ? (directLaborCost / scaledServings / sellingPriceBeforeTax) * 100 : 0;
-    const totalCostPercent = sellingPriceBeforeTax > 0 ? (totalCost / scaledServings / sellingPriceBeforeTax) * 100 : 0;
-    const grossProfitPercent = sellingPriceBeforeTax > 0 ? 100 - totalCostPercent : 0;
-
-    // Calculate batch profit using selling price BEFORE tax
-    const batchRevenue = sellingPriceBeforeTax * scaledServings;
-    const batchProfit = batchRevenue - totalCost;
-    const batchProfitMargin = batchRevenue > 0 ? (batchProfit / batchRevenue) * 100 : 0;
-
-    // NEW: Update servings display
-    summaryServingsDisplay.textContent = scaledServings;
-
-    summaryRawMaterialsCost.textContent = `${currency}${rawMaterialsCost.toFixed(2)}`;
-    summaryDirectLaborCost.textContent = `${currency}${directLaborCost.toFixed(2)}`;
-    summaryTotalCost.textContent = `${currency}${totalCost.toFixed(2)}`;
-    summaryCostServing.textContent = `${currency}${costPerServing.toFixed(2)}`;
+    // Update summary with loaded recipe data (now using the correct serving scale)
+    updateSummaryWithLoadedRecipe(recipe);
     
-    // Show selling price AFTER tax to customer
-    summarySellingPrice.textContent = `${currency}${sellingPriceAfterTax.toFixed(2)}`;
+    // Update cost breakdown preview with loaded recipe
+    updateCostBreakdownPreview();
     
-    summaryFoodCost.textContent = `${foodCostPercent.toFixed(1)}%`;
-    summaryLaborCostPercent.textContent = `${laborCostPercent.toFixed(1)}%`;
-    summaryTotalCostPercent.textContent = `${totalCostPercent.toFixed(1)}%`;
-    summaryGrossProfit.textContent = `${grossProfitPercent.toFixed(1)}%`;
-
-    // Update batch profit analysis (using pre-tax revenue)
-    summaryBatchRevenue.textContent = `${currency}${batchRevenue.toFixed(2)}`;
-    summaryBatchProfit.textContent = `${currency}${batchProfit.toFixed(2)}`;
-    summaryBatchProfitMargin.textContent = `${batchProfitMargin.toFixed(1)}%`;
+    // NEW: Show notification about auto-setting
+    showNotification(`Automatically set Serving Scale to ${baseServings} to match loaded recipe`, "info");
 }
 
-// NEW: Update summary with loaded recipe data
-function updateSummaryWithLoadedRecipe(recipe) {
-    const batchScale = parseFloat(batchScaleInput.value) || 1;
+// =============================================================================
+// PURPOSE: Update cost breakdown preview with serving scale and alphabetical sorting
+// =============================================================================
+function updateCostBreakdownPreviewWithRecipe(recipe) {
+    // NEW: Use serving scale instead of batch scale
+    const servingScale = parseFloat(servingScaleInput.value) || 1;
+    const baseServings = recipe.servings || 1;
     
-    // Calculate totals from the loaded recipe
-    let rawMaterialsTotal = recipe.rawMaterialItems.reduce((total, item) => {
-        return total + (item.quantity * item.unitCost * (item.yield / 100));
-    }, 0);
-
-    let directLaborTotal = recipe.directLaborItems.reduce((total, item) => {
-        return total + (item.quantity * item.unitCost);
-    }, 0);
-
-    // Scale the totals
-    rawMaterialsTotal *= batchScale;
-    directLaborTotal *= batchScale;
-    const totalCost = rawMaterialsTotal + directLaborTotal;
-    const servings = recipe.servings || 1;
-    const scaledServings = servings * batchScale;
+    // NEW: Calculate scaling factor using serving scale formula
+    const scaleFactor = baseServings > 0 ? servingScale / baseServings : 0;
     
-    // Calculate with corrected tax logic
-    const markup = parseFloat(markupInput.value) || 0;
-    const tax = parseFloat(taxInput.value) || 0;
-    const vat = parseFloat(vatInput.value) || 0;
+    // Use recipe items directly
+    const rawMaterialItems = recipe.rawMaterialItems || [];
+    const directLaborItems = recipe.directLaborItems || [];
     
-    const costPerServing = totalCost / scaledServings;
-    const sellingPriceBeforeTax = costPerServing * (1 + markup / 100);
-    const sellingPriceAfterTax = sellingPriceBeforeTax * (1 + (tax + vat) / 100);
+    // NEW: Sort items alphabetically for display
+    const sortedRawMaterialItems = sortRecipeItemsAlphabetically([...rawMaterialItems]);
+    const sortedDirectLaborItems = sortRecipeItemsAlphabetically([...directLaborItems]);
     
-    const batchRevenue = sellingPriceBeforeTax * scaledServings;
-    const batchProfit = batchRevenue - totalCost;
-    const batchProfitMargin = batchRevenue > 0 ? (batchProfit / batchRevenue) * 100 : 0;
+    // Update raw materials preview with SCALED quantities for Summary Tab
+    rawMaterialsCount.textContent = `${sortedRawMaterialItems.length} items`;
     
-    // Update servings display
-    summaryServingsDisplay.textContent = scaledServings;
+    let rawMaterialsSubtotal = 0;
+    rawMaterialsPreviewBody.innerHTML = '';
     
-    // Update summary with calculated values
-    summaryRawMaterialsCost.textContent = `${currency}${rawMaterialsTotal.toFixed(2)}`;
-    summaryDirectLaborCost.textContent = `${currency}${directLaborTotal.toFixed(2)}`;
-    summaryTotalCost.textContent = `${currency}${totalCost.toFixed(2)}`;
-    summaryCostServing.textContent = `${currency}${costPerServing.toFixed(2)}`;
-    summarySellingPrice.textContent = `${currency}${sellingPriceAfterTax.toFixed(2)}`;
+    sortedRawMaterialItems.forEach(item => {
+        // NEW: Scale quantity using serving scale factor
+        const scaledQuantity = item.quantity * scaleFactor; // SCALED for Summary Tab
+        
+        // MODIFIED: Get yield from raw material for display only (costs already yield-inclusive)
+        let yieldPct = 100;
+        if (item.type === 'rawMaterial') {
+            const rawMaterial = getCurrentRawMaterials().find(rm => rm.name === item.name);
+            if (rawMaterial && rawMaterial.yieldPercentage) {
+                yieldPct = rawMaterial.yieldPercentage;
+            }
+        } else if (item.type === 'sub-recipe') {
+            // Sub-recipes already account for yield in their cost
+            yieldPct = 100;
+        }
+        
+        // SIMPLIFIED: No yield calculation needed - cost already includes yield
+        const totalCost = scaledQuantity * item.unitCost;
+        rawMaterialsSubtotal += totalCost;
+        
+        const rowElement = document.createElement('tr');
+        rowElement.innerHTML = `
+            <td>${escapeHtml(item.name)}${item.type === 'sub-recipe' ? ' <span class="sub-recipe-badge">SUB</span>' : ''}</td>
+            <td>${scaledQuantity.toFixed(2)} ${item.unit}</td> <!-- SCALED quantity -->
+            <td>${parseFloat(yieldPct).toFixed(1)}%</td> <!-- Display yield from raw material -->
+            <td>${currency}${parseFloat(item.unitCost).toFixed(2)}/${item.unit}</td>
+            <td>${currency}${totalCost.toFixed(2)}</td>
+        `;
+        rawMaterialsPreviewBody.appendChild(rowElement);
+    });
     
-    // Calculate percentages using selling price BEFORE tax
-    const foodCostPercent = sellingPriceBeforeTax > 0 ? (rawMaterialsTotal / scaledServings / sellingPriceBeforeTax) * 100 : 0;
-    const laborCostPercent = sellingPriceBeforeTax > 0 ? (directLaborTotal / scaledServings / sellingPriceBeforeTax) * 100 : 0;
-    const totalCostPercent = sellingPriceBeforeTax > 0 ? (totalCost / scaledServings / sellingPriceBeforeTax) * 100 : 0;
-    const grossProfitPercent = sellingPriceBeforeTax > 0 ? 100 - totalCostPercent : 0;
+    rawMaterialsPreviewTotal.textContent = `${currency}${rawMaterialsSubtotal.toFixed(2)}`;
+    rawMaterialsPreviewSubtotal.textContent = `${currency}${rawMaterialsSubtotal.toFixed(2)}`;
     
-    summaryFoodCost.textContent = `${foodCostPercent.toFixed(1)}%`;
-    summaryLaborCostPercent.textContent = `${laborCostPercent.toFixed(1)}%`;
-    summaryTotalCostPercent.textContent = `${totalCostPercent.toFixed(1)}%`;
-    summaryGrossProfit.textContent = `${grossProfitPercent.toFixed(1)}%`;
+    // Update direct labor preview with SCALED quantities for Summary Tab
+    directLaborCount.textContent = `${sortedDirectLaborItems.length} items`;
     
-    // Update batch profit analysis
-    summaryBatchRevenue.textContent = `${currency}${batchRevenue.toFixed(2)}`;
-    summaryBatchProfit.textContent = `${currency}${batchProfit.toFixed(2)}`;
-    summaryBatchProfitMargin.textContent = `${batchProfitMargin.toFixed(1)}%`;
+    let directLaborSubtotal = 0;
+    directLaborPreviewBody.innerHTML = '';
+    
+    sortedDirectLaborItems.forEach(item => {
+        // NEW: Scale time using serving scale factor
+        const scaledTime = item.quantity * scaleFactor; // SCALED for Summary Tab
+        const totalCost = scaledTime * item.unitCost;
+        directLaborSubtotal += totalCost;
+        
+        const rowElement = document.createElement('tr');
+        rowElement.innerHTML = `
+            <td>${escapeHtml(item.name)}</td>
+            <td>${scaledTime.toFixed(2)} ${item.unit}</td> <!-- SCALED time -->
+            <td>${currency}${parseFloat(item.unitCost).toFixed(2)}/${item.unit}</td>
+            <td>${currency}${totalCost.toFixed(2)}</td>
+        `;
+        directLaborPreviewBody.appendChild(rowElement);
+    });
+    
+    directLaborPreviewTotal.textContent = `${currency}${directLaborSubtotal.toFixed(2)}`;
+    directLaborPreviewSubtotal.textContent = `${currency}${directLaborSubtotal.toFixed(2)}`;
 }
 
-// Generate print preview
+// NEW: Update cost breakdown preview (only shows loaded recipe, not current recipe)
+function updateCostBreakdownPreview() {
+    // Only show data when a recipe is loaded for summary
+    if (loadedRecipeForSummary) {
+        updateCostBreakdownPreviewWithRecipe(loadedRecipeForSummary);
+    } else {
+        clearCostBreakdownPreview();
+    }
+}
+
+// NEW: Clear cost breakdown preview
+function clearCostBreakdownPreview() {
+    if (!rawMaterialsCount) return;
+    
+    rawMaterialsCount.textContent = "0 items";
+    directLaborCount.textContent = "0 items";
+    rawMaterialsPreviewTotal.textContent = `${currency}0.00`;
+    directLaborPreviewTotal.textContent = `${currency}0.00`;
+    rawMaterialsPreviewSubtotal.textContent = `${currency}0.00`;
+    directLaborPreviewSubtotal.textContent = `${currency}0.00`;
+    rawMaterialsPreviewBody.innerHTML = '';
+    directLaborPreviewBody.innerHTML = '';
+}
+
+// =============================================================================
+// FIX: ENHANCE PRINT PREVIEW WITH COMPREHENSIVE ERROR HANDLING
+// =============================================================================
 function generatePrintPreview() {
-    const recipeName = recipeNameInput.value || "Unnamed Recipe";
-    const totalCost = calculateCurrentRecipeTotalCost();
-    const markup = parseFloat(markupInput.value) || 0;
-    const tax = parseFloat(taxInput.value) || 0;
-    const vat = parseFloat(vatInput.value) || 0;
-    const servings = parseFloat(servingsInput.value) || 1;
-    const batchScale = parseFloat(batchScaleInput.value) || 1;
+    console.log("Starting print preview generation...");
     
-    const scaledServings = servings * batchScale;
-    
-    // Calculate raw materials and direct labor totals
-    let rawMaterialsCost = 0;
-    recipeBody.querySelectorAll("tr").forEach((row) => {
-        const q = parseFloat(row.children[1].querySelector("input").value) || 0;
-        const uc = parseFloat(row.children[3].querySelector("input").value) || 0;
-        const y = parseFloat(row.children[2].querySelector("input").value) || 100;
-        rawMaterialsCost += q * uc * (y / 100);
-    });
-    
-    let directLaborCost = 0;
-    directLaborRecipeBody.querySelectorAll("tr").forEach((row) => {
-        const time = parseFloat(row.children[1].querySelector("input").value) || 0;
-        const rate = parseFloat(row.children[2].querySelector("input").value) || 0;
-        directLaborCost += time * rate;
-    });
-    
-    const scaledRawMaterialsCost = rawMaterialsCost * batchScale;
-    const scaledDirectLaborCost = directLaborCost * batchScale;
-    
-    const costPerServing = totalCost / scaledServings;
-    
-    // Calculate selling prices
-    const sellingPriceBeforeTax = costPerServing * (1 + markup / 100);
-    const sellingPriceAfterTax = sellingPriceBeforeTax * (1 + (tax + vat) / 100);
-    
-    // Calculate percentages using selling price BEFORE tax
-    const foodCostPercent = sellingPriceBeforeTax > 0 ? (scaledRawMaterialsCost / scaledServings / sellingPriceBeforeTax) * 100 : 0;
-    const laborCostPercent = sellingPriceBeforeTax > 0 ? (scaledDirectLaborCost / scaledServings / sellingPriceBeforeTax) * 100 : 0;
-    const totalCostPercent = sellingPriceBeforeTax > 0 ? (totalCost / scaledServings / sellingPriceBeforeTax) * 100 : 0;
-    const grossProfitPercent = sellingPriceBeforeTax > 0 ? 100 - totalCostPercent : 0;
-
-    // Batch profit calculations using selling price BEFORE tax
-    const batchRevenue = sellingPriceBeforeTax * scaledServings;
-    const batchProfit = batchRevenue - totalCost;
-    const batchProfitMargin = batchRevenue > 0 ? (batchProfit / batchRevenue) * 100 : 0;
-
-    let printHTML = `
-        <div class="print-header">
-            <h1>${escapeHtml(recipeName)} - Costing Report</h1>
-            <p>Generated on ${new Date().toLocaleDateString()} • ${scaledServings} serving${scaledServings !== 1 ? 's' : ''} (${batchScale}x batch)</p>
-        </div>
-
-        <div class="print-section">
-            <h3>Raw Materials</h3>
-            <table class="cost-breakdown">
-                <thead>
-                    <tr>
-                        <th>Item</th>
-                        <th>Quantity</th>
-                        <th>Yield %</th>
-                        <th>Unit Cost</th>
-                        <th>Total Cost</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
-
-    // Add raw materials rows
-    recipeBody.querySelectorAll("tr").forEach(row => {
-        const itemName = row.children[0].querySelector("input").value;
-        const quantity = parseFloat(row.children[1].querySelector("input").value) || 0;
-        const quantityUnit = row.children[1].querySelector(".quantity-unit").textContent;
-        const yieldPct = parseFloat(row.children[2].querySelector("input").value) || 100;
-        const unitCost = parseFloat(row.children[3].querySelector("input").value) || 0;
-        const unitCostUnit = row.children[3].querySelector(".unit-display").textContent;
-        const totalCost = (quantity * unitCost * (yieldPct / 100)) * batchScale;
+    try {
+        // Check if there's any data to print
+        const hasLoadedRecipe = loadedRecipeForSummary !== null;
+        const hasCurrentRecipe = recipeBody.children.length > 0 || directLaborRecipeBody.children.length > 0;
         
-        printHTML += `
-            <tr>
-                <td>${escapeHtml(itemName)}</td>
-                <td>${(quantity * batchScale).toFixed(2)} ${quantityUnit}</td>
-                <td>${parseFloat(yieldPct).toFixed(1)}%</td>
-                <td>${currency}${parseFloat(unitCost).toFixed(2)}${unitCostUnit}</td>
-                <td>${currency}${totalCost.toFixed(2)}</td>
-            </tr>
-        `;
-    });
+        if (!hasLoadedRecipe && !hasCurrentRecipe) {
+            throw new Error("No recipe data available to print. Please either:\n\n1. Add items to your current recipe, OR\n2. Load a saved recipe in the Summary tab for analysis");
+        }
 
-    printHTML += `
-                </tbody>
-                <tfoot>
-                    <tr class="summary-highlight">
-                        <td colspan="4">Raw Materials Subtotal</td>
-                        <td>${currency}${scaledRawMaterialsCost.toFixed(2)}</td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-
-        <div class="print-section">
-            <h3>Direct Labor</h3>
-            <table class="cost-breakdown">
-                <thead>
-                    <tr>
-                        <th>Labor Item</th>
-                        <th>Time Required</th>
-                        <th>Rate</th>
-                        <th>Total Cost</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
-
-    // Add direct labor rows
-    directLaborRecipeBody.querySelectorAll("tr").forEach(row => {
-        const laborName = row.children[0].querySelector("input").value;
-        const timeRequired = parseFloat(row.children[1].querySelector("input").value) || 0;
-        const timeUnit = row.children[1].querySelector(".quantity-unit").textContent;
-        const rate = parseFloat(row.children[2].querySelector("input").value) || 0;
-        const rateUnit = row.children[2].querySelector(".unit-display-small").textContent;
-        const totalCost = (timeRequired * rate) * batchScale;
+        // Determine which recipe to print
+        let recipeToPrint;
+        let recipeName;
+        let baseServings;
         
-        printHTML += `
-            <tr>
-                <td>${escapeHtml(laborName)}</td>
-                <td>${(timeRequired * batchScale).toFixed(2)} ${timeUnit}</td>
-                <td>${currency}${parseFloat(rate).toFixed(2)}${rateUnit}</td>
-                <td>${currency}${totalCost.toFixed(2)}</td>
-            </tr>
+        if (loadedRecipeForSummary) {
+            // Use the loaded recipe from summary analysis
+            recipeToPrint = loadedRecipeForSummary;
+            recipeName = recipeToPrint.name || "Unnamed Recipe";
+            baseServings = recipeToPrint.servings || 1;
+            
+            // Validate loaded recipe data
+            if (!recipeToPrint.rawMaterialItems && !recipeToPrint.directLaborItems) {
+                throw new Error("Loaded recipe has no valid data. Please reload the recipe.");
+            }
+        } else {
+            // Fall back to current recipe in calculator
+            recipeName = recipeNameInput.value || "Current Recipe";
+            baseServings = parseFloat(servingsInput.value) || 1;
+        }
+        
+        const servingScale = parseFloat(servingScaleInput.value) || 1;
+        
+        // Calculate scaling factor with validation
+        const scaleFactor = baseServings > 0 ? servingScale / baseServings : 0;
+        const targetServings = servingScale;
+        
+        // Validate scaling configuration
+        if (targetServings <= 0) {
+            throw new Error("Invalid servings configuration. Serving scale must be greater than zero.");
+        }
+
+        // Generate print HTML with enhanced error handling
+        let printHTML = `
+            <div class="print-header">
+                <h1>${escapeHtml(recipeName)} - Costing Report</h1>
+                <p>Generated on ${new Date().toLocaleDateString()}</p>
+                <div style="background: #f0f8f0; padding: 10px; border-radius: 5px; margin: 10px 0;">
+                    <strong>Scaling Information:</strong><br>
+                    • Base Servings: ${baseServings}<br>
+                    • Serving Scale: ${servingScale}x<br>
+                    • Total Servings: ${targetServings}<br>
+                    • <em>All costs below are SCALED for analysis</em>
+                </div>
+                ${loadedRecipeForSummary ? '<p style="color: #666; font-style: italic;">Printed from Saved Recipe Analysis</p>' : ''}
+            </div>
         `;
-    });
+        
+        // Calculate costs with validation
+        let rawMaterialsCost = 0;
+        let rawMaterialItems = [];
+        let directLaborCost = 0;
+        let laborItems = [];
+        
+        if (loadedRecipeForSummary) {
+            // Calculate from loaded recipe with serving scale for print
+            rawMaterialItems = recipeToPrint.rawMaterialItems || [];
+            laborItems = recipeToPrint.directLaborItems || [];
+            
+            rawMaterialsCost = rawMaterialItems.reduce((total, item) => {
+                const scaledQuantity = (item.quantity || 0) * scaleFactor;
+                const unitCost = item.unitCost || 0;
+                return total + (scaledQuantity * unitCost);
+            }, 0);
+            
+            directLaborCost = laborItems.reduce((total, item) => {
+                const scaledTime = (item.quantity || 0) * scaleFactor;
+                const unitCost = item.unitCost || 0;
+                return total + (scaledTime * unitCost);
+            }, 0);
+        } else {
+            // Calculate from current recipe with serving scale for print
+            recipeBody.querySelectorAll("tr").forEach((row) => {
+                try {
+                    const q = parseFloat(row.children[1].querySelector("input").value) || 0;
+                    const uc = parseFloat(row.children[3].querySelector("input").value) || 0; // FIXED: Index 3
+                    const itemName = row.children[0].querySelector("input").value;
+                    const type = row.dataset.type || 'rawMaterial';
+                    const scaledQuantity = q * scaleFactor;
+                    
+                    // Get yield for display only
+                    let yieldPct = 100;
+                    if (type === 'rawMaterial') {
+                        const rawMaterial = getCurrentRawMaterials().find(rm => rm.name === itemName);
+                        if (rawMaterial && rawMaterial.yieldPercentage) {
+                            yieldPct = rawMaterial.yieldPercentage;
+                        }
+                    }
+                    
+                    const itemCost = scaledQuantity * uc;
+                    rawMaterialsCost += itemCost;
+                    
+                    rawMaterialItems.push({
+                        name: itemName,
+                        quantity: scaledQuantity,
+                        unit: row.children[1].querySelector(".quantity-unit").textContent,
+                        yield: yieldPct,
+                        unitCost: uc,
+                        totalCost: itemCost
+                    });
+                } catch (error) {
+                    console.warn("Error processing recipe row for print:", error);
+                }
+            });
+            
+            directLaborRecipeBody.querySelectorAll("tr").forEach((row) => {
+                try {
+                    const time = parseFloat(row.children[1].querySelector("input").value) || 0;
+                    const rate = parseFloat(row.children[2].querySelector("input").value) || 0;
+                    const scaledTime = time * scaleFactor;
+                    const itemCost = scaledTime * rate;
+                    directLaborCost += itemCost;
+                    
+                    laborItems.push({
+                        name: row.children[0].querySelector("input").value,
+                        timeRequired: scaledTime,
+                        timeUnit: row.children[1].querySelector(".quantity-unit").textContent,
+                        rate: rate,
+                        totalCost: itemCost
+                    });
+                } catch (error) {
+                    console.warn("Error processing labor row for print:", error);
+                }
+            });
+        }
+        
+        const totalCost = rawMaterialsCost + directLaborCost;
+        const costPerServing = targetServings > 0 ? totalCost / targetServings : 0;
+        
+        // Calculate selling prices
+        const sellingPriceBeforeTax = costPerServing * (1 + (parseFloat(markupInput.value) || 0) / 100);
+        const sellingPriceAfterTax = sellingPriceBeforeTax * (1 + ((parseFloat(taxInput.value) || 0) + (parseFloat(vatInput.value) || 0)) / 100);
+        
+        // Calculate percentages with zero division protection
+        const foodCostPercent = sellingPriceBeforeTax > 0 ? (rawMaterialsCost / targetServings / sellingPriceBeforeTax) * 100 : 0;
+        const laborCostPercent = sellingPriceBeforeTax > 0 ? (directLaborCost / targetServings / sellingPriceBeforeTax) * 100 : 0;
+        const totalCostPercent = sellingPriceBeforeTax > 0 ? (totalCost / targetServings / sellingPriceBeforeTax) * 100 : 0;
+        const grossProfitPercent = sellingPriceBeforeTax > 0 ? 100 - totalCostPercent : 0;
 
-    printHTML += `
-                </tbody>
-                <tfoot>
-                    <tr class="summary-highlight">
-                        <td colspan="3">Direct Labor Subtotal</td>
-                        <td>${currency}${scaledDirectLaborCost.toFixed(2)}</td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
+        // Update terminology in print preview
+        const totalRevenue = sellingPriceBeforeTax * targetServings;
+        const totalProfit = totalRevenue - totalCost;
 
-        <div class="print-section">
-            <h3>Cost Summary</h3>
-            <table class="cost-breakdown">
-                <tbody>
-                    <tr>
-                        <td>Raw Materials Cost:</td>
-                        <td>${currency}${scaledRawMaterialsCost.toFixed(2)}</td>
-                    </tr>
-                    <tr>
-                        <td>Direct Labor Cost:</td>
-                        <td>${currency}${scaledDirectLaborCost.toFixed(2)}</td>
-                    </tr>
-                    <tr class="totals-row">
-                        <td><strong>Total Recipe Cost:</strong></td>
-                        <td><strong>${currency}${totalCost.toFixed(2)}</strong></td>
-                    </tr>
-                    <tr>
-                        <td>Servings:</td>
-                        <td>${scaledServings}</td>
-                    </tr>
-                    <tr>
-                        <td>Cost per Serving (Before Tax):</td>
-                        <td>${currency}${costPerServing.toFixed(2)}</td>
-                    </tr>
-                    <tr>
-                        <td>Selling Price (After Tax):</td>
-                        <td>${currency}${sellingPriceAfterTax.toFixed(2)}</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+        printHTML += `
+            <div class="print-section">
+                <h3>Serving Scale Analysis</h3>
+                <table class="cost-breakdown">
+                    <tbody>
+                        <tr>
+                            <td>Base Servings:</td>
+                            <td>${baseServings}</td>
+                        </tr>
+                        <tr>
+                            <td>Target Servings:</td>
+                            <td>${targetServings}</td>
+                        </tr>
+                        <tr>
+                            <td>Scaling Factor:</td>
+                            <td>${scaleFactor.toFixed(2)}x</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
 
-        <div class="print-section">
-            <h3>Profit Analysis</h3>
-            <table class="cost-breakdown">
-                <tbody>
-                    <tr>
-                        <td>Food Cost %:</td>
-                        <td>${foodCostPercent.toFixed(1)}%</td>
-                    </tr>
-                    <tr>
-                        <td>Labor Cost %:</td>
-                        <td>${laborCostPercent.toFixed(1)}%</td>
-                    </tr>
-                    <tr>
-                        <td>Total Cost %:</td>
-                        <td>${totalCostPercent.toFixed(1)}%</td>
-                    </tr>
-                    <tr class="summary-highlight">
-                        <td><strong>Gross Profit Margin %:</strong></td>
-                        <td><strong>${grossProfitPercent.toFixed(1)}%</strong></td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+            <div class="print-section">
+                <h3>Raw Materials (Scaled)</h3>
+                <table class="cost-breakdown">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Quantity</th>
+                            <th>Yield %</th>
+                            <th>Unit Cost</th>
+                            <th>Total Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
 
-        <div class="print-section">
-            <h3>Batch Production Analysis</h3>
-            <table class="cost-breakdown">
-                <tbody>
-                    <tr>
-                        <td>Batch Scale:</td>
-                        <td>${batchScale}x</td>
-                    </tr>
-                    <tr>
-                        <td>Total Servings:</td>
-                        <td>${scaledServings}</td>
-                    </tr>
-                    <tr>
-                        <td>Batch Revenue (Before Tax):</td>
-                        <td>${currency}${batchRevenue.toFixed(2)}</td>
-                    </tr>
-                    <tr>
-                        <td>Batch Cost:</td>
-                        <td>${currency}${totalCost.toFixed(2)}</td>
-                    </tr>
-                    <tr class="summary-highlight">
-                        <td><strong>Batch Profit:</strong></td>
-                        <td><strong>${currency}${batchProfit.toFixed(2)}</strong></td>
-                    </tr>
-                    <tr class="summary-highlight">
-                        <td><strong>Batch Profit Margin:</strong></td>
-                        <td><strong>${batchProfitMargin.toFixed(1)}%</strong></td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+        // Add raw materials rows with SCALED quantities
+        rawMaterialItems.forEach(item => {
+            printHTML += `
+                <tr>
+                    <td>${escapeHtml(item.name)}${item.type === 'sub-recipe' ? ' <span class="sub-recipe-badge">SUB</span>' : ''}</td>
+                    <td>${item.quantity.toFixed(2)} ${item.unit}</td>
+                    <td>${parseFloat(item.yield).toFixed(1)}%</td>
+                    <td>${currency}${parseFloat(item.unitCost).toFixed(2)}/${item.unit}</td>
+                    <td>${currency}${item.totalCost.toFixed(2)}</td>
+                </tr>
+            `;
+        });
 
-        <div class="print-footer">
-            <p>Generated by ProfitPerPlate - Know your profit in every plate</p>
-        </div>
-    `;
+        printHTML += `
+                    </tbody>
+                    <tfoot>
+                        <tr class="summary-highlight">
+                            <td colspan="4">Raw Materials Subtotal</td>
+                            <td>${currency}${rawMaterialsCost.toFixed(2)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
 
-    printPreviewContent.innerHTML = printHTML;
+            <div class="print-section">
+                <h3>Direct Labor (Scaled)</h3>
+                <table class="cost-breakdown">
+                    <thead>
+                        <tr>
+                            <th>Labor Item</th>
+                            <th>Time Required</th>
+                            <th>Rate</th>
+                            <th>Total Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        // Add direct labor rows with SCALED quantities
+        laborItems.forEach(item => {
+            printHTML += `
+                <tr>
+                    <td>${escapeHtml(item.name)}</td>
+                    <td>${item.timeRequired.toFixed(2)} ${item.timeUnit}</td>
+                    <td>${currency}${parseFloat(item.rate).toFixed(2)}/${item.timeUnit}</td>
+                    <td>${currency}${item.totalCost.toFixed(2)}</td>
+                </tr>
+            `;
+        });
+
+        printHTML += `
+                    </tbody>
+                    <tfoot>
+                        <tr class="summary-highlight">
+                            <td colspan="3">Direct Labor Subtotal</td>
+                            <td>${currency}${directLaborCost.toFixed(2)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div class="print-section">
+                <h3>Cost Summary</h3>
+                <table class="cost-breakdown">
+                    <tbody>
+                        <tr>
+                            <td>Raw Materials Cost:</td>
+                            <td>${currency}${rawMaterialsCost.toFixed(2)}</td>
+                        </tr>
+                        <tr>
+                            <td>Direct Labor Cost:</td>
+                            <td>${currency}${directLaborCost.toFixed(2)}</td>
+                        </tr>
+                        <tr class="totals-row">
+                            <td><strong>Total Recipe Cost:</strong></td>
+                            <td><strong>${currency}${totalCost.toFixed(2)}</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Target Servings:</td>
+                            <td>${targetServings}</td>
+                        </tr>
+                        <tr>
+                            <td>Cost per Serving (Before Tax):</td>
+                            <td>${currency}${costPerServing.toFixed(2)}</td>
+                        </tr>
+                        <tr>
+                            <td>Selling Price (After Tax):</td>
+                            <td>${currency}${sellingPriceAfterTax.toFixed(2)}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="print-section">
+                <h3>Profit Analysis</h3>
+                <table class="cost-breakdown">
+                    <tbody>
+                        <tr>
+                            <td>Food Cost %:</td>
+                            <td>${foodCostPercent.toFixed(1)}%</td>
+                        </tr>
+                        <tr>
+                            <td>Labor Cost %:</td>
+                            <td>${laborCostPercent.toFixed(1)}%</td>
+                        </tr>
+                        <tr>
+                            <td>Total Cost %:</td>
+                            <td>${totalCostPercent.toFixed(1)}%</td>
+                        </tr>
+                        <tr class="summary-highlight">
+                            <td><strong>Gross Profit Margin %:</strong></td>
+                            <td><strong>${grossProfitPercent.toFixed(1)}%</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="print-section">
+                <h3>Production Analysis</h3>
+                <table class="cost-breakdown">
+                    <tbody>
+                        <tr>
+                            <td>Serving Scale:</td>
+                            <td>${servingScale}x</td>
+                        </tr>
+                        <tr>
+                            <td>Total Servings:</td>
+                            <td>${targetServings}</td>
+                        </tr>
+                        <tr>
+                            <td>Total Revenue (Before Tax):</td>
+                            <td>${currency}${totalRevenue.toFixed(2)}</td>
+                        </tr>
+                        <tr>
+                            <td>Total Cost:</td>
+                            <td>${currency}${totalCost.toFixed(2)}</td>
+                        </tr>
+                        <tr class="summary-highlight">
+                            <td><strong>Total Profit:</strong></td>
+                            <td><strong>${currency}${totalProfit.toFixed(2)}</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="print-footer">
+                <p>Generated by ProfitPerPlate - Know your profit in every plate</p>
+            </div>
+        `;
+
+        printPreviewContent.innerHTML = printHTML;
+        console.log("Print preview generated successfully");
+        
+    } catch (error) {
+        console.error("Error generating print preview:", error);
+        
+        // Create user-friendly error message
+        const errorHTML = `
+            <div class="print-header">
+                <h2 style="color: #ff3b30;">Error Generating Print Preview</h2>
+                <p><strong>What happened:</strong> ${error.message}</p>
+                <div style="background: #fff0f0; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                    <h4>Possible Solutions:</h4>
+                    <ul>
+                        <li>Ensure you have recipe data (either loaded or in current recipe)</li>
+                        <li>Check that all recipe items have valid quantities and costs</li>
+                        <li>Verify serving scale is greater than zero</li>
+                        <li>Try refreshing the page and reloading your recipe</li>
+                    </ul>
+                </div>
+                <p><em>Technical details have been logged to the console for debugging.</em></p>
+            </div>
+        `;
+        
+        printPreviewContent.innerHTML = errorHTML;
+        throw error; // Re-throw to allow modal to handle it
+    }
 }
 
 // Print costing report
@@ -3083,116 +4055,6 @@ function populateSummaryRecipeSelect() {
     });
 }
 
-// NEW: Load recipe for summary analysis
-function loadRecipeForSummary() {
-    const recipeId = summaryRecipeSelect.value;
-    if (!recipeId) {
-        alert("Please select a recipe to load");
-        return;
-    }
-
-    const recipe = getCurrentRecipes().find(r => r.id === parseInt(recipeId));
-    if (!recipe) return;
-
-    loadedRecipeForSummary = recipe;
-    
-    // Update display
-    currentRecipeNameDisplay.textContent = recipe.name;
-    loadedRecipeTotalCost.textContent = `${currency}${recipe.totalCost.toFixed(2)}`;
-    loadedRecipeServings.textContent = recipe.servings || 1;
-    loadedRecipeItemCount.textContent = `${recipe.rawMaterialItems.length + recipe.directLaborItems.length} items`;
-    
-    loadedRecipeDisplay.classList.remove('hidden');
-    
-    // Update summary with loaded recipe data
-    updateSummaryWithLoadedRecipe(recipe);
-    
-    // NEW: Update cost breakdown preview with loaded recipe
-    updateCostBreakdownPreview();
-}
-
-// NEW: Update cost breakdown preview with specific recipe (NO sub-recipe expansion)
-function updateCostBreakdownPreviewWithRecipe(recipe) {
-    const batchScale = parseFloat(batchScaleInput.value) || 1;
-    
-    // Use recipe items directly - NO expansion
-    const rawMaterialItems = recipe.rawMaterialItems || [];
-    const directLaborItems = recipe.directLaborItems || [];
-    
-    // Update raw materials preview
-    rawMaterialsCount.textContent = `${rawMaterialItems.length} items`;
-    
-    let rawMaterialsSubtotal = 0;
-    rawMaterialsPreviewBody.innerHTML = '';
-    
-    rawMaterialItems.forEach(item => {
-        const scaledQuantity = item.quantity * batchScale;
-        const totalCost = scaledQuantity * item.unitCost * (item.yield / 100);
-        rawMaterialsSubtotal += totalCost;
-        
-        const rowElement = document.createElement('tr');
-        rowElement.innerHTML = `
-            <td>${escapeHtml(item.name)}${item.type === 'sub-recipe' ? ' <span class="sub-recipe-badge">SUB</span>' : ''}</td>
-            <td>${scaledQuantity.toFixed(2)} ${item.unit}</td>
-            <td>${parseFloat(item.yield).toFixed(1)}%</td>
-            <td>${currency}${parseFloat(item.unitCost).toFixed(2)}/${item.unit}</td>
-            <td>${currency}${totalCost.toFixed(2)}</td>
-        `;
-        rawMaterialsPreviewBody.appendChild(rowElement);
-    });
-    
-    rawMaterialsPreviewTotal.textContent = `${currency}${rawMaterialsSubtotal.toFixed(2)}`;
-    rawMaterialsPreviewSubtotal.textContent = `${currency}${rawMaterialsSubtotal.toFixed(2)}`;
-    
-    // Update direct labor preview
-    directLaborCount.textContent = `${directLaborItems.length} items`;
-    
-    let directLaborSubtotal = 0;
-    directLaborPreviewBody.innerHTML = '';
-    
-    directLaborItems.forEach(item => {
-        const scaledTime = item.quantity * batchScale;
-        const totalCost = scaledTime * item.unitCost;
-        directLaborSubtotal += totalCost;
-        
-        const rowElement = document.createElement('tr');
-        rowElement.innerHTML = `
-            <td>${escapeHtml(item.name)}</td>
-            <td>${scaledTime.toFixed(2)} ${item.unit}</td>
-            <td>${currency}${parseFloat(item.unitCost).toFixed(2)}/${item.unit}</td>
-            <td>${currency}${totalCost.toFixed(2)}</td>
-        `;
-        directLaborPreviewBody.appendChild(rowElement);
-    });
-    
-    directLaborPreviewTotal.textContent = `${currency}${directLaborSubtotal.toFixed(2)}`;
-    directLaborPreviewSubtotal.textContent = `${currency}${directLaborSubtotal.toFixed(2)}`;
-}
-
-// NEW: Update cost breakdown preview (only shows loaded recipe, not current recipe)
-function updateCostBreakdownPreview() {
-    // Only show data when a recipe is loaded for summary
-    if (loadedRecipeForSummary) {
-        updateCostBreakdownPreviewWithRecipe(loadedRecipeForSummary);
-    } else {
-        clearCostBreakdownPreview();
-    }
-}
-
-// NEW: Clear cost breakdown preview
-function clearCostBreakdownPreview() {
-    if (!rawMaterialsCount) return;
-    
-    rawMaterialsCount.textContent = "0 items";
-    directLaborCount.textContent = "0 items";
-    rawMaterialsPreviewTotal.textContent = `${currency}0.00`;
-    directLaborPreviewTotal.textContent = `${currency}0.00`;
-    rawMaterialsPreviewSubtotal.textContent = `${currency}0.00`;
-    directLaborPreviewSubtotal.textContent = `${currency}0.00`;
-    rawMaterialsPreviewBody.innerHTML = '';
-    directLaborPreviewBody.innerHTML = '';
-}
-
 // Generate comprehensive help content
 function generateCompleteHelpContent() {
     let html = `
@@ -3208,7 +4070,7 @@ function generateCompleteHelpContent() {
     // Add raw material and recipe fields
     const rawMaterialFields = [
         'ingredientName', 'ingredientCategory', 'purchasePrice', 'purchaseQuantity', 
-        'purchaseUnit', 'costPerUnit', 'selectItem', 'quantity', 'yield', 'servings'
+        'purchaseUnit', 'costPerUnit', 'selectItem', 'quantity', 'servings'
     ];
     
     rawMaterialFields.forEach(fieldKey => {
@@ -3235,8 +4097,8 @@ function generateCompleteHelpContent() {
     // Add direct labor and business fields
     const laborFields = [
         'laborName', 'shiftRate', 'shiftDuration', 'timeUnit', 'costUnit',
-        'markup', 'tax', 'vat', 'batchScale', 'subRecipeName', 'subRecipeCategory',
-        'subRecipeYieldQuantity'
+        'markup', 'tax', 'vat', 'servingScale', 'subRecipeName', 'subRecipeCategory',
+        'subRecipeYieldQuantity', 'yieldPercentage'
     ];
     
     laborFields.forEach(fieldKey => {
@@ -3342,55 +4204,6 @@ function updateSubRecipeCostDisplay() {
     }
 }
 
-// Calculate current recipe total cost (raw materials + direct labor)
-function calculateCurrentRecipeTotalCost() {
-    const batchScale = parseFloat(batchScaleInput.value) || 1;
-    
-    let rawMaterialsTotal = 0;
-    let directLaborTotal = 0;
-    
-    recipeBody.querySelectorAll("tr").forEach((row) => {
-        const q = parseFloat(row.children[1].querySelector("input").value) || 0;
-        const uc = parseFloat(row.children[3].querySelector("input").value) || 0;
-        const y = parseFloat(row.children[2].querySelector("input").value) || 100;
-        rawMaterialsTotal += q * uc * (y / 100);
-    });
-    
-    directLaborRecipeBody.querySelectorAll("tr").forEach((row) => {
-        const time = parseFloat(row.children[1].querySelector("input").value) || 0;
-        const rate = parseFloat(row.children[2].querySelector("input").value) || 0;
-        directLaborTotal += time * rate;
-    });
-    
-    return parseFloat(((rawMaterialsTotal + directLaborTotal) * batchScale).toFixed(2));
-}
-
-// FIXED: Tab Management with sidebar support - Prevent auto-display of current recipe in summary
-function switchTab(tabName) {
-    // Update desktop sidebar
-    document.querySelectorAll(".sidebar-btn").forEach((btn) => {
-        btn.classList.toggle("active", btn.dataset.tab === tabName);
-    });
-
-    // Update mobile tabs
-    document.querySelectorAll(".mobile-tabs .tab-btn").forEach((btn) => {
-        btn.classList.toggle("active", btn.dataset.tab === tabName);
-    });
-
-    document.querySelectorAll(".tab-content").forEach((tab) => {
-        tab.classList.toggle("active", tab.id === `${tabName}-tab`);
-    });
-
-    // Only update cost breakdown preview when switching to summary tab if a recipe is loaded
-    if (tabName === 'summary') {
-        if (loadedRecipeForSummary) {
-            updateCostBreakdownPreview();
-        } else {
-            clearCostBreakdownPreview();
-        }
-    }
-}
-
 // Raw Material Management
 function openRawMaterialModal(rawMaterial = null) {
     const modal = document.getElementById("rawMaterialModal");
@@ -3446,47 +4259,43 @@ function updateUnitOptions() {
     updateCostPerUnit();
 }
 
-// Calculate and display cost per unit for raw materials
+// UPDATED: Calculate and display cost per unit for raw materials with yield-inclusive calculation
 function updateCostPerUnit() {
-    const price =
-        parseFloat(document.getElementById("modalRawMaterialPrice").value) ||
-        0;
-    const quantity =
-        parseFloat(
-            document.getElementById("modalRawMaterialQuantity").value
-        ) || 1;
-    const purchaseUnit = document.getElementById(
-        "modalRawMaterialUnit"
-    ).value;
+    const price = parseFloat(document.getElementById("modalRawMaterialPrice").value) || 0;
+    const quantity = parseFloat(document.getElementById("modalRawMaterialQuantity").value) || 1;
+    const purchaseUnit = document.getElementById("modalRawMaterialUnit").value;
     const costUnit = document.getElementById("modalCostUnit").value;
+    const yieldPercentage = parseFloat(document.getElementById("modalRawMaterialYield").value) || 100;
 
     let costPerUnit = 0;
     let calculationSteps = [];
 
     if (price > 0 && quantity > 0) {
-        const costPerPurchaseUnit = price / quantity;
+        // NEW: Apply yield directly to cost calculation
+        const baseCostPerUnit = price / quantity;
         calculationSteps.push(
-            `Cost per ${purchaseUnit}: ${price.toFixed(2)} ${currency} ÷ ${quantity.toFixed(2)} = ${costPerPurchaseUnit.toFixed(4)} ${currency}/${purchaseUnit}`
+            `Base cost: ${price.toFixed(2)} ${currency} ÷ ${quantity.toFixed(2)} = ${baseCostPerUnit.toFixed(4)} ${currency}/${purchaseUnit}`
+        );
+
+        // Apply yield adjustment
+        const yieldAdjustedCost = baseCostPerUnit * (100 / yieldPercentage);
+        calculationSteps.push(
+            `With ${yieldPercentage}% yield: ${baseCostPerUnit.toFixed(4)} × (100 ÷ ${yieldPercentage}) = ${yieldAdjustedCost.toFixed(4)} ${currency}/${purchaseUnit}`
         );
 
         if (purchaseUnit !== costUnit) {
-            const conversionFactor =
-                UNIT_CONVERSIONS[costUnit] / UNIT_CONVERSIONS[purchaseUnit];
-            costPerUnit = costPerPurchaseUnit * conversionFactor;
+            const conversionFactor = UNIT_CONVERSIONS[costUnit] / UNIT_CONVERSIONS[purchaseUnit];
+            costPerUnit = yieldAdjustedCost * conversionFactor;
             calculationSteps.push(
-                `Convert to ${costUnit}: ${costPerPurchaseUnit.toFixed(4)} ${currency}/${purchaseUnit} × ${conversionFactor.toFixed(6)} = ${costPerUnit.toFixed(4)} ${currency}/${costUnit}`
+                `Convert to ${costUnit}: ${yieldAdjustedCost.toFixed(4)} × ${conversionFactor.toFixed(6)} = ${costPerUnit.toFixed(4)} ${currency}/${costUnit}`
             );
         } else {
-            costPerUnit = costPerPurchaseUnit;
-            calculationSteps.push(
-                `No conversion needed (already in ${costUnit})`
-            );
+            costPerUnit = yieldAdjustedCost;
+            calculationSteps.push(`No conversion needed (already in ${costUnit})`);
         }
     }
 
-    document.getElementById("modalCostPerUnit").value =
-        costPerUnit.toFixed(4);
-
+    document.getElementById("modalCostPerUnit").value = costPerUnit.toFixed(6);
     updateCalculationDisplay(calculationSteps, costPerUnit, costUnit);
 }
 
@@ -3514,6 +4323,7 @@ function updateCalculationDisplay(steps, finalCost, costUnit) {
     }
 }
 
+// ENHANCED: Populate raw material form with yield field
 function populateRawMaterialForm(rawMaterial) {
     document.getElementById("modalRawMaterialName").value = rawMaterial.name;
     document.getElementById("modalRawMaterialCategory").value =
@@ -3529,8 +4339,76 @@ function populateRawMaterialForm(rawMaterial) {
     document.getElementById("modalCostPerUnit").value =
         rawMaterial.costPerUnit.toFixed(4);
     document.getElementById("modalCostUnit").value = rawMaterial.costUnit;
+    document.getElementById("modalRawMaterialYield").value = rawMaterial.yieldPercentage || 100; // NEW: Populate yield
 
     updateCostPerUnit();
+}
+
+// =============================================================================
+// NEW: ALPHABETICAL SORTING FUNCTIONS
+// =============================================================================
+
+// NEW: Alphabetical Sorting Functions
+function sortRawMaterialsAlphabetically(rawMaterials) {
+    return [...rawMaterials].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function sortDirectLaborAlphabetically(directLabor) {
+    return [...directLabor].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function sortRecipesAlphabetically(recipes) {
+    return [...recipes].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function sortRecipeItemsAlphabetically(items) {
+    return [...items].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// =============================================================================
+// FIX: ADD SERVING SCALE RESET ON TAB SWITCH
+// =============================================================================
+function switchTab(tabName) {
+    // Update desktop sidebar
+    document.querySelectorAll(".sidebar-btn").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.tab === tabName);
+    });
+
+    // Update mobile tabs
+    document.querySelectorAll(".mobile-tabs .tab-btn").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.tab === tabName);
+    });
+
+    document.querySelectorAll(".tab-content").forEach((tab) => {
+        tab.classList.toggle("active", tab.id === `${tabName}-tab`);
+    });
+
+    // NEW: Reset Serving Scale to 1 when leaving Summary tab to prevent confusion
+    if (tabName !== 'summary' && servingScaleInput) {
+        const currentScale = parseFloat(servingScaleInput.value) || 1;
+        if (currentScale !== 1) {
+            console.log(`INFO: Auto-resetting Serving Scale from ${currentScale} to 1 when leaving Summary tab`);
+            servingScaleInput.value = 1;
+            
+            // If we have a loaded recipe, update the display with reset scale
+            if (loadedRecipeForSummary) {
+                updateLoadedRecipeSummary();
+                updateCostBreakdownPreview();
+            }
+        }
+    }
+
+    // Update cost breakdown preview when switching to summary tab if a recipe is loaded
+    if (tabName === 'summary') {
+        if (loadedRecipeForSummary) {
+            updateCostBreakdownPreview();
+        } else {
+            clearCostBreakdownPreview();
+        }
+    }
+    
+    // Save current tab state
+    saveCurrentRecipeState();
 }
 
 // Utility functions
@@ -3566,13 +4444,133 @@ function updateAuthUI() {
     }
 }
 
-// Initialize the app when DOM is loaded
-document.addEventListener('DOMContentLoaded', initApp);
+// =============================================================================
+// FIX: COMPREHENSIVE GLOBAL FUNCTION EXPORTS
+// =============================================================================
 
-// Make functions globally available for HTML onclick handlers
+// Auth and Password Functions
+window.openAuthModal = openAuthModal;
+window.closeAuthModal = closeAuthModal;
+window.handleAuth = handleAuth;
+window.handleLogout = handleLogout;
+window.toggleAuthMode = toggleAuthMode;
+window.openForgotPasswordModal = openForgotPasswordModal;
+window.closeForgotPasswordModal = closeForgotPasswordModal;
+window.sendPasswordReset = sendPasswordReset;
 window.showResetPasswordModal = showResetPasswordModal;
 window.closeResetPasswordModal = closeResetPasswordModal;
 window.togglePasswordVisibilityGeneric = togglePasswordVisibilityGeneric;
 window.handlePasswordReset = handlePasswordReset;
 window.showResetPasswordError = showResetPasswordError;
 window.closeAllModals = closeAllModals;
+
+// Raw Material Functions
+window.openRawMaterialModal = openRawMaterialModal;
+window.closeRawMaterialModal = closeRawMaterialModal;
+window.saveRawMaterial = saveRawMaterial;
+window.deleteRawMaterial = deleteRawMaterial;
+window.updateCostPerUnit = updateCostPerUnit;
+window.updateCostPerUnitValue = updateCostPerUnitValue;
+window.updateUnitOptions = updateUnitOptions;
+
+// Direct Labor Functions
+window.openDirectLaborModal = openDirectLaborModal;
+window.closeDirectLaborModal = closeDirectLaborModal;
+window.saveDirectLabor = saveDirectLabor;
+window.deleteDirectLabor = deleteDirectLabor;
+window.updateLaborCostPerUnit = updateLaborCostPerUnit;
+
+// Recipe Calculator Functions
+window.addItemToRecipe = addItemToRecipe;
+window.addDirectLaborToRecipe = addDirectLaborToRecipe;
+window.editRecipeRow = editRecipeRow;
+window.editDirectLaborRow = editDirectLaborRow;
+window.updateRecipeRow = updateRecipeRow;
+window.updateDirectLaborRow = updateDirectLaborRow;
+
+// Recipe Management Functions
+window.saveRecipe = saveRecipe;
+window.deleteRecipe = deleteRecipe;
+window.editRecipe = editRecipe;
+window.editSubRecipe = editSubRecipe;
+window.loadRecipe = loadRecipe;
+window.loadSubRecipe = loadSubRecipe;
+
+// Sub-Recipe Functions
+window.openSubRecipeSaveModal = openSubRecipeSaveModal;
+window.closeSubRecipeSaveModal = closeSubRecipeSaveModal;
+window.saveSubRecipe = saveSubRecipe;
+window.updateSubRecipeUnitOptions = updateSubRecipeUnitOptions;
+window.updateSubRecipeCostDisplay = updateSubRecipeCostDisplay;
+
+// Summary and Analysis Functions
+window.loadRecipeForSummary = loadRecipeForSummary;
+window.switchTab = switchTab;
+window.recalc = recalc;
+
+// Print and Export Functions
+window.printCostingReport = printCostingReport;
+window.closePrintPreview = closePrintPreview;
+window.generatePrintPreview = generatePrintPreview;
+
+// Help System Functions
+window.showFieldHelp = showFieldHelp;
+window.closeHelpModal = closeHelpModal;
+
+// Edit Prompt Functions
+window.handleEditPromptChoice = handleEditPromptChoice;
+window.handleRawMaterialEditChoice = handleRawMaterialEditChoice;
+window.handleDirectLaborEditChoice = handleDirectLaborEditChoice;
+
+// Utility Functions
+window.renderRawMaterials = renderRawMaterials;
+window.renderDirectLabor = renderDirectLabor;
+window.filterRawMaterials = filterRawMaterials;
+window.filterDirectLabor = filterDirectLabor;
+
+// ADD MISSING GLOBAL EXPORTS
+window.closeRawMaterialModal = closeRawMaterialModal;
+window.closeDirectLaborModal = closeDirectLaborModal;
+window.closeSubRecipeSaveModal = closeSubRecipeSaveModal;
+window.closeEditPromptModal = closeEditPromptModal;
+window.closeHelpModal = closeHelpModal;
+window.closeRawMaterialEditPromptModal = closeRawMaterialEditPromptModal;
+window.closeDirectLaborEditPromptModal = closeDirectLaborEditPromptModal;
+window.onUnifiedItemSelectChange = onUnifiedItemSelectChange;
+
+// COMPREHENSIVE EXPORT BLOCK FOR HTML ONCLICK HANDLERS
+window.ProfitPerPlate = {
+    // Core Functions
+    initApp,
+    recalc,
+    switchTab,
+    
+    // Modal Functions
+    openRawMaterialModal,
+    closeRawMaterialModal,
+    openDirectLaborModal,
+    closeDirectLaborModal,
+    openSubRecipeSaveModal,
+    closeSubRecipeSaveModal,
+    
+    // Data Management
+    saveRawMaterial,
+    saveDirectLabor,
+    deleteRawMaterial,
+    deleteDirectLabor,
+    
+    // Recipe Functions
+    addItemToRecipe,
+    addDirectLaborToRecipe,
+    resetRecipe,
+    saveRecipe,
+    saveSubRecipe,
+    
+    // Auth Functions
+    openAuthModal,
+    closeAuthModal,
+    handleAuth,
+    handleLogout
+};
+
+console.log("Global functions exported successfully");

@@ -58,7 +58,7 @@
             </button>
           </div>
 
-          <!-- Auth Section - UPDATED -->
+          <!-- Auth Section - FIXED: Remove onclick handlers and rely on event listeners -->
           <div class="header-item auth-section">
             <div id="authButtons" class="auth-buttons">
               <button id="loginBtn" class="header-icon-btn" aria-label="Login">
@@ -144,7 +144,7 @@
           <!-- Raw Materials Section -->
           <div class="section-header">
             <h2>Master Raw Material List</h2>
-            <button class="add-btn" onclick="openRawMaterialModal()">
+            <button class="add-btn" onclick="window.ProfitPerPlate.openRawMaterialModal()">
               + Add Raw Material
             </button>
           </div>
@@ -165,6 +165,7 @@
                 <tr>
                   <th>Raw Material</th>
                   <th>Category</th>
+                  <th>Yield %</th> <!-- NEW: Yield column -->
                   <th>Cost/Unit</th>
                   <th>Actions</th>
                 </tr>
@@ -178,7 +179,7 @@
           <!-- Direct Labor Section -->
           <div class="section-header" style="margin-top: var(--space-2xl);">
             <h2>Direct Labor List</h2>
-            <button class="add-btn" onclick="openDirectLaborModal()">
+            <button class="add-btn" onclick="window.ProfitPerPlate.openDirectLaborModal()">
               + Add Direct Labor
             </button>
           </div>
@@ -230,7 +231,8 @@
                 <div class="input-wrap tooltip-container">
                   <input id="servings" type="number" value="1" min="1" class="number-input small">
                   <div class="tooltip">
-                    Serving input applies exclusively to Main Recipes and is ignored when the recipe is saved as a Sub Recipe.
+                    Defines how many portions this recipe produces. This value is saved with Main Recipes 
+                    and used for cost-per-serving calculations. Different from "Serving Scale" in Summary tab.
                   </div>
                 </div>
               </div>
@@ -252,7 +254,7 @@
                 <label for="unifiedItemSelect">Select Item
                   <button type="button" class="help-icon" onclick="showFieldHelp('selectItem', event)">?</button>
                 </label>
-                <select id="unifiedItemSelect" class="select-input">
+                <select id="unifiedItemSelect" class="select-input" onchange="window.onUnifiedItemSelectChange()">
                   <option value="">Select an item...</option>
                   <optgroup label="Raw Materials">
                     <!-- Raw materials will be populated here -->
@@ -281,27 +283,8 @@
               </div>
 
               <div class="input-group">
-                <label for="addIngredientYield">Yield %
-                  <button type="button" class="help-icon" onclick="showFieldHelp('yield', event)">?</button>
-                </label>
-                <div class="input-with-unit">
-                  <input
-                    type="number"
-                    id="addIngredientYield"
-                    placeholder="100"
-                    class="number-input small"
-                    value="100"
-                    min="0"
-                    max="100"
-                    step="0.1"
-                  />
-                  <span class="unit-display-small">%</span>
-                </div>
-              </div>
-
-              <div class="input-group">
                 <label>&nbsp;</label>
-                <button class="btn-primary" onclick="addItemToRecipe()">
+                <button class="btn-primary" onclick="window.ProfitPerPlate.addItemToRecipe()">
                   Add to Recipe
                 </button>
               </div>
@@ -313,11 +296,12 @@
                 <thead>
                   <tr>
                     <th>Item</th>
-                    <th style="width: 140px">Qty/Time</th>
-                    <th style="width: 140px">Yield %</th>
-                    <th style="width: 160px">Unit Cost</th>
-                    <th style="width: 160px">Total Cost</th>
-                    <th style="width: 80px"></th>
+                    <th style="width: 140px">Qty</th>
+                    <!-- NEW: Yield % Column -->
+                    <th style="width: 100px">Yield %</th>
+                    <th style="width: 150px">Unit Cost</th>
+                    <th style="width: 150px">Total Cost</th>
+                    <th style="width: 120px">Actions</th>
                   </tr>
                 </thead>
                 <tbody id="recipeBody">
@@ -369,7 +353,7 @@
 
                 <div class="input-group">
                   <label>&nbsp;</label>
-                  <button class="btn-primary" onclick="addDirectLaborToRecipe()">
+                  <button class="btn-primary" onclick="window.ProfitPerPlate.addDirectLaborToRecipe()">
                     Add Direct Labor
                   </button>
                 </div>
@@ -384,7 +368,7 @@
                       <th style="width: 140px">Time Required</th>
                       <th style="width: 140px">Rate</th>
                       <th style="width: 160px">Total Cost</th>
-                      <th style="width: 80px"></th>
+                      <th style="width: 100px">Actions</th>
                     </tr>
                   </thead>
                   <tbody id="directLaborRecipeBody">
@@ -445,6 +429,15 @@
         <section id="summary-tab" class="tab-content panel">
           <h2>Summary</h2>
 
+          <!-- Information Panel about Serving Scale -->
+          <div class="info-panel" style="background: var(--primary-light); border: 1px solid var(--primary); border-radius: var(--radius-md); padding: var(--space-md); margin-bottom: var(--space-lg);">
+            <h4 style="margin: 0 0 var(--space-sm) 0; color: var(--primary);">About Serving Scale</h4>
+            <p style="margin: 0; font-size: 13px; color: var(--text-primary);">
+              <strong>Serving Scale</strong> lets you analyze different batch sizes in this tab without affecting your saved recipes. 
+              When you save recipes, only the <strong>base costs and servings</strong> are stored.
+            </p>
+          </div>
+
           <!-- Recipe Loader Section -->
           <div class="summary-recipe-selector">
             <h3>Recipe Analysis</h3>
@@ -452,7 +445,7 @@
               <select id="summaryRecipeSelect" class="select-input">
                 <option value="">Select a recipe to analyze...</option>
               </select>
-              <button onclick="loadRecipeForSummary()" class="btn-primary">Load Recipe</button>
+              <button class="btn-primary" onclick="loadRecipeForSummary()">Load Recipe</button>
             </div>
             <div id="loadedRecipeDisplay" class="loaded-recipe-info hidden">
               <h4>Currently Analyzing: <span id="currentRecipeNameDisplay"></span></h4>
@@ -534,38 +527,57 @@
             </div>
           </div>
 
-          <div class="summary-controls">
-            <!-- Batch Scaling Input -->
-            <label>
-              Batch Scale
-              <button type="button" class="field-help" onclick="showFieldHelp('batchScale', event)">?</button>
-              <div class="input-wrap">
-                <input id="batchScale" type="number" value="1" min="0.1" step="0.1" />
-                <span>x</span>
+          <!-- FIXED: Updated Summary Controls with Grid Layout -->
+          <div class="summary-controls-grid">
+            <!-- Serving Scale Section - Now using same structure as others -->
+            <div class="summary-control-item serving-scale-highlight">
+              <label class="control-label">
+                <span class="label-text">Serving Scale (Summary Analysis Only)</span>
+                <button type="button" class="field-help" onclick="showFieldHelp('servingScale', event)">?</button>
+              </label>
+              <div class="input-with-suffix">
+                <input id="servingScale" type="number" value="1" min="1" step="1" 
+                       title="Scales costs for analysis in Summary tab only - Does not affect saved recipes" />
+                <span class="suffix">servings</span>
               </div>
-            </label>
+              <small class="helper-text">ⓘ Affects this tab only - Recipe saves use base costs</small>
+            </div>
 
-            <label
-              >Mark-up %
-              <button type="button" class="field-help" onclick="showFieldHelp('markup', event)">?</button>
-              <div class="input-wrap">
-                <input id="markup" type="number" value="40" /><span>%</span>
+            <!-- Markup Control - Consistent structure -->
+            <div class="summary-control-item">
+              <label class="control-label">
+                <span class="label-text">Mark-up %</span>
+                <button type="button" class="field-help" onclick="showFieldHelp('markup', event)">?</button>
+              </label>
+              <div class="input-with-suffix">
+                <input id="markup" type="number" value="40" />
+                <span class="suffix">%</span>
               </div>
-            </label>
-            <label
-              >Regular Tax %
-              <button type="button" class="field-help" onclick="showFieldHelp('tax', event)">?</button>
-              <div class="input-wrap">
-                <input id="tax" type="number" value="0" /><span>%</span>
+            </div>
+
+            <!-- Regular Tax Control - Consistent structure -->
+            <div class="summary-control-item">
+              <label class="control-label">
+                <span class="label-text">Regular Tax %</span>
+                <button type="button" class="field-help" onclick="showFieldHelp('tax', event)">?</button>
+              </label>
+              <div class="input-with-suffix">
+                <input id="tax" type="number" value="0" />
+                <span class="suffix">%</span>
               </div>
-            </label>
-            <label
-              >VAT %
-              <button type="button" class="field-help" onclick="showFieldHelp('vat', event)">?</button>
-              <div class="input-wrap">
-                <input id="vat" type="number" value="0" /><span>%</span>
+            </div>
+
+            <!-- VAT Control - Consistent structure -->
+            <div class="summary-control-item">
+              <label class="control-label">
+                <span class="label-text">VAT %</span>
+                <button type="button" class="field-help" onclick="showFieldHelp('vat', event)">?</button>
+              </label>
+              <div class="input-with-suffix">
+                <input id="vat" type="number" value="0" />
+                <span class="suffix">%</span>
               </div>
-            </label>
+            </div>
           </div>
 
           <div class="summary-grid">
@@ -580,7 +592,7 @@
             </div>
             
             <!-- Servings Display -->
-            <div class="summary-item" style="font-weight: 600; border-bottom: 1px solid var(--primary);" title="Base servings × Batch scale">
+            <div class="summary-item" style="font-weight: 600; border-bottom: 1px solid var(--primary);" title="Base servings × Serving scale">
               <label>Total Servings:</label><span id="summaryServingsDisplay">1</span>
             </div>
             
@@ -606,16 +618,14 @@
               ><span id="summaryGrossProfit">0%</span>
             </div>
             
-            <!-- Batch Profit Analysis -->
-            <div class="summary-item batch-profit-analysis">
-              <label>Batch Revenue:</label><span id="summaryBatchRevenue">₱0.00</span>
+            <!-- FIXED: Updated Total Revenue and Profit Analysis -->
+            <div class="summary-item total-profit-analysis">
+              <label>Total Revenue:</label><span id="summaryBatchRevenue">₱0.00</span>
             </div>
-            <div class="summary-item batch-profit-analysis">
-              <label>Batch Profit:</label><span id="summaryBatchProfit">₱0.00</span>
+            <div class="summary-item total-profit-analysis">
+              <label>Total Profit:</label><span id="summaryBatchProfit">₱0.00</span>
             </div>
-            <div class="summary-item batch-profit-analysis" style="border-top: 2px solid var(--primary); font-weight: bold;">
-              <label>Batch Profit Margin:</label><span id="summaryBatchProfitMargin">0%</span>
-            </div>
+            <!-- REMOVED: Batch Profit Margin row -->
           </div>
 
           <div class="summary-actions">
@@ -623,19 +633,19 @@
             <button id="printBtn" class="print-btn">🖨️ Print Costing</button>
           </div>
         </section>
+
+        <!-- FIXED: Ad Space moved inside content-area to prevent sidebar overlap -->
+        <aside class="ad-space panel">
+          <h3>Advertisement</h3>
+          <div class="ad-content">
+            <p>Your ad could be here</p>
+            <div style="margin-top: var(--space-md); font-size: 13px; color: var(--text-secondary);">
+              Advertisement Space - Bottom
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
-
-    <!-- Ad Space moved to bottom -->
-    <aside class="ad-space panel">
-      <h3>Advertisement</h3>
-      <div class="ad-content">
-        <p>Your ad could be here</p>
-        <div style="margin-top: var(--space-md); font-size: 13px; color: var(--text-secondary);">
-          Advertisement Space - Bottom
-        </div>
-      </div>
-    </aside>
 
     <!-- Print Preview Modal -->
     <div id="printPreviewModal" class="modal hidden">
@@ -654,7 +664,10 @@
       </div>
     </div>
 
-    <!-- Edit Prompt Modal -->
+    <!-- ============================================================================= -->
+    <!-- ENHANCED: RECIPE EDIT PROMPT MODAL -->
+    <!-- PURPOSE: Automatically show when duplicate recipe names are detected -->
+    <!-- ============================================================================= -->
     <div id="editPromptModal" class="modal hidden edit-prompt-modal">
       <div class="modal-content">
         <div class="modal-header">
@@ -881,6 +894,26 @@
                   <!-- Options will be populated dynamically -->
                 </select>
               </div>
+            </div>
+          </div>
+
+          <!-- NEW: Yield Percentage Field -->
+          <div class="form-group">
+            <label>Yield Percentage:
+              <button type="button" class="field-help" onclick="showFieldHelp('yieldPercentage', event)">?</button>
+            </label>
+            <div class="input-with-unit">
+              <input
+                type="number"
+                id="modalRawMaterialYield"
+                value="100"
+                min="0"
+                max="100"
+                step="0.1"
+                class="number-input"
+                oninput="updateCostPerUnit()"
+              />
+              <span class="unit-display-small">%</span>
             </div>
           </div>
 
@@ -1141,7 +1174,7 @@
                 placeholder="Enter new password"
                 minlength="6"
               />
-              <button type="button" class="password-toggle" onclick="togglePasswordVisibility('newPassword', this)">
+              <button type="button" class="password-toggle">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                   <circle cx="12" cy="12" r="3"></circle>
@@ -1160,7 +1193,7 @@
                 placeholder="Confirm new password"
                 minlength="6"
               />
-              <button type="button" class="password-toggle" onclick="togglePasswordVisibility('confirmPassword', this)">
+              <button type="button" class="password-toggle">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                   <circle cx="12" cy="12" r="3"></circle>
@@ -1195,7 +1228,10 @@
       </div>
     </div>
 
-    <!-- Raw Material Edit Prompt Modal -->
+    <!-- ============================================================================= -->
+    <!-- ENHANCED: RAW MATERIAL EDIT PROMPT MODAL -->
+    <!-- PURPOSE: Automatically show when duplicate raw material names are detected -->
+    <!-- ============================================================================= -->
     <div id="rawMaterialEditPromptModal" class="modal hidden">
       <div class="modal-content">
         <div class="modal-header">
@@ -1205,6 +1241,9 @@
         <div class="edit-prompt-message">
           <p>A raw material named "<strong id="rawMaterialEditName"></strong>" already exists.</p>
           <p>Would you like to replace the existing raw material or save this as a new item?</p>
+          <div class="field-example" style="margin-top: var(--space-md);">
+            <strong>Note:</strong> Replacing will update all recipes using this raw material with the new cost.
+          </div>
         </div>
         <div class="edit-prompt-options">
           <button class="btn-secondary" onclick="handleRawMaterialEditChoice('replace')">Replace Existing</button>
@@ -1216,7 +1255,10 @@
       </div>
     </div>
 
-    <!-- Direct Labor Edit Prompt Modal -->
+    <!-- ============================================================================= -->
+    <!-- ENHANCED: DIRECT LABOR EDIT PROMPT MODAL -->
+    <!-- PURPOSE: Automatically show when duplicate direct labor names are detected -->
+    <!-- ============================================================================= -->
     <div id="directLaborEditPromptModal" class="modal hidden">
       <div class="modal-content">
         <div class="modal-header">
@@ -1226,6 +1268,9 @@
         <div class="edit-prompt-message">
           <p>A direct labor item named "<strong id="directLaborEditName"></strong>" already exists.</p>
           <p>Would you like to replace the existing item or save this as a new item?</p>
+          <div class="field-example" style="margin-top: var(--space-md);">
+            <strong>Note:</strong> Replacing will update all recipes using this labor item with the new rate.
+          </div>
         </div>
         <div class="edit-prompt-options">
           <button class="btn-secondary" onclick="handleDirectLaborEditChoice('replace')">Replace Existing</button>
@@ -1236,6 +1281,30 @@
         </div>
       </div>
     </div>
+
+    <!-- Fallback script to ensure critical functions exist -->
+    <script>
+    // Ensure critical functions exist before main scripts load
+    if (typeof window.ProfitPerPlate === 'undefined') {
+        window.ProfitPerPlate = {};
+    }
+    
+    // Fallback functions to prevent errors
+    const fallbackFunctions = [
+        'closeRawMaterialModal', 'closeDirectLaborModal', 'closeSubRecipeSaveModal',
+        'closeEditPromptModal', 'closeHelpModal', 'closeAuthModal',
+        'closeRawMaterialEditPromptModal', 'closeDirectLaborEditPromptModal',
+        'onUnifiedItemSelectChange', 'loadRecipeForSummary'
+    ];
+    
+    fallbackFunctions.forEach(funcName => {
+        if (typeof window[funcName] === 'undefined') {
+            window[funcName] = function() {
+                console.warn(`Function ${funcName} not yet loaded - this is normal during initialization`);
+            };
+        }
+    });
+    </script>
 
     <script src="supabase.js"></script>
     <script src="script.js"></script>

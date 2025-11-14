@@ -66,6 +66,742 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ============================================================================= */
+/* FIX 1: ADD VISUAL STYLES FOR SERVING SCALE ISOLATION */
+/* PURPOSE: Make Serving Scale state visually obvious */
+/* ============================================================================= */
+
+/* Serving Scale input visual states */
+#servingScale {
+    transition: all 0.3s ease;
+    border: 1px solid var(--border);
+}
+
+/* Visual indicator when Serving Scale is active (≠ 1) */
+#servingScale[value]:not([value="1"]) {
+    border: 2px solid var(--warning);
+    background: rgba(255, 149, 0, 0.05);
+    box-shadow: 0 0 0 3px rgba(255, 149, 0, 0.1);
+}
+
+/* Focus state for Serving Scale */
+#servingScale:focus {
+    border-color: var(--warning);
+    box-shadow: 0 0 0 3px rgba(255, 149, 0, 0.15);
+}
+
+/* ============================================================================= */
+/* FIX 2: ADD STYLES FOR INFORMATION PANELS */
+/* PURPOSE: Make educational content stand out */
+/* ============================================================================= */
+
+.info-panel {
+    background: var(--primary-light);
+    border: 1px solid var(--primary);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    margin-bottom: var(--space-lg);
+}
+
+.info-panel h4 {
+    margin: 0 0 var(--space-sm) 0;
+    color: var(--primary);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.info-panel p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-primary);
+    line-height: 1.4;
+}
+
+/* ============================================================================= */
+/* FIX: SUMMARY CONTROLS GRID ALIGNMENT */
+/* PURPOSE: Create consistent, aligned layout for all summary controls */
+/* ============================================================================= */
+
+.summary-controls-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-lg);
+  margin-bottom: var(--space-xl);
+  align-items: start;
+}
+
+.summary-control-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  transition: var(--transition);
+  min-height: 120px;
+  justify-content: space-between;
+}
+
+.summary-control-item:hover {
+  border-color: var(--primary);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+/* Serving Scale visual highlight */
+.serving-scale-highlight {
+  border-left: 4px solid var(--warning);
+  background: linear-gradient(135deg, var(--surface-elevated) 0%, rgba(255, 149, 0, 0.03) 100%);
+}
+
+.serving-scale-highlight:focus-within {
+  box-shadow: 0 0 0 3px rgba(255, 149, 0, 0.1);
+}
+
+/* Consistent label styling */
+.control-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.label-text {
+  flex: 1;
+  margin-right: var(--space-sm);
+}
+
+/* Consistent input group styling */
+.input-with-suffix {
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+
+.input-with-suffix:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(45, 90, 61, 0.15);
+}
+
+.input-with-suffix input {
+  flex: 1;
+  border: none;
+  padding: var(--space-md);
+  background: transparent;
+  font-family: var(--font-stack);
+  font-size: 14px;
+  min-width: 0;
+}
+
+.input-with-suffix input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.suffix {
+  padding: var(--space-md) var(--space-lg);
+  background: var(--primary-light);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  border-left: 1px solid var(--border-light);
+}
+
+/* Helper text styling */
+.helper-text {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 1.4;
+  margin: var(--space-xs) 0 0 0;
+}
+
+/* Field help button consistency */
+.field-help {
+  background: none;
+  border: none;
+  color: var(--primary);
+  cursor: help;
+  font-size: 12px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+  flex-shrink: 0;
+}
+
+.field-help:hover {
+  background: var(--primary-light);
+  transform: scale(1.1);
+}
+
+/* ============================================================================= */
+/* NEW: YIELD DISPLAY STYLES FOR RECIPE TABLE */
+/* ============================================================================= */
+
+/* Yield display cell in recipe table */
+.yield-display-cell {
+    text-align: center;
+    vertical-align: middle;
+    min-width: 80px;
+}
+
+.yield-value {
+    background: var(--primary-light);
+    color: var(--primary-dark);
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-block;
+    min-width: 50px;
+}
+
+/* Enhanced yield display for non-100% values */
+.yield-value:not([data-yield="100"]) {
+    background: rgba(255, 149, 0, 0.1);
+    color: var(--warning);
+    border: 1px solid rgba(255, 149, 0, 0.2);
+}
+
+/* Yield indicator in unified item select */
+optgroup option[data-yield]:not([data-yield="100"])::after {
+    content: " • " attr(data-yield) "% yield";
+    color: var(--warning);
+    font-size: 0.9em;
+    opacity: 0.8;
+}
+
+/* ============================================================================= */
+/* ENHANCED: NETWORK STATUS INDICATORS */
+/* ============================================================================= */
+
+.network-status {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    font-size: 12px;
+    font-weight: 600;
+    z-index: 10000;
+    animation: slideInRight 0.3s ease;
+}
+
+.network-status.online {
+    background: var(--success);
+    color: white;
+}
+
+.network-status.offline {
+    background: var(--warning);
+    color: white;
+}
+
+/* ============================================================================= */
+/* ENHANCED: CALCULATION DISPLAY FOR YIELD-INCLUSIVE COSTS */
+/* ============================================================================= */
+
+.cost-calculation .yield-highlight {
+    background: rgba(255, 149, 0, 0.1);
+    border-left: 3px solid var(--warning);
+    padding: var(--space-sm);
+    margin: var(--space-sm) 0;
+    border-radius: var(--radius-sm);
+}
+
+.cost-calculation .yield-highlight strong {
+    color: var(--warning);
+}
+
+/* ============================================================================= */
+/* RESPONSIVE ADJUSTMENTS FOR SUMMARY GRID */
+/* ============================================================================= */
+
+@media (max-width: 1024px) {
+  .summary-controls-grid {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--space-md);
+  }
+  
+  .summary-control-item {
+    padding: var(--space-md);
+    min-height: 110px;
+  }
+}
+
+@media (max-width: 768px) {
+  .summary-controls-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-md);
+  }
+  
+  .summary-control-item {
+    min-height: auto;
+    padding: var(--space-lg);
+  }
+  
+  .input-with-suffix {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .input-with-suffix input {
+    width: 100%;
+    text-align: center;
+    padding: var(--space-md);
+  }
+  
+  .suffix {
+    border-left: none;
+    border-top: 1px solid var(--border-light);
+    text-align: center;
+    padding: var(--space-sm);
+  }
+}
+
+@media (max-width: 480px) {
+  .summary-control-item {
+    padding: var(--space-md);
+  }
+  
+  .control-label {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-xs);
+  }
+  
+  .label-text {
+    margin-right: 0;
+  }
+}
+
+/* ============================================================================= */
+/* DARK MODE ADJUSTMENTS FOR SUMMARY CONTROLS */
+/* ============================================================================= */
+
+body.dark-mode .summary-control-item {
+  background: var(--surface-elevated);
+  border-color: var(--border);
+}
+
+body.dark-mode .serving-scale-highlight {
+  background: linear-gradient(135deg, var(--surface-elevated) 0%, rgba(255, 149, 0, 0.08) 100%);
+  border-left-color: var(--warning);
+}
+
+body.dark-mode .input-with-suffix {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+body.dark-mode .suffix {
+  background: rgba(45, 90, 61, 0.2);
+  color: var(--text-secondary);
+  border-left-color: var(--border);
+}
+
+body.dark-mode .input-with-suffix:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(45, 90, 61, 0.2);
+}
+
+/* ============================================================================= */
+/* FIX 3: ENHANCE SUMMARY TAB VISUAL HIERARCHY */
+/* PURPOSE: Clearly separate Serving Scale from other controls */
+/* ============================================================================= */
+
+.summary-controls {
+    display: flex;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+    margin-bottom: var(--space-md);
+    align-items: flex-end;
+    position: relative;
+}
+
+/* Visual separator for Serving Scale section */
+.summary-controls > :last-child {
+    border-left: 2px solid var(--primary);
+    padding-left: var(--space-md);
+    margin-left: var(--space-sm);
+}
+
+/* ============================================================================= */
+/* FIX 4: ADD RESPONSIVE STYLES FOR MOBILE */
+/* PURPOSE: Ensure visual cues work on all devices */
+/* ============================================================================= */
+
+@media (max-width: 768px) {
+    .summary-controls > :last-child {
+        border-left: none;
+        border-top: 2px solid var(--primary);
+        padding-left: 0;
+        padding-top: var(--space-md);
+        margin-left: 0;
+        margin-top: var(--space-sm);
+    }
+    
+    #servingScale[value]:not([value="1"]) {
+        border-width: 1px;
+        box-shadow: 0 0 0 2px rgba(255, 149, 0, 0.1);
+    }
+}
+
+/* ============================================================================= */
+/* FIX 5: DARK MODE ADJUSTMENTS */
+/* PURPOSE: Ensure visual cues work in dark mode */
+/* ============================================================================= */
+
+body.dark-mode #servingScale[value]:not([value="1"]) {
+    border-color: var(--warning);
+    background: rgba(255, 149, 0, 0.1);
+    box-shadow: 0 0 0 3px rgba(255, 149, 0, 0.15);
+}
+
+body.dark-mode .info-panel {
+    background: rgba(45, 90, 61, 0.2);
+    border-color: var(--primary);
+}
+
+/* ============================================================================= */
+/* FIX: ENHANCED BUTTON STATES AND VISUAL FEEDBACK */
+/* PURPOSE: Make button interactions more obvious */
+/* ============================================================================= */
+
+/* Base button enhancements */
+.btn-primary, .btn-secondary, .add-btn, .print-btn, .header-icon-btn {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Ripple effect on click */
+.btn-primary:active::after, 
+.btn-secondary:active::after,
+.add-btn:active::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    transform: translate(-50%, -50%);
+    animation: ripple 0.6s ease-out;
+}
+
+@keyframes ripple {
+    to {
+        width: 200px;
+        height: 200px;
+        opacity: 0;
+    }
+}
+
+/* Loading states for async operations */
+.btn-primary.loading, .btn-secondary.loading {
+    position: relative;
+    color: transparent;
+}
+
+.btn-primary.loading::after, .btn-secondary.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ============================================================================= */
+/* FIX: ENHANCED MODAL INTERACTIONS */
+/* PURPOSE: Better visual feedback for modal actions */
+/* ============================================================================= */
+
+.modal-content {
+    animation: modalSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Close button hover effects */
+.close-btn {
+    transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+    background: var(--primary-light);
+    transform: rotate(90deg);
+}
+
+/* ============================================================================= */
+/* FIX: ENHANCED TABLE INTERACTIONS */
+/* PURPOSE: Better feedback for table actions */
+/* ============================================================================= */
+
+/* Edit and Delete button states */
+.btn-secondary.small, .btn-danger.small {
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.btn-secondary.small:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.btn-danger.small:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(255, 59, 48, 0.3);
+}
+
+/* ============================================================================= */
+/* FIX: RESPONSIVE IMPROVEMENTS FOR MOBILE */
+/* PURPOSE: Better touch targets and mobile UX */
+/* ============================================================================= */
+
+@media (max-width: 768px) {
+    /* Larger touch targets for mobile */
+    .btn-primary, .btn-secondary, .add-btn, .print-btn {
+        min-height: 48px;
+        padding: var(--space-md) var(--space-lg);
+    }
+    
+    /* Better spacing for mobile forms */
+    .input-group {
+        margin-bottom: var(--space-lg);
+    }
+    
+    /* Improved mobile table actions */
+    #recipeTable td:last-child, 
+    #directLaborRecipeTable td:last-child {
+        display: flex;
+        flex-direction: row;
+        gap: var(--space-sm);
+        justify-content: center;
+    }
+    
+    .btn-secondary.small, 
+    .btn-danger.small {
+        flex: 1;
+        min-width: 70px;
+        padding: var(--space-sm);
+    }
+}
+
+/* ============================================================================= */
+/* FIX: ACCESSIBILITY IMPROVEMENTS */
+/* PURPOSE: Better focus states for keyboard navigation */
+/* ============================================================================= */
+
+/* Enhanced focus styles */
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible,
+.add-btn:focus-visible,
+.print-btn:focus-visible,
+.header-icon-btn:focus-visible {
+    outline: 3px solid var(--primary);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 3px rgba(45, 90, 61, 0.3);
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .btn-primary, .add-btn, .print-btn {
+        border: 2px solid currentColor;
+    }
+    
+    .btn-secondary {
+        border: 2px solid currentColor;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .btn-primary, .btn-secondary, .add-btn, .print-btn,
+    .modal-content, .close-btn {
+        transition: none;
+        animation: none;
+    }
+}
+
+/* ============================================================================= */
+/* ENHANCED: EDIT PROMPT MODAL STYLES */
+/* PURPOSE: Better visual design for duplicate detection prompts */
+/* ============================================================================= */
+
+.edit-prompt-modal .modal-content {
+    max-width: 500px;
+    animation: modalSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.edit-prompt-message {
+    padding: var(--space-lg);
+    text-align: center;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.edit-prompt-message p {
+    margin: 0 0 var(--space-md) 0;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.edit-prompt-message strong {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.edit-prompt-options {
+    display: flex;
+    gap: var(--space-md);
+    margin: var(--space-xl) 0;
+    padding: 0 var(--space-lg);
+}
+
+.edit-prompt-options button {
+    flex: 1;
+    padding: var(--space-md);
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: var(--radius-md);
+    transition: var(--transition);
+}
+
+/* ============================================================================= */
+/* ENHANCED: ERROR AND WARNING STATES */
+/* PURPOSE: Better visual feedback for errors and validation issues */
+/* ============================================================================= */
+
+.input-error {
+    border-color: var(--danger) !important;
+    background: rgba(255, 59, 48, 0.05) !important;
+}
+
+.input-warning {
+    border-color: var(--warning) !important;
+    background: rgba(255, 149, 0, 0.05) !important;
+}
+
+.validation-message {
+    font-size: 12px;
+    color: var(--danger);
+    margin-top: var(--space-xs);
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+}
+
+.validation-message.warning {
+    color: var(--warning);
+}
+
+/* ============================================================================= */
+/* ENHANCED: PRINT PREVIEW ERROR STATES */
+/* PURPOSE: Better error display in print preview */
+/* ============================================================================= */
+
+.print-error {
+    background: rgba(255, 59, 48, 0.1);
+    border: 1px solid var(--danger);
+    border-radius: var(--radius-md);
+    padding: var(--space-lg);
+    margin: var(--space-md) 0;
+}
+
+.print-error h4 {
+    color: var(--danger);
+    margin: 0 0 var(--space-md) 0;
+}
+
+.print-error ul {
+    margin: var(--space-md) 0;
+    padding-left: var(--space-lg);
+}
+
+.print-error li {
+    margin-bottom: var(--space-sm);
+    line-height: 1.4;
+}
+
+/* ============================================================================= */
+/* ENHANCED: DATA INTEGRITY VISUAL CUES */
+/* PURPOSE: Visual indicators for data state and integrity */
+/* ============================================================================= */
+
+.data-integrity-warning {
+    background: rgba(255, 149, 0, 0.1);
+    border: 1px solid var(--warning);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    margin: var(--space-sm) 0;
+}
+
+.data-integrity-warning strong {
+    color: var(--warning);
+    display: block;
+    margin-bottom: var(--space-xs);
+}
+
+.duplicate-warning {
+    background: rgba(255, 149, 0, 0.1);
+    border-left: 3px solid var(--warning);
+    padding: var(--space-sm) var(--space-md);
+    margin: var(--space-sm) 0;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+/* Dark mode adjustments for new styles */
+body.dark-mode .input-error {
+    background: rgba(255, 59, 48, 0.1) !important;
+}
+
+body.dark-mode .input-warning {
+    background: rgba(255, 149, 0, 0.1) !important;
+}
+
+body.dark-mode .data-integrity-warning {
+    background: rgba(255, 149, 0, 0.15);
+}
+
+body.dark-mode .duplicate-warning {
+    background: rgba(255, 149, 0, 0.15);
+}
+
 /* Updated Header Styles */
 .header {
   position: sticky;
@@ -860,6 +1596,13 @@ td span:not(:has(input, select)) {
   box-shadow: var(--shadow-md);
 }
 
+/* ADDED: Styles for Edit buttons in tables */
+.btn-secondary.small {
+  padding: 6px 12px;
+  font-size: 12px;
+  min-height: 32px;
+}
+
 /* Recipe Controls */
 .add-ingredient-section {
   display: grid;
@@ -1247,7 +1990,7 @@ body.dark-mode .tooltip::after {
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  z-index: 2000;
+  z-index: 10000;
   padding: var(--space-lg);
 }
 
@@ -1263,6 +2006,7 @@ body.dark-mode .tooltip::after {
   box-shadow: var(--shadow-xl);
   border: 1px solid var(--border-light);
   animation: modalAppear 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 10001;
 }
 
 @keyframes modalAppear {
@@ -1576,6 +2320,14 @@ body.dark-mode .tooltip::after {
   cursor: not-allowed;
 }
 
+/* ADDED: Style for readonly inputs */
+input[readonly] {
+  background-color: var(--surface-elevated);
+  border-color: var(--border-light);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+}
+
 /* Edit Prompt Modal */
 #editPromptModal {
   z-index: 2001;
@@ -1817,13 +2569,13 @@ body.dark-mode .tooltip::after {
   color: var(--primary-dark);
 }
 
-/* Batch Profit Analysis */
-.batch-profit-analysis {
+/* FIXED: Total Profit Analysis - Updated Terminology */
+.total-profit-analysis {
   background: var(--surface-elevated);
   border-left: 3px solid var(--accent-blue);
 }
 
-.batch-profit-analysis:nth-child(3) {
+.total-profit-analysis:first-of-type {
   border-top: 2px solid var(--accent-blue);
   font-weight: bold;
 }
@@ -1837,7 +2589,7 @@ body.dark-mode .tooltip::after {
   /* Remove overflow-x: auto since we're using table-container */
 }
 
-/* Ad Space - UPDATED Width */
+/* FIXED: Ad Space - Improved Width, Alignment and Sidebar Overlap Prevention */
 .ad-space {
   background: var(--surface);
   border-radius: var(--radius-xl);
@@ -1851,12 +2603,16 @@ body.dark-mode .tooltip::after {
   min-height: 150px;
   border: 1px solid var(--border-light);
   transition: var(--transition);
+  
+  /* FIX: Ensure proper width and prevent sidebar overlap */
   width: 100%;
-  margin-top: var(--space-lg);
-  max-width: 100%; /* Changed from 800px to 100% */
-  margin-left: auto;
-  margin-right: auto;
+  max-width: 100%;
+  margin: var(--space-lg) auto;
   box-sizing: border-box;
+  
+  /* FIX: Proper z-index to stay below sidebar */
+  z-index: 10;
+  position: relative;
 }
 
 .ad-space:hover {
@@ -1883,6 +2639,10 @@ body.dark-mode .tooltip::after {
   border: 1px dashed var(--border);
   border-radius: var(--radius-lg);
   padding: var(--space-md);
+  
+  /* FIX: Ensure content doesn't cause overflow */
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* Remove old theme toggle styles */
@@ -1911,6 +2671,39 @@ body.dark-mode .header-icon-btn:hover {
 }
 
 /* ========================================================================== */
+/* CRITICAL FIX: YIELD % MIGRATION & COLUMN INDEX UPDATES */
+/* ========================================================================== */
+
+/* CRITICAL FIX: Recipe table column widths after adding yield column */
+#recipeTable th:nth-child(1) { width: auto; } /* Item */
+#recipeTable th:nth-child(2) { width: 160px; } /* Qty - increased */
+#recipeTable th:nth-child(3) { width: 100px; } /* Yield % - NEW COLUMN */
+#recipeTable th:nth-child(4) { width: 160px; } /* Unit Cost - increased */
+#recipeTable th:nth-child(5) { width: 160px; } /* Total Cost - increased */
+#recipeTable th:nth-child(6) { width: 120px; } /* Actions - increased */
+
+/* CRITICAL FIX: Raw materials table column widths after adding yield column */
+#rawMaterialsTable th:nth-child(1) { width: auto; } /* Raw Material */
+#rawMaterialsTable th:nth-child(2) { width: 120px; } /* Category */
+#rawMaterialsTable th:nth-child(3) { width: 100px; } /* Yield % - NEW COLUMN */
+#rawMaterialsTable th:nth-child(4) { width: 140px; } /* Cost/Unit */
+#rawMaterialsTable th:nth-child(5) { width: 180px; } /* Actions */
+
+/* CRITICAL FIX: Summary breakdown table column widths with yield column */
+.breakdown-table th:nth-child(1) { width: auto; } /* Item */
+.breakdown-table th:nth-child(2) { width: 120px; } /* Qty */
+.breakdown-table th:nth-child(3) { width: 100px; } /* Yield % - NEW COLUMN */
+.breakdown-table th:nth-child(4) { width: 140px; } /* Unit Cost */
+.breakdown-table th:nth-child(5) { width: 140px; } /* Total Cost */
+
+/* CRITICAL FIX: Direct Labor table column widths */
+#directLaborRecipeTable th:nth-child(1) { width: auto; } /* Task */
+#directLaborRecipeTable th:nth-child(2) { width: 120px; } /* Time */
+#directLaborRecipeTable th:nth-child(3) { width: 140px; } /* Rate */
+#directLaborRecipeTable th:nth-child(4) { width: 140px; } /* Total */
+#directLaborRecipeTable th:nth-child(5) { width: 120px; } /* Actions */
+
+/* ========================================================================== */
 /* RESPONSIVE DESIGN */
 /* ========================================================================== */
 
@@ -1928,6 +2721,9 @@ body.dark-mode .header-icon-btn:hover {
     margin-left: var(--sidebar-width);
     padding: 0 var(--space-xl) var(--space-xl);
     max-width: calc(1400px - var(--sidebar-width));
+    
+    /* FIX: Ensure ad space aligns properly */
+    align-items: center;
   }
   
   /* FIXED: Cloud storage notice adjustment for sidebar */
@@ -1936,12 +2732,39 @@ body.dark-mode .header-icon-btn:hover {
     margin-left: var(--sidebar-width);
   }
   
-  /* FIXED: Ad Space Overlap */
+  /* FIXED: Ad Space Overlap - Improved Desktop Layout */
   .ad-space {
-    margin-left: var(--sidebar-width);
-    max-width: calc(1400px - var(--sidebar-width));
+    /* FIX: Proper width calculation with sidebar */
+    max-width: calc(1400px - var(--sidebar-width) - var(--space-xl) * 2);
+    margin-left: auto;
+    margin-right: auto;
+    
+    /* FIX: Ensure proper spacing with sidebar layout */
     margin-top: var(--space-lg);
+    margin-bottom: var(--space-lg);
+    
+    /* FIX: Clear sidebar overlap */
+    position: relative;
+    left: 0;
   }
+  
+  /* FIX: Ensure sidebar stays above content */
+  .sidebar {
+    z-index: 100;
+  }
+  
+  /* FIX: Ensure main content doesn't overlap */
+  .app-layout {
+    position: relative;
+    z-index: 1;
+  }
+  
+  /* CRITICAL FIX: Desktop recipe table column widths */
+  #recipeTable th:nth-child(2) { width: 160px; } /* Qty */
+  #recipeTable th:nth-child(3) { width: 100px; } /* Yield % */
+  #recipeTable th:nth-child(4) { width: 160px; } /* Unit Cost */
+  #recipeTable th:nth-child(5) { width: 160px; } /* Total Cost */
+  #recipeTable th:nth-child(6) { width: 120px; } /* Actions */
 }
 
 /* Tablet Styles */
@@ -1961,6 +2784,24 @@ body.dark-mode .header-icon-btn:hover {
   .global-notice {
     margin-left: 0;
   }
+  
+  /* FIX: Consistent tablet width for ad space */
+  .ad-space {
+    max-width: 90%;
+    margin-left: auto;
+    margin-right: auto;
+    
+    /* FIX: Proper spacing */
+    margin-top: var(--space-xl);
+    margin-bottom: var(--space-lg);
+  }
+  
+  /* CRITICAL FIX: Tablet recipe table column widths */
+  #recipeTable th:nth-child(2) { width: 150px; } /* Qty */
+  #recipeTable th:nth-child(3) { width: 90px; } /* Yield % */
+  #recipeTable th:nth-child(4) { width: 150px; } /* Unit Cost */
+  #recipeTable th:nth-child(5) { width: 150px; } /* Total Cost */
+  #recipeTable th:nth-child(6) { width: 110px; } /* Actions */
 }
 
 /* Mobile Responsive Styles */
@@ -2059,6 +2900,39 @@ body.dark-mode .header-icon-btn:hover {
     padding: var(--space-lg);
   }
 
+  /* FIX: Mobile ad space adjustments */
+  .ad-space {
+    /* FIX: Mobile width constraints */
+    width: calc(100% - var(--space-md) * 2);
+    max-width: none;
+    margin: var(--space-lg) var(--space-md);
+    
+    /* FIX: Mobile spacing */
+    padding: var(--space-md);
+    min-height: 120px;
+  }
+  
+  .ad-content {
+    padding: var(--space-sm);
+  }
+  
+  .ad-space h3 {
+    font-size: 1rem;
+    margin-bottom: var(--space-sm);
+  }
+
+  /* CRITICAL FIX: Mobile recipe table column widths */
+  #recipeTable th:nth-child(2) { width: 140px; } /* Qty */
+  #recipeTable th:nth-child(3) { width: 80px; } /* Yield % */
+  #recipeTable th:nth-child(4) { width: 140px; } /* Unit Cost */
+  #recipeTable th:nth-child(5) { width: 140px; } /* Total Cost */
+  #recipeTable th:nth-child(6) { width: 100px; } /* Actions */
+  
+  /* CRITICAL FIX: Mobile raw materials table column widths */
+  #rawMaterialsTable th:nth-child(3) { width: 80px; } /* Yield % */
+  #rawMaterialsTable th:nth-child(4) { width: 120px; } /* Cost/Unit */
+  #rawMaterialsTable th:nth-child(5) { width: 160px; } /* Actions */
+
   /* FIX: Recipe rows should scroll horizontally instead of stacking */
   .table-container {
     overflow-x: auto;
@@ -2146,6 +3020,16 @@ body.dark-mode .header-icon-btn:hover {
     margin-left: var(--space-sm);
   }
 
+  /* ADDED: Ensure action buttons don't wrap in tables */
+  #recipeTable td:last-child,
+  #directLaborRecipeTable td:last-child {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-start;
+    align-items: center;
+    min-width: 140px;
+  }
+
   /* Delete button adjustment */
   #recipeTable td:last-child {
     justify-content: center;
@@ -2153,6 +3037,19 @@ body.dark-mode .header-icon-btn:hover {
 
   #recipeTable td:last-child button {
     width: auto;
+  }
+
+  /* ADDED: Responsive adjustments for action buttons */
+  #recipeTable td:last-child,
+  #directLaborRecipeTable td:last-child {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .btn-secondary.small,
+  .btn-danger.small {
+    width: 100%;
+    min-width: 60px;
   }
 
   /* FIXED: Mobile Layout for Add Item to Recipe */
@@ -2437,13 +3334,6 @@ body.dark-mode .header-icon-btn:hover {
   .cost-breakdown-preview {
     overflow-x: auto;
   }
-
-  /* Ad space mobile adjustments */
-  .ad-space {
-    margin-top: var(--space-lg);
-    min-height: 150px;
-    padding: var(--space-md);
-  }
 }
 
 /* Print Styles */
@@ -2628,6 +3518,19 @@ body.dark-mode .select-input {
   color: var(--text-primary);
 }
 
+/* FIX: Dark mode ad space styling */
+body.dark-mode .ad-space {
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: var(--shadow-md);
+  color: var(--text-primary);
+}
+
+body.dark-mode .ad-content {
+  background: var(--surface-elevated);
+  border-color: var(--border);
+}
+
 /* Tables & borders in dark mode */
 body.dark-mode table,
 body.dark-mode th,
@@ -2760,6 +3663,31 @@ body.dark-mode .sidebar-btn.active {
   color: white;
 }
 
+/* FIXED: Dark mode total profit analysis styling */
+body.dark-mode .total-profit-analysis {
+  background: var(--surface-elevated);
+  border-left: 3px solid var(--accent-blue);
+}
+
+body.dark-mode .total-profit-analysis:first-of-type {
+  border-top: 2px solid var(--accent-blue);
+}
+
+/* ============================================================================= */
+/* CRITICAL FIX: DARK MODE YIELD DISPLAY ADJUSTMENTS */
+/* ============================================================================= */
+
+body.dark-mode .yield-value {
+  background: rgba(45, 90, 61, 0.3);
+  color: var(--primary-light);
+}
+
+body.dark-mode .yield-value:not([data-yield="100"]) {
+  background: rgba(255, 149, 0, 0.2);
+  color: var(--warning);
+  border-color: rgba(255, 149, 0, 0.3);
+}
+
 @media (min-width: 1024px) {
   body.dark-mode .mobile-tabs button:hover,
   body.dark-mode .mobile-tabs button.active {
@@ -2833,4 +3761,142 @@ textarea:focus-visible {
 .auth-menu,
 .menu-dropdown-overlay {
   display: none !important;
+}
+
+/* ============================================================================= */
+/* CRITICAL FIXES FROM IMPLEMENTATION PLAN */
+/* ============================================================================= */
+
+/* Ensure all buttons have proper cursor */
+button:not(:disabled) {
+  cursor: pointer;
+}
+
+/* Ensure modals are properly layered - already fixed above with z-index: 10000 and 10001 */
+
+/* Loading states for async operations - already implemented above as .btn-loading */
+
+/* Enhanced button loading states */
+.btn-loading {
+  position: relative;
+  color: transparent;
+}
+
+.btn-loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* CRITICAL FIXES: Modal and Responsive Enhancements */
+.modal {
+  display: flex !important;
+  visibility: visible;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.modal.hidden {
+  display: none !important;
+  visibility: hidden;
+  opacity: 0;
+}
+
+/* Fix button responsiveness */
+.btn-primary, .btn-secondary, .add-btn, .print-btn, .header-icon-btn {
+  min-height: 44px;
+  min-width: 44px;
+  cursor: pointer;
+}
+
+/* Ensure modals are accessible */
+.modal-content {
+  position: relative;
+  z-index: 10002;
+}
+
+/* Fix mobile navigation */
+@media (max-width: 768px) {
+  .mobile-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 90;
+  }
+  
+  .sidebar {
+    display: none;
+  }
+}
+
+/* Fix overlay issues */
+.modal::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: -1;
+}
+
+/* CRITICAL FIX: Enhanced serving scale visual isolation */
+.serving-scale-warning {
+  background: rgba(255, 149, 0, 0.1);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  margin: var(--space-md) 0;
+}
+
+.serving-scale-warning strong {
+  color: var(--warning);
+  display: block;
+  margin-bottom: var(--space-xs);
+}
+
+.serving-scale-warning p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* CRITICAL FIX: Data integrity warnings for serving scale contamination */
+.data-integrity-alert {
+  background: rgba(255, 59, 48, 0.1);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  margin: var(--space-md) 0;
+}
+
+.data-integrity-alert strong {
+  color: var(--danger);
+  display: block;
+  margin-bottom: var(--space-xs);
+}
+
+.data-integrity-alert p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* CRITICAL FIX: Dark mode adjustments for new warnings */
+body.dark-mode .serving-scale-warning {
+  background: rgba(255, 149, 0, 0.15);
+  border-color: var(--warning);
+}
+
+body.dark-mode .data-integrity-alert {
+  background: rgba(255, 59, 48, 0.15);
+  border-color: var(--danger);
 }
