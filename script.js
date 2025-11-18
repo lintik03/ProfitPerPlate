@@ -1,4576 +1,3638 @@
-// Global State - Now using cloud storage
-let userData = {
+let e = {
     rawMaterials: [],
     directLabor: [],
     recipes: [],
     currency: "₱",
     currentRecipeState: null
-};
-
-let editingItem = {
-    type: null, // 'rawMaterial', 'directLabor', 'mainRecipe', 'subRecipe'
-    id: null,
-    data: null
-};
-
-// NEW: Track loaded recipe for summary
-let loadedRecipeForSummary = null;
-
-// NEW: Track currently editing rows
-window.currentEditingRow = null;
-window.currentEditingLaborRow = null;
-
-// Unit Conversion Factors (to base units)
-const UNIT_CONVERSIONS = {
-    // Weight (base unit: grams)
-    kg: 1000,
+  },
+  t = { type: null, id: null, data: null },
+  n = null;
+(window.currentEditingRow = null), (window.currentEditingLaborRow = null);
+let o = null;
+const a = {
+    kg: 1e3,
     g: 1,
     mg: 0.001,
     lbs: 453.592,
     oz: 28.3495,
-
-    // Volume (base unit: milliliters)
-    L: 1000,
+    L: 1e3,
     ml: 1,
     cup: 236.588,
     tbsp: 14.7868,
     tsp: 4.92892,
-
-    // Count (base unit: pieces)
     dozen: 12,
     pc: 1,
-
-    // Time (base unit: minutes)
     hours: 60,
     minutes: 1
-};
-
-// Unit options by category
-const categoryUnits = {
+  },
+  i = {
     weight: ["kg", "g", "mg", "lbs", "oz"],
     volume: ["L", "ml", "cup", "tbsp", "tsp"],
     count: ["dozen", "pc"],
     time: ["hours", "minutes"]
-};
-
-// Base units for each category
-const baseUnits = {
-    weight: "g",
-    volume: "ml",
-    count: "pc",
-    time: "minutes"
-};
-
-// Field definitions for help modal with examples
-const fieldDefinitions = {
-    selectItem: {
-        title: "Select Item",
-        content: "Choose a raw material from your master list, a direct labor item, or a saved sub-recipe to add to the current recipe.",
-        example: "Example: Select 'Beef Brisket' from raw materials or 'Kitchen Work' from direct labor to add to your burger recipe."
-    },
-    quantity: {
-        title: "Quantity/Time",
-        content: "The amount of the selected item needed for this recipe. For raw materials: quantity in units. For labor: time required in the selected unit.",
-        example: "Example: For a burger recipe, you might use 0.15 kg of beef patty or 0.5 hours of kitchen work."
-    },
-    yieldPercentage: {
-        title: "Yield Percentage",
-        content: "The usable percentage after preparation (e.g., peeling, trimming, cooking loss). This automatically increases the cost per unit to reflect the true cost of usable product.",
-        example: "Example: Carrots with 85% yield: $1000 for 1kg → $1.18/g (not $1.00/g) because only 850g is usable."
-    },
-    markup: {
-        title: "Mark-up Percentage",
-        content: "The profit percentage added to the cost price to determine the selling price before taxes.",
-        example: "Example: If your burger costs ₱50 to make and you add 40% markup, the price before tax would be ₱70 (₱50 + 40%)."
-    },
-    tax: {
-        title: "Regular Tax Percentage",
-        content: "Local sales tax percentage applied to the selling price.",
-        example: "Example: If your local sales tax is 8% and your burger sells for ₱70, the tax would be ₱5.60."
-    },
-    vat: {
-        title: "VAT Percentage",
-        content: "Value Added Tax percentage applied to the selling price.",
-        example: "Example: If VAT is 12% and your burger sells for ₱70, the VAT would be ₱8.40."
-    },
-    servings: {
-        title: "Servings",
-        content: "The number of portions this recipe produces. Used to calculate cost per serving.",
-        example: "Example: A large pot of soup that makes 8 bowls would have 8 servings. A cake cut into 12 slices would have 12 servings."
-    },
-    subRecipeName: {
-        title: "Sub-Recipe Name",
-        content: "A descriptive name for your sub-recipe (e.g., 'Mayonnaise', 'Tomato Sauce').",
-        example: "Example: 'Secret Burger Sauce', 'House Marinade', or 'Signature Spice Blend'."
-    },
-    subRecipeCategory: {
-        title: "Category of Measurement",
-        content: "The type of output this sub-recipe produces: Weight (grams, kg), Volume (ml, L), or Count (pieces).",
-        example: "Example: Sauces are usually Volume, spice blends are Weight, and pre-made items like meatballs could be Count."
-    },
-    subRecipeYieldQuantity: {
-        title: "Total Yield per Batch",
-        content: "The total amount this sub-recipe produces in one batch. Used to calculate cost per unit.",
-        example: "Example: If your sauce recipe makes 500ml total, enter 500. If your spice blend makes 200g total, enter 200."
-    },
-    ingredientName: {
-        title: "Raw Material Name",
-        content: "The common name of the raw material (e.g., 'Beef Brisket', 'Olive Oil').",
-        example: "Example: 'Ground Beef 80/20', 'Extra Virgin Olive Oil', 'Roma Tomatoes'."
-    },
-    ingredientCategory: {
-        title: "Raw Material Category",
-        content: "Classification: Weight (solid items), Volume (liquids), Count (individual items).",
-        example: "Example: Flour = Weight, Milk = Volume, Eggs = Count."
-    },
-    purchasePrice: {
-        title: "Purchase Price",
-        content: "The total cost you paid for the purchased quantity of this raw material.",
-        example: "Example: You paid ₱650 for 1kg of beef brisket, so enter 650."
-    },
-    purchaseQuantity: {
-        title: "Purchase Quantity",
-        content: "The amount you bought for the purchase price. Used to calculate cost per unit.",
-        example: "Example: You bought 1kg of beef for ₱650, so enter 1. You bought 50 eggs for ₱500, so enter 50."
-    },
-    purchaseUnit: {
-        title: "Purchase Unit",
-        content: "The unit of measurement for the purchased quantity (e.g., kg, L, pieces).",
-        example: "Example: For the 1kg beef package, select 'kg'. For the 50 eggs, select 'pc'. For 1L milk, select 'L'."
-    },
-    costPerUnit: {
-        title: "Cost Per Unit (Yield-Inclusive)",
-        content: "The calculated cost for one unit of measurement INCLUDING yield loss. Automatically calculated from purchase details and yield percentage.",
-        example: "Example: Total recipe cost ₱100 for 500ml yield = ₱0.20 per ml. With 80% yield, cost becomes ₱0.25 per ml."
-    },
-    laborName: {
-        title: "Direct Labor Name",
-        content: "A descriptive name for the labor task (e.g., 'Kitchen Work', 'Prep Chef', 'Line Cook').",
-        example: "Example: 'Kitchen Work', 'Prep Chef', 'Line Cook', 'Dishwasher'."
-    },
-    shiftRate: {
-        title: "Shift Rate",
-        content: "The total cost for one complete shift of this labor type.",
-        example: "Example: If a kitchen worker costs ₱200 per 8-hour shift, enter 200."
-    },
-    shiftDuration: {
-        title: "Shift Duration",
-        content: "The length of one shift in the selected time unit.",
-        example: "Example: For an 8-hour shift, enter 8 and select 'hours'. For a 480-minute shift, enter 480 and select 'minutes'."
-    },
-    timeUnit: {
-        title: "Time Unit",
-        content: "The unit of measurement for the shift duration (hours or minutes).",
-        example: "Example: Select 'hours' for shifts measured in hours, 'minutes' for shifts measured in minutes."
-    },
-    costUnit: {
-        title: "Cost Unit",
-        content: "The unit of measurement for displaying the cost per unit (hours or minutes).",
-        example: "Example: Select 'hours' to see cost per hour, 'minutes' to see cost per minute."
-    },
-    // REPLACED: Batch scaling with serving scale
-    servingScale: {
-        title: "Serving Scale",
-        content: "The target number of servings you want to produce. The total cost will be calculated as: (Base Recipe Cost ÷ Base Servings) × Serving Scale. When loading a saved recipe, this automatically sets to match the recipe's base servings.",
-        example: "Example: If your beef stew recipe costs $20.00 for 10 servings and you want to make 50 servings, enter 50. The cost will be calculated as ($20.00 ÷ 10) × 50 = $100.00 for 50 servings. When loading a 15-serving recipe, this automatically sets to 15."
-    }
-};
-
-// DOM Elements - Will be initialized in initApp
-let recipeBody, directLaborRecipeBody, rawMaterialsTotalEl, directLaborTotalEl, grandTotalEl, currencySelect;
-let recipeNameInput, resetBtn, saveMainRecipeBtn, saveSubRecipeBtn;
-let summaryRawMaterialsCost, summaryDirectLaborCost, summaryTotalCost, summaryCostServing, summarySellingPrice;
-let summaryFoodCost, summaryLaborCostPercent, summaryTotalCostPercent, summaryGrossProfit;
-let markupInput, taxInput, vatInput, servingsInput, servingScaleInput;
-let summaryServingsDisplay, helpBtn, helpModal, helpModalTitle, helpModalContent, closeHelpBtn;
-let printBtn, printPreviewModal, printPreviewContent;
-let unifiedItemSelect, addIngredientQty, addIngredientUnit;
-let directLaborSelect, timeRequirement, timeRequirementUnit;
-let subRecipeSaveModal, subRecipeNameDisplay, subRecipeCategory, subRecipeYieldQuantity;
-let subRecipeYieldUnit, subRecipeCostPerUnit, subRecipeCostUnit, currentRecipeCostDisplay, costPerOutputUnit;
-let mainRecipesList, subRecipesList, editPromptModal, editPromptTitle, editPromptMessage;
-let rawMaterialEditPromptModal, rawMaterialEditName, directLaborEditPromptModal, directLaborEditName;
-let authModal, authModalTitle, authForm, authEmail, authPassword, authSubmitBtn, authError;
-let authSwitchBtn, authSwitchText, forgotPasswordModal, forgotPasswordBtn, forgotPasswordEmail;
-let forgotPasswordError, forgotPasswordSuccess, sendResetEmailBtn, togglePassword;
-let loginBtn, logoutBtn, rawMaterialsPreviewBody, directLaborPreviewBody;
-let rawMaterialsCount, directLaborCount, rawMaterialsPreviewTotal, directLaborPreviewTotal;
-let rawMaterialsPreviewSubtotal, directLaborPreviewSubtotal, summaryRecipeSelect;
-let loadedRecipeDisplay, currentRecipeNameDisplay, loadedRecipeTotalCost, loadedRecipeServings;
-let loadedRecipeItemCount, summaryBatchRevenue, summaryBatchProfit;
-let sidebarBtns, mobileTabBtns;
-
-// Currency
-let currency = "₱";
-
-// Auth state
-let isSignUpMode = false;
-
-// FIX: Enhanced auth initialization with retry logic
-async function initAuthSystem() {
-    try {
-        console.log("Initializing auth system...");
-        
-        // Wait for Supabase client to be ready
-        if (!window.supabaseClient) {
-            console.warn("Supabase client not ready, retrying...");
-            setTimeout(initAuthSystem, 100);
-            return;
-        }
-        
-        // Setup auth event listeners
-        setupAuthEventListeners();
-        
-        // Check current auth state
-        await window.supabaseClient.checkAuthState();
-        
-        // Check for password reset tokens
-        await window.supabaseClient.handlePasswordReset();
-        
-        console.log("✓ Auth system initialized");
-    } catch (error) {
-        console.error("✗ Auth initialization failed:", error);
-        // Continue without auth - app should work locally
-        updateAuthUI();
-    }
+  },
+  r = "g";
+function l(e) {
+  return e && "object" == typeof e
+    ? ((e.rawMaterialItems = Array.isArray(e.rawMaterialItems)
+        ? e.rawMaterialItems.map((e) => {
+            const t = { ...e },
+              n = Number(
+                t.unitCost ?? t.costPerUnit ?? t.cost_per_unit ?? t.cost ?? 0
+              );
+            return (
+              (t.unitCost = isFinite(n) ? n : 0),
+              (t.unit = t.unit ?? t.costUnit ?? t.outputUnit ?? r),
+              (t.quantity = Number(t.quantity ?? t.qty ?? 0)),
+              (t.type = t.type ?? "rawMaterial"),
+              t
+            );
+          })
+        : []),
+      (e.directLaborItems = Array.isArray(e.directLaborItems)
+        ? e.directLaborItems.map((e) => {
+            const t = { ...e },
+              n = Number(t.unitCost ?? t.rate ?? t.costPerUnit ?? t.cost ?? 0);
+            return (
+              (t.unitCost = isFinite(n) ? n : 0),
+              (t.unit = t.unit ?? t.timeUnit ?? t.costUnit ?? "hours"),
+              (t.quantity = Number(t.quantity ?? t.timeRequired ?? 0)),
+              t
+            );
+          })
+        : []),
+      (e.totalCost = Number(e.totalCost ?? 0)),
+      (e.servings = Number(e.servings ?? 1)),
+      (e.type = e.type ?? "main"),
+      e)
+    : e || {};
 }
-
-// FIX: Enhanced auth event listeners
-function setupAuthEventListeners() {
-    console.log("Setting up auth event listeners...");
-    
-    // Login button
-    const loginBtn = document.getElementById('loginBtn');
-    if (loginBtn) {
-        loginBtn.addEventListener('click', openAuthModal);
-        console.log("✓ Login button listener attached");
-    } else {
-        console.error("✗ Login button not found!");
-    }
-
-    // Logout button
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', handleLogout);
-    }
-
-    // Auth modal submit
-    const authSubmitBtn = document.getElementById('authSubmitBtn');
-    if (authSubmitBtn) {
-        authSubmitBtn.addEventListener('click', handleAuth);
-    }
-
-    // Auth mode toggle
-    const authSwitchBtn = document.getElementById('authSwitchBtn');
-    if (authSwitchBtn) {
-        authSwitchBtn.addEventListener('click', toggleAuthMode);
-    }
-
-    // Forgot password
-    const forgotPasswordBtn = document.getElementById('forgotPasswordBtn');
-    if (forgotPasswordBtn) {
-        forgotPasswordBtn.addEventListener('click', openForgotPasswordModal);
-    }
-
-    // Password reset submission
-    const sendResetEmailBtn = document.getElementById('sendResetEmailBtn');
-    if (sendResetEmailBtn) {
-        sendResetEmailBtn.addEventListener('click', sendPasswordReset);
-    }
-
-    // Password visibility toggles
-    setupPasswordToggles();
+function s(e) {
+  if (!e || "object" != typeof e)
+    return {
+      rawMaterials: [],
+      directLabor: [],
+      recipes: [],
+      currency: "₱",
+      currentRecipeState: null
+    };
+  return {
+    rawMaterials: Array.isArray(e.rawMaterials)
+      ? e.rawMaterials.map((e) => {
+          const t = { ...e };
+          return (
+            (t.unitCost = Number(t.unitCost ?? t.costPerUnit ?? t.cost ?? 0)),
+            (t.costUnit = t.costUnit ?? t.unit ?? "g"),
+            (t.yieldPercentage = Number(t.yieldPercentage ?? t.yield ?? 100)),
+            (t.name = t.name ?? "Unnamed"),
+            (t.id = t.id ?? Date.now() + Math.floor(1e3 * Math.random())),
+            t
+          );
+        })
+      : [],
+    directLabor: Array.isArray(e.directLabor)
+      ? e.directLabor.map((e) => {
+          const t = { ...e };
+          return (
+            (t.unitCost = Number(t.unitCost ?? t.costPerUnit ?? t.rate ?? 0)),
+            (t.costUnit = t.costUnit ?? t.timeUnit ?? "hours"),
+            (t.id = t.id ?? Date.now() + Math.floor(1e3 * Math.random())),
+            (t.name = t.name ?? "Unnamed Labor"),
+            t
+          );
+        })
+      : [],
+    recipes: Array.isArray(e.recipes) ? e.recipes.map((e) => l(e)) : [],
+    currency: e.currency ?? "₱",
+    currentRecipeState: e.currentRecipeState ?? null
+  };
 }
+function c() {
+  const t = s(e);
+  return (t.dataVersion = 2), t;
+}
+const d = {
+  selectItem: {
+    title: "Select Item",
+    content:
+      "Choose a raw material from your master list, a direct labor item, or a saved sub-recipe to add to the current recipe.",
+    example:
+      "Example: Select 'Beef Brisket' from raw materials or 'Kitchen Work' from direct labor to add to your burger recipe."
+  },
+  quantity: {
+    title: "Quantity/Time",
+    content:
+      "The amount of the selected item needed for this recipe. For raw materials: quantity in units. For labor: time required in the selected unit.",
+    example:
+      "Example: For a burger recipe, you might use 0.15 kg of beef patty or 0.5 hours of kitchen work."
+  },
+  yieldPercentage: {
+    title: "Yield Percentage",
+    content:
+      "The usable percentage after preparation (e.g., peeling, trimming, cooking loss). 100% means all purchased quantity is usable. This applies to all recipes using this ingredient.",
+    example:
+      "Example: If you buy carrots but peel them, only 85% might be usable. For pre-cut vegetables, you might have 100% yield."
+  },
+  markup: {
+    title: "Mark-up Percentage",
+    content:
+      "The profit percentage added to the cost price to determine the selling price before taxes.",
+    example:
+      "Example: If your burger costs ₱50 to make and you add 40% markup, the price before tax would be ₱70 (₱50 + 40%)."
+  },
+  tax: {
+    title: "Regular Tax Percentage",
+    content: "Local sales tax percentage applied to the selling price.",
+    example:
+      "Example: If your local sales tax is 8% and your burger sells for ₱70, the tax would be ₱5.60."
+  },
+  vat: {
+    title: "VAT Percentage",
+    content: "Value Added Tax percentage applied to the selling price.",
+    example:
+      "Example: If VAT is 12% and your burger sells for ₱70, the VAT would be ₱8.40."
+  },
+  servings: {
+    title: "Servings",
+    content:
+      "The number of portions this recipe produces. Used to calculate cost per serving.",
+    example:
+      "Example: A large pot of soup that makes 8 bowls would have 8 servings. A cake cut into 12 slices would have 12 servings."
+  },
+  subRecipeName: {
+    title: "Sub-Recipe Name",
+    content:
+      "A descriptive name for your sub-recipe (e.g., 'Mayonnaise', 'Tomato Sauce').",
+    example:
+      "Example: 'Secret Burger Sauce', 'House Marinade', or 'Signature Spice Blend'."
+  },
+  subRecipeCategory: {
+    title: "Category of Measurement",
+    content:
+      "The type of output this sub-recipe produces: Weight (grams, kg), Volume (ml, L), or Count (pieces).",
+    example:
+      "Example: Sauces are usually Volume, spice blends are Weight, and pre-made items like meatballs could be Count."
+  },
+  subRecipeYieldQuantity: {
+    title: "Total Yield per Batch",
+    content:
+      "The total amount this sub-recipe produces in one batch. Used to calculate cost per unit.",
+    example:
+      "Example: If your sauce recipe makes 500ml total, enter 500. If your spice blend makes 200g total, enter 200."
+  },
+  ingredientName: {
+    title: "Raw Material Name",
+    content:
+      "The common name of the raw material (e.g., 'Beef Brisket', 'Olive Oil').",
+    example:
+      "Example: 'Ground Beef 80/20', 'Extra Virgin Olive Oil', 'Roma Tomatoes'."
+  },
+  ingredientCategory: {
+    title: "Raw Material Category",
+    content:
+      "Classification: Weight (solid items), Volume (liquids), Count (individual items).",
+    example: "Example: Flour = Weight, Milk = Volume, Eggs = Count."
+  },
+  purchasePrice: {
+    title: "Purchase Price",
+    content:
+      "The total cost you paid for the purchased quantity of this raw material.",
+    example: "Example: You paid ₱650 for 1kg of beef brisket, so enter 650."
+  },
+  purchaseQuantity: {
+    title: "Purchase Quantity",
+    content:
+      "The amount you bought for the purchase price. Used to calculate cost per unit.",
+    example:
+      "Example: You bought 1kg of beef for ₱650, so enter 1. You bought 50 eggs for ₱500, so enter 50."
+  },
+  purchaseUnit: {
+    title: "Purchase Unit",
+    content:
+      "The unit of measurement for the purchased quantity (e.g., kg, L, pieces).",
+    example:
+      "Example: For the 1kg beef package, select 'kg'. For the 50 eggs, select 'pc'. For 1L milk, select 'L'."
+  },
+  costPerUnit: {
+    title: "Cost Per Unit",
+    content:
+      "The calculated cost for one unit of measurement. Automatically calculated from purchase details.",
+    example:
+      "Example: Total recipe cost ₱100 for 500ml yield = ₱0.20 per ml. If cost unit is L, then ₱200 per L (₱0.20/ml * 1000)."
+  },
+  laborName: {
+    title: "Direct Labor Name",
+    content:
+      "A descriptive name for the labor task (e.g., 'Kitchen Work', 'Prep Chef', 'Line Cook').",
+    example: "Example: 'Kitchen Work', 'Prep Chef', 'Line Cook', 'Dishwasher'."
+  },
+  shiftRate: {
+    title: "Shift Rate",
+    content: "The total cost for one complete shift of this labor type.",
+    example:
+      "Example: If a kitchen worker costs ₱200 per 8-hour shift, enter 200."
+  },
+  shiftDuration: {
+    title: "Shift Duration",
+    content: "The length of one shift in the selected time unit.",
+    example:
+      "Example: For an 8-hour shift, enter 8 and select 'hours'. For a 480-minute shift, enter 480 and select 'minutes'."
+  },
+  timeUnit: {
+    title: "Time Unit",
+    content:
+      "The unit of measurement for the shift duration (hours or minutes).",
+    example:
+      "Example: Select 'hours' for shifts measured in hours, 'minutes' for shifts measured in minutes."
+  },
+  costUnit: {
+    title: "Cost Unit",
+    content:
+      "The unit of measurement for displaying the cost per unit (hours or minutes).",
+    example:
+      "Example: Select 'hours' to see cost per hour, 'minutes' to see cost per minute."
+  },
+  servingScale: {
+    title: "Serving Scale",
+    content:
+      "The target number of servings you want to produce. The total cost will be calculated as: (Base Recipe Cost ÷ Base Servings) × Serving Scale. When loading a saved recipe, this automatically sets to match the recipe's base servings.",
+    example:
+      "Example: If your beef stew recipe costs $20.00 for 10 servings and you want to make 50 servings, enter 50. The cost will be calculated as ($20.00 ÷ 10) × 50 = $100.00 for 50 servings. When loading a 15-serving recipe, this automatically sets to 15."
+  },
+  selectedLaborRate: {
+    title: "Displayed Labor Rate (Read-only)",
+    content:
+      "This read-only field shows the calculated labor cost per time unit (hour/minute) for the selected direct labor item. It is computed from the Shift Rate ÷ Shift Duration and converted to the selected display time unit.",
+    example:
+      "Example: Shift Rate ₱200 ÷ 8 hours = ₱25.00 per hour. If the display unit is minutes, it will show ₱0.42 per minute."
+  }
+};
+function u(e, t) {
+  let n = [];
 
-// NEW: Setup all password visibility toggles
-function setupPasswordToggles() {
-    // Auth modal password toggle
-    const togglePassword = document.getElementById('togglePassword');
-    if (togglePassword) {
-        togglePassword.addEventListener('click', function() {
-            togglePasswordVisibilityGeneric('authPassword', this);
-        });
+  // Get the appropriate list based on item type
+  switch (t) {
+    case "rawMaterial":
+      n = Yt();
+      break;
+    case "directLabor":
+      n = Vt();
+      break;
+    case "mainRecipe":
+      n = Gt().filter((e) => "main" === e.type);
+      break;
+    case "subRecipe":
+      n = Gt().filter((e) => "sub" === e.type);
+  }
+
+  // Generate unique name with proper copy numbering
+  const existingNames = n.map(item => item.name.toLowerCase());
+  
+  let baseName = e;
+  let newName = baseName;
+  let copyNumber = 1;
+
+  while (existingNames.includes(newName.toLowerCase())) {
+    newName = `${baseName} - copy${copyNumber > 1 ? ` ${copyNumber}` : ''}`;
+    copyNumber++;
+  }
+
+  return newName;
+}
+function p(e, t, n = null, o) {
+  let a = null,
+    i = [];
+  switch (t) {
+    case "rawMaterial":
+      (i = Yt()),
+        (a = i.find(
+          (t) => t.name.toLowerCase() === e.toLowerCase() && t.id !== n
+        ));
+      break;
+    case "directLabor":
+      (i = Vt()),
+        (a = i.find(
+          (t) => t.name.toLowerCase() === e.toLowerCase() && t.id !== n
+        ));
+      break;
+    case "mainRecipe":
+      (i = Gt().filter((e) => "main" === e.type)),
+        (a = i.find(
+          (t) => t.name.toLowerCase() === e.toLowerCase() && t.id !== n
+        ));
+      break;
+    case "subRecipe":
+      (i = Gt().filter((e) => "sub" === e.type)),
+        (a = i.find(
+          (t) => t.name.toLowerCase() === e.toLowerCase() && t.id !== n
+        ));
+  }
+  return (
+    !!a &&
+    ((function (e, t, n, o) {
+      window.unifiedPromptContext = {
+        itemType: e,
+        existingItem: t,
+        newName: n,
+        saveCallback: o
+      };
+      const a = {
+          rawMaterial: "Raw Material",
+          directLabor: "Direct Labor",
+          mainRecipe: "Main Recipe",
+          subRecipe: "Sub-Recipe"
+        },
+        i = document.getElementById("unifiedEditPromptModal"),
+        r = document.getElementById("unifiedEditPromptTitle"),
+        l = document.getElementById("unifiedEditPromptMessage");
+      if (!i || !r || !l) {
+        console.error("Unified prompt modal elements not found");
+        return void m(
+          confirm(
+            `A ${a[e].toLowerCase()} named "${
+              t.name
+            }" already exists. Click OK to replace, Cancel to save as new.`
+          )
+            ? "replace"
+            : "new"
+        );
+      }
+      (r.textContent = `Save ${a[e]}`),
+        (l.innerHTML = `\n        <p>A ${a[
+          e
+        ].toLowerCase()} named "<strong>${po(
+          t.name
+        )}</strong>" already exists.</p>\n        <p>Would you like to replace the existing item or save this as a new item?</p>\n        <div class="unified-prompt-item">\n            <div class="item-name">Existing: ${po(
+          t.name
+        )}</div>\n            <div class="item-details">\n                ${
+          t.category ? `Category: ${t.category} • ` : ""
+        }\n                ${
+          t.costPerUnit
+            ? `Cost: ${uo(t.costPerUnit)}/${t.costUnit || "unit"}`
+            : ""
+        }\n                ${
+          t.totalCost ? `Total: ${uo(t.totalCost)}` : ""
+        }\n                ${
+          t.servings ? `Servings: ${t.servings}` : ""
+        }\n            </div>\n        </div>\n        <div class="auto-rename-notice hidden" id="autoRenameNotice">\n            <strong>Note:</strong> When saving as new, the name will be automatically changed to "<span id="newNamePreview"></span>" to avoid conflicts.\n        </div>\n    `);
+      const s = document.getElementById("autoRenameNotice"),
+        c = document.getElementById("newNamePreview");
+      if (n.toLowerCase() === t.name.toLowerCase() && s && c) {
+        const t = u(n, e);
+        (c.textContent = t), s.classList.remove("hidden");
+      }
+      i.classList.remove("hidden");
+    })(t, a, e, o),
+    !0)
+  );
+}
+function m(e) {
+  const t = window.unifiedPromptContext;
+  if (t && t.saveCallback)
+    if ((g(), "replace" === e)) t.saveCallback("replace");
+    else {
+      let e = t.newName;
+      // FIX: Always generate new name without excluding the duplicate item
+      e.toLowerCase() === t.existingItem.name.toLowerCase() &&
+        (e = u(e, t.itemType)), // Now only two arguments
+      t.saveCallback("new", e);
     }
-
-    // Reset password modal toggles
-    const resetToggles = document.querySelectorAll('#resetPasswordModal .password-toggle');
-    resetToggles.forEach((toggle, index) => {
-        const fieldId = index === 0 ? 'newPassword' : 'confirmPassword';
-        toggle.addEventListener('click', function() {
-            togglePasswordVisibilityGeneric(fieldId, this);
-        });
+  else console.error("No prompt context found");
+}
+function g() {
+  const e = document.getElementById("unifiedEditPromptModal");
+  e && e.classList.add("hidden"),
+    (window.unifiedPromptContext = {
+      itemType: null,
+      existingItem: null,
+      newName: null,
+      saveCallback: null
     });
 }
+let f,
+  y,
+  b,
+  v,
+  h,
+  w,
+  x,
+  C,
+  E,
+  L,
+  S,
+  P,
+  $,
+  R,
+  I,
+  M,
+  F,
+  k,
+  B,
+  U,
+  T,
+  q,
+  D,
+  A,
+  N,
+  H,
+  O,
+  z,
+  W,
+  Q,
+  Y,
+  V,
+  G,
+  _,
+  J,
+  j,
+  K,
+  X,
+  Z,
+  ee,
+  te,
+  ne,
+  oe,
+  ae,
+  ie,
+  re,
+  le,
+  se,
+  ce,
+  de,
+  ue,
+  pe,
+  me,
+  ge,
+  fe,
+  ye,
+  be,
+  ve,
+  he,
+  we,
+  xe,
+  Ce,
+  Ee,
+  Le,
+  Se,
+  Pe,
+  $e,
+  Re,
+  Ie,
+  Me,
+  Fe,
+  ke,
+  Be,
+  Ue,
+  Te,
+  qe,
+  De,
+  Ae,
+  Ne,
+  He,
+  Oe,
+  ze,
+  We,
+  Qe,
+  Ye,
+  Ve,
+  Ge,
+  _e,
+  Je,
+  je,
+  Ke,
+  Xe,
+  Ze,
+  et;
+window.unifiedPromptContext = {
+  itemType: null,
+  existingItem: null,
+  newName: null,
+  saveCallback: null
+};
+let tt = "₱",
+  nt = !1;
 
-// FIX: Enhanced navigation initialization
-function setupNavigation() {
-    console.log("Setting up navigation...");
+// =============================================================================
+// ENHANCED DATA RECOVERY & PROTECTION FUNCTIONS
+// =============================================================================
+
+// CRITICAL FIX: Enhanced data validation function
+function hasMeaningfulData(data) {
+    if (!data) return false;
     
-    // Desktop sidebar navigation
-    const sidebarBtns = document.querySelectorAll(".sidebar-btn");
-    if (sidebarBtns.length > 0) {
-        sidebarBtns.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                const tab = e.currentTarget.dataset.tab;
-                console.log("Sidebar navigation to:", tab);
-                switchTab(tab);
-            });
-        });
-        console.log("✓ Sidebar navigation initialized");
-    } else {
-        console.warn("✗ No sidebar buttons found");
-    }
+    // Check for actual content in all data sections
+    const hasRawMaterials = data.rawMaterials?.length > 0 && 
+        data.rawMaterials.some(item => item.name && item.name.trim() !== '');
 
-    // Mobile tabs navigation
-    const mobileTabBtns = document.querySelectorAll(".mobile-tabs .tab-btn");
-    if (mobileTabBtns.length > 0) {
-        mobileTabBtns.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                const tab = e.currentTarget.dataset.tab;
-                console.log("Mobile navigation to:", tab);
-                switchTab(tab);
-            });
-        });
-        console.log("✓ Mobile navigation initialized");
-    } else {
-        console.warn("✗ No mobile tab buttons found");
-    }
+    const hasRecipes = data.recipes?.length > 0 && 
+        data.recipes.some(recipe => recipe.name && recipe.name.trim() !== '');
 
-    // Ensure first tab is active on load
-    setTimeout(() => {
-        const firstTab = document.querySelector('.tab-content.active');
-        if (!firstTab) {
-            switchTab('raw-materials');
+    const hasDirectLabor = data.directLabor?.length > 0 && 
+        data.directLabor.some(labor => labor.name && labor.name.trim() !== '');
+
+    const hasCurrentRecipe = data.currentRecipeState && (
+        (data.currentRecipeState.rawMaterialItems?.length > 0 && 
+         data.currentRecipeState.rawMaterialItems.some(item => item.name && item.name.trim() !== '')) ||
+        (data.currentRecipeState.directLaborItems?.length > 0 && 
+         data.currentRecipeState.directLaborItems.some(item => item.name && item.name.trim() !== ''))
+    );
+
+    return hasRawMaterials || hasRecipes || hasDirectLabor || hasCurrentRecipe;
+}
+
+// CRITICAL FIX: Data recovery mechanism
+function attemptDataRecovery() {
+    console.log("🔄 Attempting data recovery...");
+    
+    try {
+        // Check for backup in localStorage
+        const backupData = localStorage.getItem('profitPerPlate_userData_backup');
+        const currentData = localStorage.getItem('profitPerPlate_userData');
+        
+        const backupValid = backupData && backupData !== '{}' && backupData !== 'null';
+        const currentEmpty = !currentData || currentData === '{}' || currentData === 'null';
+        
+        if (backupValid && currentEmpty) {
+            console.log("✅ Restoring from backup - current data is empty");
+            localStorage.setItem('profitPerPlate_userData', backupData);
+            return { success: true, recovered: true };
         }
+        
+        if (backupValid && currentData) {
+            const currentParsed = JSON.parse(currentData);
+            const backupParsed = JSON.parse(backupData);
+            
+            const currentHasData = hasMeaningfulData(currentParsed);
+            const backupHasData = hasMeaningfulData(backupParsed);
+            
+            if (backupHasData && !currentHasData) {
+                console.log("✅ Restoring from backup - backup has meaningful data, current doesn't");
+                localStorage.setItem('profitPerPlate_userData', backupData);
+                return { success: true, recovered: true };
+            }
+        }
+        
+        console.log("📝 No recovery needed or backup unavailable");
+        return { success: true, recovered: false };
+    } catch (error) {
+        console.error("❌ Data recovery failed:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+// Enhanced initialization with data protection
+async function initializeWithDataProtection() {
+    console.log("🛡️ Initializing with enhanced data protection...");
+    
+    try {
+        // Attempt data recovery before any operations
+        if (window.supabaseClient && window.supabaseClient.attemptDataRecovery) {
+            const recoveryResult = await window.supabaseClient.attemptDataRecovery();
+            if (recoveryResult.recovered) {
+                console.log("✅ Data recovery completed during initialization");
+                if (window.showNotification) {
+                    window.showNotification("🔄 Recovered data from backup", "success");
+                }
+            }
+        }
+        
+        // Continue with normal initialization
+        await normalInitialization();
+        
+    } catch (error) {
+        console.error("💥 Protected initialization failed:", error);
+        // Fall back to normal initialization
+        await normalInitialization();
+    }
+}
+
+// Enhanced auto-save with backup protection
+function setupEnhancedAutoSave() {
+    console.log("🔧 Setting up enhanced auto-save with backup protection...");
+    
+    // Backup before any save operation
+    const originalSaveUserData = window.supabaseClient ? window.supabaseClient.saveUserData : null;
+    if (originalSaveUserData) {
+        window.supabaseClient.saveUserData = function(data) {
+            // Create immediate backup
+            try {
+                const currentData = localStorage.getItem('profitPerPlate_userData');
+                if (currentData) {
+                    localStorage.setItem('profitPerPlate_userData_autosave_backup', currentData);
+                }
+            } catch (e) {
+                console.warn("⚠️ Auto-save backup failed:", e);
+            }
+            
+            return originalSaveUserData.call(this, data);
+        };
+    }
+    
+    // Existing auto-save setup...
+    ["input", "change", "click", "blur"].forEach((e) => {
+        document.addEventListener(e, function(e) {
+            var t;
+            (t = e.target),
+            [
+                "#darkModeToggle",
+                "#helpBtn", 
+                ".close-btn",
+                ".modal",
+                ".tab-btn",
+                ".sidebar-btn",
+                "#printBtn"
+            ].some((e) => t.closest(e)) || dt();
+        });
+    });
+    
+    window.addEventListener("beforeunload", pt);
+    setInterval(() => {
+        ut() && ct();
+    }, 15e3);
+    
+    console.log("✅ Enhanced auto-save with backup protection initialized");
+}
+
+// Monitor data state changes
+function setupDataStateMonitoring() {
+    let lastDataState = null;
+    
+    setInterval(() => {
+        const currentData = localStorage.getItem('profitPerPlate_userData');
+        if (lastDataState !== currentData) {
+            console.log("🔍 Data state changed - creating monitoring backup");
+            lastDataState = currentData;
+            
+            // Create monitoring backup
+            try {
+                if (currentData) {
+                    localStorage.setItem('profitPerPlate_userData_monitoring', currentData);
+                }
+            } catch (e) {
+                console.warn("⚠️ Monitoring backup failed:", e);
+            }
+        }
+    }, 30000); // Check every 30 seconds
+}
+
+// Enhanced notification for data operations
+function showDataOperationNotification(message, type = "info") {
+    console.log(`📊 Data Operation: ${message}`);
+    Wt(message, type);
+}
+
+// Update data state indicator
+function updateDataStateIndicator(state = "protected") {
+    const indicator = document.getElementById("dataStateIndicator");
+    if (!indicator) return;
+    
+    indicator.className = `data-state-indicator ${state}`;
+    
+    switch(state) {
+        case "protected":
+            indicator.innerHTML = '<span class="data-state-icon">🛡️</span><span class="data-state-text">Data Protected</span>';
+            break;
+        case "syncing":
+            indicator.innerHTML = '<span class="data-state-icon">🔄</span><span class="data-state-text">Syncing...</span>';
+            break;
+        case "error":
+            indicator.innerHTML = '<span class="data-state-icon">⚠️</span><span class="data-state-text">Backup Issue</span>';
+            break;
+    }
+}
+
+// =============================================================================
+// ORIGINAL FUNCTIONS CONTINUE...
+// =============================================================================
+
+function ot() {
+  console.log("🔧 Setting up comprehensive navigation system..."),
+    document.addEventListener("click", function (e) {
+      const t = e.target.closest(".sidebar-btn");
+      if (t && t.dataset.tab)
+        return (
+          e.preventDefault(),
+          e.stopPropagation(),
+          console.log("🖱️ Sidebar navigation clicked:", t.dataset.tab),
+          void it(t.dataset.tab)
+        );
+      const n = e.target.closest(".mobile-tabs .tab-btn");
+      return n && n.dataset.tab
+        ? (e.preventDefault(),
+          e.stopPropagation(),
+          console.log("📱 Mobile navigation clicked:", n.dataset.tab),
+          void it(n.dataset.tab))
+        : void 0;
+    }),
+    at(),
+    console.log("✅ Navigation system setup completed");
+}
+function at() {
+  Ze &&
+    Ze.length > 0 &&
+    (Ze.forEach((e) => {
+      const t = e.cloneNode(!0);
+      e.parentNode.replaceChild(t, e);
+      t.addEventListener("click", function (e) {
+        e.preventDefault(),
+          e.stopPropagation(),
+          console.log("💻 Direct sidebar click:", this.dataset.tab),
+          it(this.dataset.tab);
+      });
+    }),
+    (Ze = document.querySelectorAll(".sidebar-btn"))),
+    et &&
+      et.length > 0 &&
+      (et.forEach((e) => {
+        const t = e.cloneNode(!0);
+        e.parentNode.replaceChild(t, e);
+        t.addEventListener("click", function (e) {
+          e.preventDefault(),
+            e.stopPropagation(),
+            console.log("📱 Direct mobile tab click:", this.dataset.tab),
+            it(this.dataset.tab);
+        });
+      }),
+      (et = document.querySelectorAll(".mobile-tabs .tab-btn")));
+}
+function it(e) {
+  console.log("🔄 Switching to tab:", e);
+  if (["raw-materials", "direct-labor", "recipes", "summary"].includes(e)) {
+    if (
+      (document.querySelectorAll(".sidebar-btn").forEach((t) => {
+        t.classList.toggle("active", t.dataset.tab === e);
+      }),
+      document.querySelectorAll(".mobile-tabs .tab-btn").forEach((t) => {
+        t.classList.toggle("active", t.dataset.tab === e);
+      }),
+      document.querySelectorAll(".tab-content").forEach((t) => {
+        t.classList.toggle("active", t.id === `${e}-tab`);
+      }),
+      "summary" !== e && A)
+    ) {
+      const e = parseFloat(A.value) || 1;
+      1 !== e &&
+        (console.log(
+          `INFO: Auto-resetting Serving Scale from ${e} to 1 when leaving Summary tab`
+        ),
+        (A.value = 1),
+        n && (Yn(), Gn()));
+    }
+    "summary" === e && (n ? Gn() : _n()),
+      dt(),
+      console.log("✅ Successfully switched to tab:", e);
+  } else console.error("❌ Invalid tab name:", e);
+}
+function rt() {
+  try {
+    console.log("📥 Attempting to load data from local storage...");
+    const t = localStorage.getItem("profitPerPlate_userData");
+    if (t) {
+      const n = JSON.parse(t);
+      console.log("✅ Loaded user data from local storage");
+      const o = s(n);
+      return (
+        (e = {
+          rawMaterials: [],
+          directLabor: [],
+          recipes: [],
+          currency: "₱",
+          currentRecipeState: null,
+          ...o
+        }),
+        (tt = e.currency || "₱"),
+        w && (w.value = tt),
+        vt(),
+        mn(),
+        In(),
+        Kn(),
+        At(),
+        zn(),
+        e
+      );
+    }
+    return console.log("📝 No existing local data found"), null;
+  } catch (e) {
+    return console.error("❌ Error loading from local storage:", e), null;
+  }
+}
+function lt() {
+  console.log("🧹 Performing safe local data clearance...");
+  const t = mt();
+  ["profitPerPlate_userData"].forEach((e) => {
+    localStorage.removeItem(e);
+  }),
+    (e = {
+      rawMaterials: [],
+      directLabor: [],
+      recipes: [],
+      currency: tt,
+      currentRecipeState: t
+    }),
+    vt(),
+    mn(),
+    In(),
+    Kn(),
+    console.log("✅ Safe data clearance completed - current work preserved");
+}
+function st() {
+  console.log("🔧 Setting up enhanced auto-save system...");
+  
+  // Create initial backup
+  try {
+    const currentData = localStorage.getItem('profitPerPlate_userData');
+    if (currentData) {
+      localStorage.setItem('profitPerPlate_userData_initial_backup', currentData);
+      console.log("💾 Initial backup created");
+    }
+  } catch (e) {
+    console.warn("⚠️ Initial backup failed:", e);
+  }
+  
+  ["input", "change", "click", "blur"].forEach((e) => {
+    document.addEventListener(e, function (e) {
+      var t;
+      (t = e.target),
+        [
+          "#darkModeToggle",
+          "#helpBtn",
+          ".close-btn",
+          ".modal",
+          ".tab-btn",
+          ".sidebar-btn",
+          "#printBtn"
+        ].some((e) => t.closest(e)) || dt();
+    });
+  }),
+    window.addEventListener("beforeunload", pt),
+    setInterval(() => {
+      ut() && ct();
+    }, 15e3),
+    
+    // Setup data state monitoring
+    setupDataStateMonitoring(),
+    
+    console.log("✅ Enhanced auto-save system initialized");
+}
+function ct() {
+  const t = mt();
+  (e.currentRecipeState = t),
+    localStorage.setItem(
+      "profitPerPlate_recipeState",
+      JSON.stringify({
+        ...t,
+        lastSaved: new Date().toISOString(),
+        savedSync: !0
+      })
+    );
+  const n = c();
+  window.supabaseClient &&
+    window.supabaseClient.isAuthenticated() &&
+    setTimeout(() => {
+      (async function (e, t = 3) {
+        for (let n = 1; n <= t; n++)
+          try {
+            console.log(`🔄 Cloud save attempt ${n}/${t}...`),
+              Qt("Saving…", "sync");
+            const o = await window.supabaseClient.saveUserData(e);
+            if (o && !0 === o.cloud)
+              return (
+                console.log(`✅ Cloud save successful on attempt ${n}`),
+                Qt("Synced", "success"),
+                o.queuedCount &&
+                  Wt(
+                    `Saved to cloud. ${o.queuedCount} queued item(s) remain.`,
+                    "info"
+                  ),
+                o
+              );
+            if (o && !0 === o.queued)
+              return (
+                console.warn(
+                  "⚠️ Cloud save failed, payload queued for retry:",
+                  o
+                ),
+                Qt("Saved locally (queued for sync)", "warning"),
+                o
+              );
+            if (o && !0 === o.local && !o.queued)
+              return (
+                console.warn("⚠️ Saved locally only (cloud unavailable)"),
+                Qt("Saved locally (cloud unavailable)", "warning"),
+                o
+              );
+            if (!(n < t))
+              throw (
+                (console.error(`❌ Cloud save failed after ${t} attempts`),
+                new Error("Cloud save failed after retries"))
+              );
+            {
+              const e = 1e3 * Math.pow(2, n);
+              console.log(`⏳ Cloud save failed, retrying in ${e}ms...`),
+                await new Promise((t) => setTimeout(t, e));
+            }
+          } catch (o) {
+            if (
+              (console.error(`💥 Cloud save error on attempt ${n}:`, o),
+              n === t)
+            ) {
+              console.log("💾 Falling back to local storage");
+              try {
+                localStorage.setItem(
+                  "profitPerPlate_userData",
+                  JSON.stringify({
+                    ...e,
+                    savedLocally: !0,
+                    cloudSaveFailed: !0,
+                    lastSaved: new Date().toISOString()
+                  })
+                ),
+                  Qt(
+                    "Saved locally (cloud sync failed). Retry will be attempted automatically.",
+                    "warning"
+                  );
+              } catch (e) {
+                console.error("Failed to write local fallback:", e),
+                  Qt("Local save failed (see console)", "error");
+              }
+              return { success: !0, local: !0, cloudFailed: !0 };
+            }
+          }
+      })(n).then((e) => {
+        e.cloudFailed
+          ? Wt("⚠️ Saved locally (cloud sync failed)", "warning")
+          : console.log("✅ Cloud save completed successfully");
+      });
     }, 100);
 }
-
-// FIX: Comprehensive modal system
-function setupModalSystem() {
-    console.log("Setting up modal system...");
-    
-    const modals = [
-        { id: "rawMaterialModal", closeFn: closeRawMaterialModal },
-        { id: "directLaborModal", closeFn: closeDirectLaborModal },
-        { id: "printPreviewModal", closeFn: closePrintPreview },
-        { id: "subRecipeSaveModal", closeFn: closeSubRecipeSaveModal },
-        { id: "editPromptModal", closeFn: closeEditPromptModal },
-        { id: "rawMaterialEditPromptModal", closeFn: closeRawMaterialEditPromptModal },
-        { id: "directLaborEditPromptModal", closeFn: closeDirectLaborEditPromptModal },
-        { id: "authModal", closeFn: closeAuthModal },
-        { id: "forgotPasswordModal", closeFn: closeForgotPasswordModal },
-        { id: "resetPasswordModal", closeFn: closeResetPasswordModal },
-        { id: "helpModal", closeFn: closeHelpModal }
-    ];
-
-    modals.forEach(modalConfig => {
-        const modal = document.getElementById(modalConfig.id);
-        if (modal) {
-            // Background click to close
-            modal.addEventListener("click", (e) => {
-                if (e.target === modal) {
-                    modalConfig.closeFn();
-                }
+function dt() {
+  o && clearTimeout(o),
+    (o = setTimeout(() => {
+      ct(), (o = null);
+    }, 500));
+}
+function ut() {
+  const e = mt(),
+    t = JSON.parse(localStorage.getItem("profitPerPlate_recipeState") || "{}");
+  return JSON.stringify(e) !== JSON.stringify(t);
+}
+function pt(e) {
+  ut() &&
+    (function () {
+      const e = mt();
+      localStorage.setItem(
+        "profitPerPlate_recipeState",
+        JSON.stringify({
+          ...e,
+          lastSaved: new Date().toISOString(),
+          savedSync: !0
+        })
+      );
+      const t = c();
+      window.supabaseClient &&
+        window.supabaseClient.isAuthenticated() &&
+        setTimeout(() => window.supabaseClient.saveUserData(t), 100);
+    })();
+}
+function mt() {
+  const e = [],
+    t = [];
+  return (
+    f &&
+      f.querySelectorAll("tr").forEach((t) => {
+        const n = t.children[0].querySelector("input").value,
+          o = parseFloat(t.children[1].querySelector("input").value) || 0,
+          a = t.children[1].querySelector(".quantity-unit")?.textContent || "g",
+          i = parseFloat(t.children[2].querySelector("input").value) || 0,
+          r = t.dataset.type || "rawMaterial",
+          l = t.dataset.subRecipeId || null;
+        ("rawMaterial" !== r && "sub-recipe" !== r) ||
+          e.push({
+            name: n,
+            quantity: o,
+            unit: a,
+            unitCost: i,
+            type: r,
+            subRecipeId: l
+          });
+      }),
+    y &&
+      y.querySelectorAll("tr").forEach((e) => {
+        const n = e.children[0].querySelector("input").value,
+          o = parseFloat(e.children[1].querySelector("input").value) || 0,
+          a =
+            e.children[1].querySelector(".quantity-unit")?.textContent ||
+            "hours",
+          i = parseFloat(e.children[2].querySelector("input").value) || 0;
+        t.push({ name: n, quantity: o, unit: a, unitCost: i });
+      }),
+    {
+      recipeName: x ? x.value : "",
+      rawMaterialItems: e,
+      directLaborItems: t,
+      markup: parseFloat(U ? U.value : 40) || 40,
+      tax: parseFloat(T ? T.value : 0) || 0,
+      vat: parseFloat(q ? q.value : 0) || 0,
+      servings: parseFloat(D ? D.value : 1) || 1,
+      servingScale: parseFloat(A ? A.value : 1) || 1,
+      currentTab: bt(),
+      lastSaved: new Date().toISOString(),
+      version: "2.0"
+    }
+  );
+}
+function gt() {
+  if (
+    (console.log("📥 Loading recipe state with fallback..."),
+    window.supabaseClient && window.supabaseClient.isAuthenticated())
+  )
+    Dt();
+  else {
+    const e = localStorage.getItem("profitPerPlate_recipeState");
+    if (e)
+      try {
+        !(function (e) {
+          if (!e) return;
+          x && (x.value = e.recipeName || "");
+          U && (U.value = e.markup || 40);
+          T && (T.value = e.tax || 0);
+          q && (q.value = e.vat || 0);
+          D && (D.value = e.servings || 1);
+          A && (A.value = e.servingScale || 1);
+          f && (f.innerHTML = "");
+          y && (y.innerHTML = "");
+          e.rawMaterialItems &&
+            e.rawMaterialItems.forEach((e) => {
+              gn(
+                e.name,
+                e.quantity,
+                e.unit,
+                e.unitCost,
+                e.type || "rawMaterial",
+                e.subRecipeId || null
+              );
             });
-
-            // Escape key to close
-            document.addEventListener("keydown", (e) => {
-                if (e.key === "Escape" && modal.classList.contains('hidden') === false) {
-                    modalConfig.closeFn();
-                }
+          e.directLaborItems &&
+            e.directLaborItems.forEach((e) => {
+              const t = e.unitCost ?? e.rate ?? 0,
+                n = e.unit ?? e.timeUnit ?? "hours";
+              fn(e.name, e.quantity, n, t);
             });
-
-            console.log(`✓ Modal ${modalConfig.id} initialized`);
-        } else {
-            console.warn(`✗ Modal ${modalConfig.id} not found`);
-        }
-    });
-
-    // Help modal specific setup
-    const helpBtn = document.getElementById('helpBtn');
-    const closeHelpBtn = document.getElementById('closeHelp');
-    
-    if (helpBtn && closeHelpBtn) {
-        helpBtn.addEventListener('click', openHelpModal);
-        closeHelpBtn.addEventListener('click', closeHelpModal);
-    }
-    
-    // ADD GLOBAL MODAL CLOSE FUNCTION
-    window.closeAllModals = function() {
-        modals.forEach(modalConfig => {
-            const modal = document.getElementById(modalConfig.id);
-            if (modal) modal.classList.add('hidden');
-        });
-    };
+          zn();
+        })(JSON.parse(e)),
+          console.log("✅ Loaded recipe state from local storage");
+      } catch (e) {
+        console.error("❌ Error loading from local storage:", e), ft();
+      }
+    else ft();
+  }
 }
-
-// NEW: Event delegation for dynamic content
-function setupEventDelegation() {
-    console.log("Setting up event delegation...");
-    
-    // Delegate for dynamically created delete buttons
-    document.addEventListener('click', function(e) {
-        // Recipe row delete buttons
-        if (e.target.classList.contains('delRow')) {
-            const row = e.target.closest('tr');
-            if (row) {
-                row.remove();
-                recalc();
-                saveCurrentRecipeState();
-            }
-        }
-        
-        // Direct labor row delete buttons
-        if (e.target.classList.contains('delDirectLaborRow')) {
-            const row = e.target.closest('tr');
-            if (row) {
-                row.remove();
-                recalc();
-                saveCurrentRecipeState();
-            }
-        }
-        
-        // Edit buttons
-        if (e.target.classList.contains('edit-recipe-btn')) {
-            const row = e.target.closest('tr');
-            if (row) {
-                const rowId = row.id;
-                editRecipeRow(rowId);
-            }
-        }
-        
-        if (e.target.classList.contains('edit-labor-btn')) {
-            const row = e.target.closest('tr');
-            if (row) {
-                const rowId = row.id;
-                editDirectLaborRow(rowId);
-            }
-        }
-    });
-    
-    // Input change delegation
-    document.addEventListener('input', function(e) {
-        if (e.target.matches('#recipeBody input[type="number"], #directLaborRecipeBody input[type="number"]')) {
-            recalc();
-            saveCurrentRecipeState();
-        }
-    });
+function ft() {
+  console.log("📝 Loading default recipe state"),
+    x && (x.value = ""),
+    D && (D.value = "1"),
+    A && (A.value = "1"),
+    U && (U.value = "40"),
+    T && (T.value = "0"),
+    q && (q.value = "0"),
+    f && (f.innerHTML = ""),
+    y && (y.innerHTML = ""),
+    zn();
 }
-
-// NEW: Open help modal function
-function openHelpModal() {
-    const helpModal = document.getElementById('helpModal');
-    const helpModalContent = document.getElementById('helpModalContent');
-    
-    if (helpModal && helpModalContent) {
-        helpModalContent.innerHTML = generateCompleteHelpContent();
-        helpModal.classList.remove('hidden');
-    }
+function yt(e) {
+  const t = document.getElementById(e);
+  return t || console.warn(`⚠️ DOM element not found: ${e}`), t;
 }
-
-// FIX: Comprehensive button initialization
-function setupButtonHandlers() {
-    console.log("Setting up button handlers...");
-    
-    // Raw Material buttons
-    const saveRawMaterialBtn = document.getElementById('saveRawMaterialBtn');
-    if (saveRawMaterialBtn) {
-        saveRawMaterialBtn.addEventListener('click', saveRawMaterial);
-    }
-
-    // Direct Labor buttons
-    const saveDirectLaborBtn = document.getElementById('saveDirectLaborBtn');
-    if (saveDirectLaborBtn) {
-        saveDirectLaborBtn.addEventListener('click', saveDirectLabor);
-    }
-
-    // Recipe buttons
-    const saveMainRecipeBtn = document.getElementById('saveMainRecipeBtn');
-    const saveSubRecipeBtn = document.getElementById('saveSubRecipeBtn');
-    const resetBtn = document.getElementById('resetRecipe');
-    
-    if (saveMainRecipeBtn) {
-        saveMainRecipeBtn.addEventListener('click', () => {
-            if (!recipeNameInput?.value?.trim()) {
-                alert("Please enter a recipe name before saving");
-                recipeNameInput?.focus();
-                return;
-            }
-            saveRecipe('main');
-        });
-    }
-    
-    if (saveSubRecipeBtn) {
-        saveSubRecipeBtn.addEventListener('click', openSubRecipeSaveModal);
-    }
-    
-    if (resetBtn) {
-        resetBtn.addEventListener('click', resetRecipe);
-    }
-
-    // Print button
-    const printBtn = document.getElementById('printBtn');
-    if (printBtn) {
-        printBtn.addEventListener('click', generatePrintPreview);
-    }
-
-    // Summary recipe load button
-    const loadRecipeBtn = document.querySelector('.load-recipe-controls button');
-    if (loadRecipeBtn) {
-        loadRecipeBtn.addEventListener('click', loadRecipeForSummary);
-    }
-
-    console.log("✓ Button handlers initialized");
+function bt() {
+  const e = document.querySelector(".tab-content.active");
+  return e ? e.id.replace("-tab", "") : "raw-materials";
 }
-
-// FIX: Enhanced app initialization
-async function initApp() {
-    console.log("🚀 Initializing ProfitPerPlate...");
-    
-    try {
-        // Phase 1: DOM Initialization
-        console.log("Phase 1: DOM Initialization");
-        initializeDOMElements();
-        
-        // Phase 2: Theme & UI
-        console.log("Phase 2: Theme & UI");
-        loadTheme();
-        setupDarkModeToggle();
-        
-        // Phase 3: Core Systems
-        console.log("Phase 3: Core Systems");
-        await initAuthSystem();
-        setupNavigation();
-        setupModalSystem();
-        setupEventDelegation(); // NEW: Added event delegation
-        setupButtonHandlers();
-        
-        // Phase 4: Data & Content
-        console.log("Phase 4: Data & Content");
-        await loadUserData();
-        renderAllData();
-        populateUnifiedItemSelect();
-        populateDirectLaborSelect();
-        populateSummaryRecipeSelect();
-        
-        // Phase 5: Final Setup
-        console.log("Phase 5: Final Setup");
-        setupBeforeUnloadListener();
-        changeSummaryTerminology();
-        
-        // Load current recipe state LAST
-        loadCurrentRecipeState();
-        
-        console.log("✅ App initialization completed successfully");
-        
-    } catch (error) {
-        console.error("❌ App initialization failed:", error);
-        showNotification("App initialization failed. Some features may not work.", "error");
-    }
+function vt() {
+  en(), un(), Fn();
 }
-
-// NEW: Dark mode toggle setup
-function setupDarkModeToggle() {
-    const darkModeToggle = document.getElementById('darkModeToggle');
-    if (darkModeToggle) {
-        darkModeToggle.addEventListener('click', toggleTheme);
-        console.log("✓ Dark mode toggle initialized");
-    }
+function ht() {
+  const e = document.body.classList.toggle("dark-mode");
+  localStorage.setItem("profitPerPlate_theme", e ? "dark" : "light");
+  const t = document.querySelector("#darkModeToggle svg");
+  t.innerHTML = e
+    ? '<path d="M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10z"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>'
+    : '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
 }
-
-// NEW: Change Summary Tab terminology
-function changeSummaryTerminology() {
-    // Change labels for Total Revenue and Total Profit
-    const batchProfitAnalysisLabels = document.querySelectorAll('.batch-profit-analysis label');
-    if (batchProfitAnalysisLabels.length >= 2) {
-        batchProfitAnalysisLabels[0].textContent = 'Total Revenue:';
-        batchProfitAnalysisLabels[1].textContent = 'Total Profit:';
-    }
-    // Remove the batch profit margin row
-    const batchProfitMarginRow = document.querySelector('.batch-profit-analysis:nth-child(3)');
-    if (batchProfitMarginRow) {
-        batchProfitMarginRow.remove();
-    }
+function wt() {
+  kt(), $e.classList.remove("hidden");
 }
-
-// NEW: Setup beforeunload listener for final save
-function setupBeforeUnloadListener() {
-    window.addEventListener('beforeunload', (event) => {
-        // Save current state before leaving
-        saveCurrentRecipeState();
-    });
+function xt() {
+  $e.classList.add("hidden"),
+    (Ie.value = ""),
+    Me.classList.add("hidden"),
+    Fe.classList.add("hidden");
 }
-
-// NEW: Get current active tab
-function getCurrentActiveTab() {
-    const activeTab = document.querySelector('.tab-content.active');
-    if (activeTab) {
-        return activeTab.id.replace('-tab', '');
-    }
-    return 'raw-materials'; // Default tab
+async function Ct() {
+  const e = Ie.value.trim();
+  if (!e) return void Et("Please enter your email address");
+  (ke.disabled = !0), (ke.textContent = "Sending...");
+  const t = await window.supabaseClient.resetPassword(e);
+  (ke.disabled = !1),
+    (ke.textContent = "Send Reset Link"),
+    t.success
+      ? ((Fe.textContent =
+          "Password reset email sent! Check your inbox for further instructions."),
+        Fe.classList.remove("hidden"),
+        Me.classList.add("hidden"))
+      : Et(t.error);
 }
-
-// =============================================================================
-// FIX: CORRECTED DOM ELEMENT INITIALIZATION WITH FALLBACK FOR servingScaleInput
-// =============================================================================
-function initializeDOMElements() {
-    console.log("Initializing DOM elements...");
-    
-    try {
-        // Core recipe elements
-        recipeBody = document.getElementById("recipeBody");
-        if (!recipeBody) console.warn("recipeBody not found");
-        
-        directLaborRecipeBody = document.getElementById("directLaborRecipeBody");
-        rawMaterialsTotalEl = document.getElementById("rawMaterialsTotal");
-        directLaborTotalEl = document.getElementById("directLaborTotal");
-        grandTotalEl = document.getElementById("grandTotal");
-        currencySelect = document.getElementById("currencySelect");
-        recipeNameInput = document.getElementById("recipeName");
-        resetBtn = document.getElementById("resetRecipe");
-        saveMainRecipeBtn = document.getElementById("saveMainRecipeBtn");
-        saveSubRecipeBtn = document.getElementById("saveSubRecipeBtn");
-
-        // Summary display elements
-        summaryRawMaterialsCost = document.getElementById("summaryRawMaterialsCost");
-        summaryDirectLaborCost = document.getElementById("summaryDirectLaborCost");
-        summaryTotalCost = document.getElementById("summaryTotalCost");
-        summaryCostServing = document.getElementById("summaryCostServing");
-        summarySellingPrice = document.getElementById("summarySellingPrice");
-        summaryFoodCost = document.getElementById("summaryFoodCost");
-        summaryLaborCostPercent = document.getElementById("summaryLaborCostPercent");
-        summaryTotalCostPercent = document.getElementById("summaryTotalCostPercent");
-        summaryGrossProfit = document.getElementById("summaryGrossProfit");
-        
-        // Input controls
-        markupInput = document.getElementById("markup");
-        taxInput = document.getElementById("tax");
-        vatInput = document.getElementById("vat");
-        servingsInput = document.getElementById("servings");
-        
-        // CRITICAL FIX: Ensure servingScale input exists with fallback
-        servingScaleInput = document.getElementById("servingScale");
-        if (!servingScaleInput) {
-            console.error("servingScale input not found - creating fallback");
-            servingScaleInput = document.createElement('input');
-            servingScaleInput.id = 'servingScale';
-            servingScaleInput.type = 'number';
-            servingScaleInput.value = '1';
-            servingScaleInput.min = '1';
-            servingScaleInput.className = 'hidden';
-            document.body.appendChild(servingScaleInput);
-        }
-        
-        summaryServingsDisplay = document.getElementById("summaryServingsDisplay");
-
-        // Modal and UI elements
-        helpBtn = document.getElementById("helpBtn");
-        helpModal = document.getElementById("helpModal");
-        helpModalTitle = document.getElementById("helpModalTitle");
-        helpModalContent = document.getElementById("helpModalContent");
-        closeHelpBtn = document.getElementById("closeHelp");
-        printBtn = document.getElementById("printBtn");
-        printPreviewModal = document.getElementById("printPreviewModal");
-        printPreviewContent = document.getElementById("printPreviewContent");
-
-        // Recipe ingredient selection
-        unifiedItemSelect = document.getElementById("unifiedItemSelect");
-        addIngredientQty = document.getElementById("addIngredientQty");
-        addIngredientUnit = document.getElementById("addIngredientUnit");
-
-        // Direct labor selection
-        directLaborSelect = document.getElementById("directLaborSelect");
-        timeRequirement = document.getElementById("timeRequirement");
-        timeRequirementUnit = document.getElementById("timeRequirementUnit");
-
-        // Sub-recipe modal
-        subRecipeSaveModal = document.getElementById("subRecipeSaveModal");
-        subRecipeNameDisplay = document.getElementById("subRecipeNameDisplay");
-        subRecipeCategory = document.getElementById("subRecipeCategory");
-        subRecipeYieldQuantity = document.getElementById("subRecipeYieldQuantity");
-        subRecipeYieldUnit = document.getElementById("subRecipeYieldUnit");
-        subRecipeCostPerUnit = document.getElementById("subRecipeCostPerUnit");
-        subRecipeCostUnit = document.getElementById("subRecipeCostUnit");
-        currentRecipeCostDisplay = document.getElementById("currentRecipeCostDisplay");
-        costPerOutputUnit = document.getElementById("costPerOutputUnit");
-
-        // Recipe lists
-        mainRecipesList = document.getElementById("mainRecipesList");
-        subRecipesList = document.getElementById("subRecipesList");
-
-        // Edit prompts
-        editPromptModal = document.getElementById("editPromptModal");
-        editPromptTitle = document.getElementById("editPromptTitle");
-        editPromptMessage = document.getElementById("editPromptMessage");
-
-        rawMaterialEditPromptModal = document.getElementById("rawMaterialEditPromptModal");
-        rawMaterialEditName = document.getElementById("rawMaterialEditName");
-
-        directLaborEditPromptModal = document.getElementById("directLaborEditPromptModal");
-        directLaborEditName = document.getElementById("directLaborEditName");
-
-        // Auth elements
-        authModal = document.getElementById("authModal");
-        authModalTitle = document.getElementById("authModalTitle");
-        authForm = document.getElementById("authForm");
-        authEmail = document.getElementById("authEmail");
-        authPassword = document.getElementById("authPassword");
-        authSubmitBtn = document.getElementById("authSubmitBtn");
-        authError = document.getElementById("authError");
-        authSwitchBtn = document.getElementById("authSwitchBtn");
-        authSwitchText = document.getElementById("authSwitchText");
-
-        // Password reset
-        forgotPasswordModal = document.getElementById("forgotPasswordModal");
-        forgotPasswordBtn = document.getElementById("forgotPasswordBtn");
-        forgotPasswordEmail = document.getElementById("forgotPasswordEmail");
-        forgotPasswordError = document.getElementById("forgotPasswordError");
-        forgotPasswordSuccess = document.getElementById("forgotPasswordSuccess");
-        sendResetEmailBtn = document.getElementById("sendResetEmailBtn");
-
-        togglePassword = document.getElementById("togglePassword");
-
-        // Auth buttons - ONLY INITIALIZE EXISTING ELEMENTS
-        loginBtn = document.getElementById("loginBtn");
-        logoutBtn = document.getElementById("logoutBtn");
-
-        // Cost breakdown preview
-        rawMaterialsPreviewBody = document.getElementById("rawMaterialsPreviewBody");
-        directLaborPreviewBody = document.getElementById("directLaborPreviewBody");
-        rawMaterialsCount = document.getElementById("rawMaterialsCount");
-        directLaborCount = document.getElementById("directLaborCount");
-        rawMaterialsPreviewTotal = document.getElementById("rawMaterialsPreviewTotal");
-        directLaborPreviewTotal = document.getElementById("directLaborPreviewTotal");
-        rawMaterialsPreviewSubtotal = document.getElementById("rawMaterialsPreviewSubtotal");
-        directLaborPreviewSubtotal = document.getElementById("directLaborPreviewSubtotal");
-
-        // Summary recipe selection
-        summaryRecipeSelect = document.getElementById("summaryRecipeSelect");
-        loadedRecipeDisplay = document.getElementById("loadedRecipeDisplay");
-        currentRecipeNameDisplay = document.getElementById("currentRecipeNameDisplay");
-        loadedRecipeTotalCost = document.getElementById("loadedRecipeTotalCost");
-        loadedRecipeServings = document.getElementById("loadedRecipeServings");
-        loadedRecipeItemCount = document.getElementById("loadedRecipeItemCount");
-
-        // Batch analysis - ONLY INITIALIZE EXISTING ELEMENTS
-        summaryBatchRevenue = document.getElementById("summaryBatchRevenue");
-        summaryBatchProfit = document.getElementById("summaryBatchProfit");
-
-        // Navigation
-        sidebarBtns = document.querySelectorAll(".sidebar-btn");
-        mobileTabBtns = document.querySelectorAll(".mobile-tabs .tab-btn");
-        
-        console.log("DOM element initialization completed");
-    } catch (error) {
-        console.error("DOM initialization failed:", error);
-        showNotification("UI initialization failed - some features may not work", "error");
-    }
+function Et(e) {
+  (Me.textContent = e),
+    Me.classList.remove("hidden"),
+    Fe.classList.add("hidden");
 }
-
-// Render all data
-function renderAllData() {
-    renderRawMaterials();
-    renderDirectLabor();
-    renderRecipesList();
+function Lt() {
+  Rt(),
+    document.getElementById("resetPasswordModal").classList.remove("hidden");
 }
-
-// Dark Mode Functions
-function loadTheme() {
-    const savedTheme = localStorage.getItem("profitPerPlate_theme");
-    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const isDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
-    
-    document.body.classList.toggle('dark-mode', isDark);
-    
-    // Set initial dark mode icon
-    const darkModeIcon = document.querySelector('#darkModeToggle svg');
-    if (darkModeIcon) {
-        if (isDark) {
-            darkModeIcon.innerHTML = '<path d="M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10z"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
-        } else {
-            darkModeIcon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
-        }
-    }
+function St() {
+  document.getElementById("resetPasswordModal").classList.add("hidden"),
+    document.getElementById("resetPasswordForm").reset(),
+    document.getElementById("resetPasswordError").classList.add("hidden"),
+    document.getElementById("resetPasswordSuccess").classList.add("hidden");
 }
-
-function toggleTheme() {
-    const isDark = document.body.classList.toggle('dark-mode');
-    localStorage.setItem("profitPerPlate_theme", isDark ? 'dark' : 'light');
-    
-    // Update dark mode icon
-    const darkModeIcon = document.querySelector('#darkModeToggle svg');
-    if (isDark) {
-        // Switch to sun icon for light mode
-        darkModeIcon.innerHTML = '<path d="M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10z"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
-    } else {
-        // Switch to moon icon for dark mode
-        darkModeIcon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
-    }
-}
-
-// NEW: Password Toggle Function
-function togglePasswordVisibility() {
-    const passwordInput = document.getElementById('authPassword');
-    const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-    passwordInput.setAttribute('type', type);
-    
-    // Update icon
-    const icon = togglePassword.querySelector('svg');
-    if (type === 'text') {
-        icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
-    } else {
-        icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
-    }
-}
-
-// NEW: Enhanced password toggle function for multiple fields
-function togglePasswordVisibilityGeneric(fieldId, button) {
-    const passwordInput = document.getElementById(fieldId);
-    const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-    passwordInput.setAttribute('type', type);
-    
-    // Update icon
-    const icon = button.querySelector('svg');
-    if (type === 'text') {
-        icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
-    } else {
-        icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
-    }
-}
-
-// NEW: Forgot Password Functions
-function openForgotPasswordModal() {
-    closeAuthModal();
-    forgotPasswordModal.classList.remove("hidden");
-}
-
-function closeForgotPasswordModal() {
-    forgotPasswordModal.classList.add("hidden");
-    forgotPasswordEmail.value = '';
-    forgotPasswordError.classList.add("hidden");
-    forgotPasswordSuccess.classList.add("hidden");
-}
-
-async function sendPasswordReset() {
-    const email = forgotPasswordEmail.value.trim();
-    
-    if (!email) {
-        showForgotPasswordError("Please enter your email address");
-        return;
-    }
-    
-    sendResetEmailBtn.disabled = true;
-    sendResetEmailBtn.textContent = "Sending...";
-    
-    const result = await window.supabaseClient.resetPassword(email);
-    
-    sendResetEmailBtn.disabled = false;
-    sendResetEmailBtn.textContent = "Send Reset Link";
-    
-    if (result.success) {
-        forgotPasswordSuccess.textContent = "Password reset email sent! Check your inbox for further instructions.";
-        forgotPasswordSuccess.classList.remove("hidden");
-        forgotPasswordError.classList.add("hidden");
-    } else {
-        showForgotPasswordError(result.error);
-    }
-}
-
-function showForgotPasswordError(message) {
-    forgotPasswordError.textContent = message;
-    forgotPasswordError.classList.remove("hidden");
-    forgotPasswordSuccess.classList.add("hidden");
-}
-
-// NEW: Reset Password Modal Functions
-function showResetPasswordModal() {
-    closeAllModals();
-    document.getElementById('resetPasswordModal').classList.remove('hidden');
-}
-
-function closeResetPasswordModal() {
-    document.getElementById('resetPasswordModal').classList.add('hidden');
-    document.getElementById('resetPasswordForm').reset();
-    document.getElementById('resetPasswordError').classList.add('hidden');
-    document.getElementById('resetPasswordSuccess').classList.add('hidden');
-}
-
-// Handle password reset submission
-async function handlePasswordReset() {
-    const newPassword = document.getElementById('newPassword').value;
-    const confirmPassword = document.getElementById('confirmPassword').value;
-    
-    if (!newPassword || !confirmPassword) {
-        showResetPasswordError('Please enter both fields');
-        return;
-    }
-    
-    if (newPassword.length < 6) {
-        showResetPasswordError('Password must be at least 6 characters long');
-        return;
-    }
-    
-    if (newPassword !== confirmPassword) {
-        showResetPasswordError('Passwords do not match');
-        return;
-    }
-    
-    const submitBtn = document.getElementById('submitResetPasswordBtn');
-    submitBtn.disabled = true;
-    submitBtn.textContent = "Resetting...";
-    
-    // Use Supabase to update the password
-    const { data, error } = await window.supabaseClient.supabase.auth.updateUser({
-        password: newPassword
-    });
-    
-    submitBtn.disabled = false;
-    submitBtn.textContent = "Reset Password";
-    
-    if (error) {
-        showResetPasswordError(error.message);
-    } else {
-        document.getElementById('resetPasswordError').classList.add('hidden');
-        document.getElementById('resetPasswordSuccess').textContent = 'Password reset successfully! You can now log in with your new password.';
-        document.getElementById('resetPasswordSuccess').classList.remove('hidden');
-        
-        // Close the modal after a delay
+async function Pt() {
+  const e = document.getElementById("newPassword").value,
+    t = document.getElementById("confirmPassword").value;
+  if (!e || !t) return void $t("Please enter both fields");
+  if (e.length < 6)
+    return void $t("Password must be at least 6 characters long");
+  if (e !== t) return void $t("Passwords do not match");
+  const n = document.getElementById("submitResetPasswordBtn");
+  (n.disabled = !0), (n.textContent = "Resetting...");
+  const { data: o, error: a } =
+    await window.supabaseClient.supabase.auth.updateUser({ password: e });
+  (n.disabled = !1),
+    (n.textContent = "Reset Password"),
+    a
+      ? $t(a.message)
+      : (document.getElementById("resetPasswordError").classList.add("hidden"),
+        (document.getElementById("resetPasswordSuccess").textContent =
+          "Password reset successfully! You can now log in with your new password."),
+        document
+          .getElementById("resetPasswordSuccess")
+          .classList.remove("hidden"),
         setTimeout(() => {
-            closeResetPasswordModal();
-            // Show login modal
-            openAuthModal();
-        }, 2000);
-    }
+          St(), Mt();
+        }, 2e3));
 }
-
-function showResetPasswordError(message) {
-    const errorEl = document.getElementById('resetPasswordError');
-    errorEl.textContent = message;
-    errorEl.classList.remove('hidden');
-    document.getElementById('resetPasswordSuccess').classList.add('hidden');
+function $t(e) {
+  const t = document.getElementById("resetPasswordError");
+  (t.textContent = e),
+    t.classList.remove("hidden"),
+    document.getElementById("resetPasswordSuccess").classList.add("hidden");
 }
-
-// Utility function to close all modals
-function closeAllModals() {
-    document.querySelectorAll('.modal').forEach(modal => {
-        modal.classList.add('hidden');
-    });
+function Rt() {
+  document.querySelectorAll(".modal").forEach((e) => {
+    e.classList.add("hidden");
+  });
 }
-
-// Auth Functions
-function openAuthModal() {
-    authModal.classList.remove("hidden");
-    updateAuthModal();
+function It() {
+  console.log("🚀 Initializing authentication system..."),
+    Ue
+      ? (console.log("🔧 Setting up login button..."),
+        Ue.replaceWith(Ue.cloneNode(!0)),
+        (Ue = document.getElementById("loginBtn")),
+        Ue.addEventListener("click", function (e) {
+          e.preventDefault(),
+            e.stopPropagation(),
+            console.log("🔑 Login button clicked"),
+            (nt = !1),
+            Mt();
+        }),
+        console.log("✅ Login button listener attached successfully"))
+      : console.warn("⚠️ Login button not found during auth initialization"),
+    qe
+      ? (console.log("🔧 Setting up signup button..."),
+        qe.replaceWith(qe.cloneNode(!0)),
+        (qe = document.getElementById("signupBtn")),
+        qe.addEventListener("click", function (e) {
+          e.preventDefault(),
+            e.stopPropagation(),
+            console.log("📝 Signup button clicked"),
+            (nt = !0),
+            Mt();
+        }),
+        console.log("✅ Signup button listener attached successfully"))
+      : console.warn("⚠️ Signup button not found during auth initialization"),
+    we &&
+      (console.log("🔧 Setting up auth form..."),
+      we.removeEventListener("submit", Ft),
+      we.addEventListener("submit", function (e) {
+        e.preventDefault(),
+          e.stopPropagation(),
+          console.log("📨 Auth form submitted"),
+          Ft();
+      }),
+      console.log("✅ Auth form listener attached successfully")),
+    Ee &&
+      (console.log("🔧 Setting up auth submit button..."),
+      Ee.removeEventListener("click", Ft),
+      Ee.addEventListener("click", function (e) {
+        e.preventDefault(),
+          e.stopPropagation(),
+          console.log("🔄 Auth submit button clicked"),
+          Ft();
+      }),
+      console.log("✅ Auth submit button listener attached successfully")),
+    Se &&
+      Se.addEventListener("click", function (e) {
+        e.preventDefault(),
+          e.stopPropagation(),
+          console.log("🔄 Toggling auth mode"),
+          Tt();
+      }),
+    Re &&
+      Re.addEventListener("click", function (e) {
+        e.preventDefault(),
+          e.stopPropagation(),
+          console.log("🔓 Forgot password clicked"),
+          wt();
+      }),
+    ke &&
+      ke.addEventListener("click", function (e) {
+        e.preventDefault(),
+          e.stopPropagation(),
+          console.log("📧 Send reset email clicked"),
+          Ct();
+      });
+  const e = document.getElementById("submitResetPasswordBtn");
+  e &&
+    e.addEventListener("click", function (e) {
+      e.preventDefault(),
+        e.stopPropagation(),
+        console.log("🔄 Reset password submission"),
+        Pt();
+    }),
+    Te &&
+      Te.addEventListener("click", function (e) {
+        e.preventDefault(),
+          e.stopPropagation(),
+          console.log("🚪 Logout clicked"),
+          qt();
+      }),
+    console.log("🎉 Auth initialization completed successfully");
 }
-
-function closeAuthModal() {
-    authModal.classList.add("hidden");
-    authForm.reset();
-    authError.classList.add("hidden");
-}
-
-function updateAuthModal() {
-    if (isSignUpMode) {
-        authModalTitle.textContent = "Sign Up for ProfitPerPlate";
-        authSubmitBtn.textContent = "Sign Up";
-        authSwitchText.textContent = "Already have an account? ";
-        authSwitchBtn.textContent = "Login";
-    } else {
-        authModalTitle.textContent = "Login to ProfitPerPlate";
-        authSubmitBtn.textContent = "Login";
-        authSwitchText.textContent = "Don't have an account? ";
-        authSwitchBtn.textContent = "Sign up";
-    }
-}
-
-async function handleAuth() {
-    const email = authEmail.value.trim();
-    const password = authPassword.value;
-    
-    if (!email || !password) {
-        showAuthError("Please enter both email and password");
-        return;
-    }
-    
-    if (password.length < 6) {
-        showAuthError("Password must be at least 6 characters long");
-        return;
-    }
-    
-    authSubmitBtn.disabled = true;
-    authSubmitBtn.textContent = isSignUpMode ? "Signing Up..." : "Logging In...";
-    
-    let result;
-    if (isSignUpMode) {
-        result = await window.supabaseClient.signUp(email, password);
-    } else {
-        result = await window.supabaseClient.signIn(email, password);
-    }
-    
-    authSubmitBtn.disabled = false;
-    authSubmitBtn.textContent = isSignUpMode ? "Sign Up" : "Login";
-    
-    if (result.success) {
-        closeAuthModal();
-        if (isSignUpMode) {
-            alert("Account created successfully! Please check your email for verification.");
-        }
-    } else {
-        showAuthError(result.error);
-    }
-}
-
-function showAuthError(message) {
-    authError.textContent = message;
-    authError.classList.remove("hidden");
-}
-
-function toggleAuthMode() {
-    isSignUpMode = !isSignUpMode;
-    updateAuthModal();
-    authError.classList.add("hidden");
-}
-
-async function handleLogout() {
-    const result = await window.supabaseClient.signOut();
-    if (result.success) {
-        alert("Logged out successfully");
-    } else {
-        alert("Error logging out: " + result.error);
-    }
-}
-
-// Data saving and loading
-async function saveUserData() {
-    const result = await window.supabaseClient.saveUserData(userData);
-    if (!result.success) {
-        console.error("Failed to save data:", result.error);
-    }
-}
-
-async function loadUserData() {
-    const data = await window.supabaseClient.loadUserData();
-    if (data) {
-        userData = data;
-        currency = userData.currency || "₱";
-        currencySelect.value = currency;
-        
-        // Update UI
-        renderAllData();
-        populateUnifiedItemSelect();
-        populateDirectLaborSelect();
-        populateSummaryRecipeSelect();
-        
-        // Load current recipe state
-        loadCurrentRecipeState();
-        
-        recalc();
-        
-        // NEW: Clear cost breakdown preview on load
-        clearCostBreakdownPreview();
-    }
-}
-
-// =============================================================================
-// FIX: ENHANCED STATE PERSISTENCE FOR SUMMARY TAB
-// =============================================================================
-function saveCurrentRecipeState() {
-    // Get current recipe items
-    const rawMaterialItems = [];
-    const directLaborItems = [];
-    
-    recipeBody.querySelectorAll("tr").forEach(row => {
-        const itemName = row.children[0].querySelector("input").value;
-        const quantity = parseFloat(row.children[1].querySelector("input").value) || 0;
-        const unit = row.children[1].querySelector(".quantity-unit")?.textContent || "g";
-        const unitCost = parseFloat(row.children[3].querySelector("input").value) || 0; // FIXED: Index 3 for unit cost (after yield column)
-        const type = row.dataset.type || 'rawMaterial';
-        const subRecipeId = row.dataset.subRecipeId || null;
-        
-        if (type === 'rawMaterial' || type === 'sub-recipe') {
-            rawMaterialItems.push({
-                name: itemName,
-                quantity: quantity,
-                unit: unit,
-                unitCost: unitCost,
-                type: type,
-                subRecipeId: subRecipeId
-            });
-        }
-    });
-    
-    directLaborRecipeBody.querySelectorAll("tr").forEach(row => {
-        const laborName = row.children[0].querySelector("input").value;
-        const timeRequired = parseFloat(row.children[1].querySelector("input").value) || 0;
-        const timeUnit = row.children[1].querySelector(".quantity-unit")?.textContent || "hours";
-        const rate = parseFloat(row.children[2].querySelector("input").value) || 0;
-        
-        directLaborItems.push({
-            name: laborName,
-            quantity: timeRequired,
-            unit: timeUnit,
-            rate: rate
-        });
-    });
-    
-    // ENHANCED: Save current recipe state with additional UI state and loaded recipe
-    userData.currentRecipeState = {
-        recipeName: recipeNameInput.value || "",
-        rawMaterialItems: rawMaterialItems,
-        directLaborItems: directLaborItems,
-        markup: parseFloat(markupInput.value) || 40,
-        tax: parseFloat(taxInput.value) || 0,
-        vat: parseFloat(vatInput.value) || 0,
-        servings: parseFloat(servingsInput.value) || 1,
-        servingScale: parseFloat(servingScaleInput.value) || 1,
-        currentTab: getCurrentActiveTab(),
-        loadedRecipeForSummary: loadedRecipeForSummary, // NEW: Persist loaded recipe
-        lastSaved: new Date().toISOString()
-    };
-    
-    saveUserData();
-}
-
-// =============================================================================
-// FIX: ENHANCED LOAD FUNCTION WITH NaN PREVENTION
-// =============================================================================
-function loadCurrentRecipeState() {
-    if (!userData.currentRecipeState) return;
-    
-    const state = userData.currentRecipeState;
-    
-    // Restore recipe name and summary inputs with validation
-    recipeNameInput.value = state.recipeName || "";
-    markupInput.value = state.markup || 40;
-    taxInput.value = state.tax || 0;
-    vatInput.value = state.vat || 0;
-    servingsInput.value = state.servings || 1;
-    servingScaleInput.value = state.servingScale || 1;
-    
-    // NEW: Restore loaded recipe for summary if it exists
-    if (state.loadedRecipeForSummary) {
-        loadedRecipeForSummary = state.loadedRecipeForSummary;
-        // Update summary display to reflect loaded recipe
-        updateLoadedRecipeDisplay();
-    }
-    
-    // Clear current recipe tables
-    recipeBody.innerHTML = "";
-    directLaborRecipeBody.innerHTML = "";
-    
-    // Restore raw material items with validation
-    if (state.rawMaterialItems) {
-        state.rawMaterialItems.forEach(item => {
-            // Validate data before adding
-            if (item.name && !isNaN(item.quantity) && !isNaN(item.unitCost)) {
-                addRow(
-                    item.name,
-                    item.quantity,
-                    item.unit,
-                    item.unitCost,
-                    item.type || 'rawMaterial',
-                    item.subRecipeId || null
-                );
-            }
-        });
-    }
-    
-    // Restore direct labor items with validation
-    if (state.directLaborItems) {
-        state.directLaborItems.forEach(item => {
-            // Validate data before adding
-            if (item.name && !isNaN(item.quantity) && !isNaN(item.rate)) {
-                const labor = userData.directLabor.find(l => l.name === item.name);
-                if (labor) {
-                    addDirectLaborRow(
-                        item.name,
-                        item.quantity,
-                        item.unit,
-                        item.rate
-                    );
-                }
-            }
-        });
-    }
-    
-    // Restore active tab if available
-    if (state.currentTab) {
-        setTimeout(() => {
-            switchTab(state.currentTab);
-        }, 100);
-    }
-    
-    // Recalculate after loading
-    recalc();
-    
-    // Update cost breakdown preview if recipe is loaded
-    if (loadedRecipeForSummary) {
-        updateCostBreakdownPreview();
-    }
-}
-
-// =============================================================================
-// FIX: ENHANCED DUPLICATE DETECTION HELPER FUNCTION
-// =============================================================================
-function checkForDuplicateName(name, items, currentId = null) {
-    if (!name || !items || !Array.isArray(items)) {
-        console.warn("Invalid parameters for duplicate check:", { name, items, currentId });
-        return null;
-    }
-    
-    const normalizedSearchName = name.toLowerCase().trim();
-    
-    return items.find(item => {
-        if (!item || !item.name) return false;
-        
-        const normalizedItemName = item.name.toLowerCase().trim();
-        const isSameId = currentId ? item.id === currentId : false;
-        
-        return normalizedItemName === normalizedSearchName && !isSameId;
-    });
-}
-
-// ENHANCED: Reset Function
-function resetRecipe() {
-    if (!confirm("Reset entire recipe? This will clear all items and reset servings to 1.")) return;
-    
-    // Clear recipe tables
-    recipeBody.innerHTML = "";
-    directLaborRecipeBody.innerHTML = "";
-    
-    // Reset recipe name
-    recipeNameInput.value = "";
-    
-    // Reset servings to 1
-    servingsInput.value = "1";
-    
-    // Clear editing state
-    editingItem = { type: null, id: null, data: null };
-    
-    // Clear current editing rows
-    window.currentEditingRow = null;
-    window.currentEditingLaborRow = null;
-    
-    // Reset add buttons to normal state
-    const addRecipeButton = document.querySelector('.add-ingredient-section .btn-primary');
-    if (addRecipeButton) {
-        addRecipeButton.textContent = 'Add to Recipe';
-        addRecipeButton.onclick = addItemToRecipe;
-    }
-    
-    const addLaborButton = document.querySelector('.add-labor-section .btn-primary');
-    if (addLaborButton) {
-        addLaborButton.textContent = 'Add Direct Labor';
-        addLaborButton.onclick = addDirectLaborToRecipe;
-    }
-    
-    // Recalculate
-    recalc();
-    
-    // Clear cost breakdown preview if no recipe is loaded
-    if (!loadedRecipeForSummary) {
-        clearCostBreakdownPreview();
-    }
-    
-    // Auto-save cleared state
-    saveCurrentRecipeState();
-    
-    // Show confirmation
-    showNotification("Recipe reset successfully");
-}
-
-// NEW: Auto-Reset After Save
-function autoResetAfterSave() {
+function Mt() {
+  console.log("Opening auth modal in mode:", nt ? "SIGN UP" : "LOGIN"),
+    ve.classList.remove("hidden"),
+    Bt(),
     setTimeout(() => {
-        resetRecipe();
-    }, 500);
+      xe && xe.focus();
+    }, 100);
 }
-
-// NEW: Dependency Tracking System
-function updateRecipesUsingIngredient(updatedItem, itemType) {
-    const recipes = getCurrentRecipes();
-    let updatedRecipes = [];
-    let hasUpdates = false;
-    let updatedCount = 0;
-
-    recipes.forEach(recipe => {
-        let recipeUpdated = false;
-        
-        // Update raw material items in recipes
-        if (recipe.rawMaterialItems) {
-            recipe.rawMaterialItems.forEach(item => {
-                if (item.type === itemType && item.name === updatedItem.name) {
-                    item.unitCost = updatedItem.costPerUnit;
-                    recipeUpdated = true;
-                }
-                
-                // Also update sub-recipes that use this ingredient
-                if (item.type === 'sub-recipe') {
-                    const subRecipe = recipes.find(r => r.id === item.subRecipeId);
-                    if (subRecipe && subRecipe.rawMaterialItems) {
-                        subRecipe.rawMaterialItems.forEach(subItem => {
-                            if (subItem.name === updatedItem.name) {
-                                subItem.unitCost = updatedItem.costPerUnit;
-                                recipeUpdated = true;
-                            }
-                        });
-                    }
-                }
-            });
-        }
-        
-        // Update direct labor items in recipes
-        if (recipe.directLaborItems) {
-            recipe.directLaborItems.forEach(item => {
-                if (item.name === updatedItem.name) {
-                    item.unitCost = updatedItem.costPerUnit;
-                    recipeUpdated = true;
-                }
-            });
-        }
-        
-        // Recalculate total cost if recipe was updated
-        if (recipeUpdated) {
-            recipe.totalCost = calculateRecipeTotalCost(recipe);
-            hasUpdates = true;
-            updatedCount++;
-        }
-        
-        updatedRecipes.push(recipe);
-    });
-
-    if (hasUpdates) {
-        setCurrentRecipes(updatedRecipes);
-        renderRecipesList();
-        populateUnifiedItemSelect();
-        populateSummaryRecipeSelect();
-        
-        // Show notification
-        showNotification(`Automatically updated ${updatedCount} recipe(s) using "${updatedItem.name}"`);
-        
-        // Update summary if the loaded recipe was affected
-        if (loadedRecipeForSummary) {
-            const loadedRecipe = updatedRecipes.find(r => r.id === loadedRecipeForSummary.id);
-            if (loadedRecipe) {
-                loadedRecipeForSummary = loadedRecipe;
-                updateLoadedRecipeSummary();
-                updateCostBreakdownPreview();
-            }
-        }
-    }
+async function Ft() {
+  const e = xe.value.trim(),
+    t = Ce.value;
+  if (
+    (console.log("🔐 Auth attempt for:", e, "Mode:", nt ? "Sign Up" : "Login"),
+    !e)
+  )
+    return void Ut("Please enter your email address"), void xe.focus();
+  if (!t) return void Ut("Please enter your password"), void Ce.focus();
+  if (t.length < 6)
+    return void Ut("Password must be at least 6 characters long"), void Ce.focus();
+  Ee.disabled = !0;
+  const n = Ee.textContent;
+  Ee.textContent = nt ? "Creating Account..." : "Logging In...";
+  try {
+    let n;
+    nt
+      ? (console.log("📝 Attempting sign up..."),
+        (n = await window.supabaseClient.signUp(e, t)))
+      : (console.log("🔑 Attempting sign in..."),
+        (n = await window.supabaseClient.signIn(e, t))),
+      n.success
+        ? (console.log("✅ Auth successful for:", e),
+          kt(),
+          nt
+            ? (Wt(
+                "🎉 Account created successfully! Please check your email for verification.",
+                "success"
+              ),
+              (nt = !1),
+              Bt())
+            : Wt("✅ Login successful! Welcome back!", "success"),
+          setTimeout(() => {
+            window.loadUserData && window.loadUserData();
+          }, 1e3))
+        : (console.error("❌ Auth failed:", n.error),
+          Ut(n.error || "Authentication failed. Please try again."));
+  } catch (e) {
+    console.error("💥 Auth error:", e),
+      Ut("An unexpected error occurred. Please try again.");
+  } finally {
+    (Ee.disabled = !1), (Ee.textContent = n);
+  }
 }
-
-// NEW: Calculate total cost for a recipe object
-function calculateRecipeTotalCost(recipe) {
-    let totalCost = 0;
-    
-    // Sum raw material costs (yield-inclusive costs)
-    if (recipe.rawMaterialItems) {
-        recipe.rawMaterialItems.forEach(item => {
-            totalCost += item.quantity * item.unitCost; // Unit cost already includes yield
-        });
-    }
-    
-    // Sum direct labor costs
-    if (recipe.directLaborItems) {
-        recipe.directLaborItems.forEach(item => {
-            totalCost += item.quantity * item.unitCost;
-        });
-    }
-    
-    return parseFloat(totalCost.toFixed(2));
+function kt() {
+  ve.classList.add("hidden"), we.reset(), Le.classList.add("hidden");
 }
-
-// NEW: Notification System
-function showNotification(message, type = 'info') {
-    // Remove existing notifications
-    const existingNotifications = document.querySelectorAll('.global-notification');
-    existingNotifications.forEach(notification => notification.remove());
-    
-    const notification = document.createElement('div');
-    notification.className = `global-notification ${type}`;
-    
-    // Add network status indicator for offline messages
-    const networkIcon = !window.supabaseClient.isOnline() ? '📶 ' : '';
-    
-    notification.innerHTML = `
-        <div class="notification-content">
-            <span class="notification-message">${networkIcon}${message}</span>
-            <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
-        </div>
-    `;
-    
-    // Add styles if not already added
-    if (!document.getElementById('notification-styles')) {
-        const style = document.createElement('style');
-        style.id = 'notification-styles';
-        style.textContent = `
-            .global-notification {
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: var(--surface);
-                border: 1px solid var(--border);
-                border-radius: var(--radius-lg);
-                padding: var(--space-md);
-                box-shadow: var(--shadow-xl);
-                z-index: 10000;
-                animation: slideInRight 0.3s ease;
-                max-width: 400px;
-            }
-            
-            .global-notification.success {
-                border-left: 4px solid var(--success);
-            }
-            
-            .global-notification.info {
-                border-left: 4px solid var(--accent-blue);
-            }
-            
-            .global-notification.warning {
-                border-left: 4px solid var(--warning);
-            }
-            
-            .global-notification.error {
-                border-left: 4px solid var(--danger);
-            }
-            
-            .notification-content {
-                display: flex;
-                align-items: flex-start;
-                gap: var(--space-sm);
-            }
-            
-            .notification-message {
-                flex: 1;
-                font-size: 14px;
-                line-height: 1.4;
-            }
-            
-            .notification-close {
-                background: none;
-                border: none;
-                font-size: 18px;
-                cursor: pointer;
-                color: var(--text-secondary);
-                padding: 0;
-                width: 24px;
-                height: 24px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                border-radius: var(--radius-sm);
-            }
-            
-            .notification-close:hover {
-                background: var(--primary-light);
-                color: var(--text-primary);
-            }
-            
-            @keyframes slideInRight {
-                from {
-                    transform: translateX(100%);
-                    opacity: 0;
-                }
-                to {
-                    transform: translateX(0);
-                    opacity: 1;
-                }
-            }
-            
-            @keyframes slideOutRight {
-                from {
-                    transform: translateX(0);
-                    opacity: 1;
-                }
-                to {
-                    transform: translateX(100%);
-                    opacity: 0;
-                }
-            }
-        `;
-        document.head.appendChild(style);
-    }
-    
-    document.body.appendChild(notification);
-    
-    // Auto-remove after appropriate time
-    const duration = type === 'info' ? 3000 : 5000;
+function Bt() {
+  nt
+    ? ((he.textContent = "Sign Up for ProfitPerPlate"),
+      (Ee.textContent = "Sign Up"),
+      (Pe.textContent = "Already have an account? "),
+      (Se.textContent = "Login"))
+    : ((he.textContent = "Login to ProfitPerPlate"),
+      (Ee.textContent = "Login"),
+      (Pe.textContent = "Don't have an account? "),
+      (Se.textContent = "Sign up"));
+}
+function Ut(e) {
+  (Le.textContent = e), Le.classList.remove("hidden");
+}
+function Tt() {
+  (nt = !nt), Bt(), Le.classList.add("hidden");
+}
+async function qt() {
+  const e = await window.supabaseClient.signOut();
+  e.success
+    ? alert("Logged out successfully")
+    : alert("Error logging out: " + e.error);
+}
+async function Dt() {
+  const t = await window.supabaseClient.loadUserData();
+  if (t) {
+    const n = s(t);
+    (e = {
+      ...n,
+      currency: n.currency || "₱",
+      currentRecipeState: n.currentRecipeState || null
+    }),
+      (tt = e.currency || "₱"),
+      (w.value = tt),
+      vt(),
+      mn(),
+      In(),
+      Kn(),
+      At(),
+      zn(),
+      _n();
+  }
+}
+function At() {
+  if (!e.currentRecipeState) return;
+  const t = e.currentRecipeState;
+  x && (x.value = t.recipeName || ""),
+    U && (U.value = t.markup || 40),
+    T && (T.value = t.tax || 0),
+    q && (q.value = t.vat || 0),
+    D && (D.value = t.servings || 1),
+    A && (A.value = t.servingScale || 1),
+    f && (f.innerHTML = ""),
+    y && (y.innerHTML = ""),
+    t.rawMaterialItems &&
+      t.rawMaterialItems.forEach((e) => {
+        gn(
+          e.name,
+          e.quantity,
+          e.unit,
+          e.unitCost,
+          e.type || "rawMaterial",
+          e.subRecipeId || null
+        );
+      }),
+    t.directLaborItems &&
+      t.directLaborItems.forEach((t) => {
+        const n = t.unitCost ?? t.rate ?? 0,
+          o = t.unit ?? t.timeUnit ?? "hours";
+        e.directLabor.find((e) => e.name === t.name) &&
+          fn(t.name, t.quantity, o, n);
+      }),
+    t.currentTab &&
+      setTimeout(() => {
+        it(t.currentTab);
+      }, 100),
+    zn();
+}
+function Nt() {
+  if (
+    !confirm(
+      "Reset entire recipe? This will clear all items and reset servings to 1."
+    )
+  )
+    return;
+  f && (f.innerHTML = ""),
+    y && (y.innerHTML = ""),
+    x && (x.value = ""),
+    D && (D.value = "1"),
+    A && (A.value = "1"),
+    (t = { type: null, id: null, data: null }),
+    (window.currentEditingRow = null),
+    (window.currentEditingLaborRow = null);
+  const e = document.querySelector(".add-ingredient-section .btn-primary");
+  e && ((e.textContent = "Add to Recipe"), (e.onclick = Cn));
+  const o = document.querySelector(".add-labor-section .btn-primary");
+  o && ((o.textContent = "Add Direct Labor"), (o.onclick = yn)),
+    zn(),
+    n || _n(),
+    ct(),
+    Wt("Recipe reset successfully");
+}
+function Ht() {
+  setTimeout(() => {
+    Nt();
+  }, 500);
+}
+function Ot(e, t) {
+  const o = Gt();
+  let a = [],
+    i = !1,
+    r = 0;
+  if (
+    (o.forEach((n) => {
+      let l = !1;
+      n.rawMaterialItems &&
+        n.rawMaterialItems.forEach((n) => {
+          if (
+            (n.type === t &&
+              n.name === e.name &&
+              ((n.unitCost = e.costPerUnit), (l = !0)),
+            "sub-recipe" === n.type)
+          ) {
+            const t = o.find((e) => e.id === n.subRecipeId);
+            t &&
+              t.rawMaterialItems &&
+              t.rawMaterialItems.forEach((t) => {
+                t.name === e.name && ((t.unitCost = e.costPerUnit), (l = !0));
+              });
+          }
+        }),
+        n.directLaborItems &&
+          n.directLaborItems.forEach((t) => {
+            t.name === e.name && ((t.unitCost = e.costPerUnit), (l = !0));
+          }),
+        l &&
+          ((n.totalCost = (function (e) {
+            let t = 0;
+            e.rawMaterialItems &&
+              e.rawMaterialItems.forEach((e) => {
+                t += e.quantity * e.unitCost;
+              });
+            e.directLaborItems &&
+              e.directLaborItems.forEach((e) => {
+                t += e.quantity * e.unitCost;
+              });
+            return parseFloat(t.toFixed(2));
+          })(n)),
+          (i = !0),
+          r++),
+        a.push(n);
+    }),
+    i &&
+      (jt(a),
+      Fn(),
+      mn(),
+      Kn(),
+      Wt(`Automatically updated ${r} recipe(s) using "${e.name}"`),
+      n))
+  ) {
+    const e = a.find((e) => e.id === n.id);
+    e && ((n = e), Yn(), Gn());
+  }
+}
+function zt(e, t) {
+  let n = 100;
+  if ("rawMaterial" === t) {
+    const t = Yt().find((t) => t.name === e);
+    t && t.yieldPercentage && (n = t.yieldPercentage);
+  }
+  return n;
+}
+function Wt(e, t = "info") {
+  document.querySelectorAll(".global-notification").forEach((e) => e.remove());
+  const n = document.createElement("div");
+  if (
+    ((n.className = `global-notification ${t}`),
+    (n.innerHTML = `\n        <div class="notification-content">\n            <span class="notification-message">${e}</span>\n            <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>\n        </div>\n    `),
+    !document.getElementById("notification-styles"))
+  ) {
+    const e = document.createElement("style");
+    (e.id = "notification-styles"),
+      (e.textContent =
+        "\n            .global-notification {\n                position: fixed;\n                top: 20px;\n                right: 20px;\n                background: var(--surface);\n                border: 1px solid var(--border);\n                border-radius: var(--radius-lg);\n                padding: var(--space-md);\n                box-shadow: var(--shadow-xl);\n                z-index: 10000;\n                animation: slideInRight 0.3s ease;\n                max-width: 400px;\n            }\n            \n            .global-notification.success {\n                border-left: 4px solid var(--success);\n            }\n            \n            .global-notification.info {\n                border-left: 4px solid var(--accent-blue);\n            }\n            \n            .global-notification.warning {\n                border-left: 4px solid var(--warning);\n            }\n            \n            .global-notification.error {\n                border-left: 4px solid var(--danger);\n            }\n            \n            .notification-content {\n                display: flex;\n                align-items: flex-start;\n                gap: var(--space-sm);\n            }\n            \n            .notification-message {\n                flex: 1;\n                font-size: 14px;\n                line-height: 1.4;\n            }\n            \n            .notification-close {\n                background: none;\n                border: none;\n                font-size: 18px;\n                cursor: pointer;\n                color: var(--text-secondary);\n                padding: 0;\n                width: 24px;\n                height: 24px;\n                display: flex;\n                align-items: center;\n                justify-content: center;\n                border-radius: var(--radius-sm);\n            }\n            \n            .notification-close:hover {\n                background: var(--primary-light);\n                color: var(--text-primary);\n            }\n            \n            @keyframes slideInRight {\n                from {\n                    transform: translateX(100%);\n                    opacity: 0;\n                }\n                to {\n                    transform: translateX(0);\n                    opacity: 1;\n                }\n            }\n            \n            @keyframes slideOutRight {\n                from {\n                    transform: translateX(0);\n                    opacity: 1;\n                }\n                to {\n                    transform: translateX(100%);\n                    opacity: 0;\n                }\n            }\n        "),
+      document.head.appendChild(e);
+  }
+  document.body.appendChild(n),
     setTimeout(() => {
-        if (notification.parentElement) {
-            notification.style.animation = 'slideOutRight 0.3s ease';
-            setTimeout(() => notification.remove(), 300);
-        }
-    }, duration);
+      n.parentElement &&
+        ((n.style.animation = "slideOutRight 0.3s ease"),
+        setTimeout(() => n.remove(), 300));
+    }, 5e3);
 }
-
-// Helper functions to get current data
-function getCurrentRawMaterials() {
-    return userData.rawMaterials || [];
+function Qt(e, t = "info") {
+  try {
+    const n = document.getElementById("cloudSyncStatus");
+    if (!n) return;
+    (n.textContent = e),
+      n.classList.remove(
+        "warning",
+        "error",
+        "sync-updating",
+        "success",
+        "info"
+      ),
+      ("warning" !== t && "error" !== t && "success" !== t && "info" !== t) ||
+        n.classList.add(t),
+      "sync" === t && n.classList.add("sync-updating");
+  } catch (e) {
+    console.warn("updateCloudSyncStatus failed:", e);
+  }
 }
-
-function getCurrentDirectLabor() {
-    return userData.directLabor || [];
+function Yt() {
+  return e.rawMaterials || [];
 }
-
-function getCurrentRecipes() {
-    return userData.recipes || [];
+function Vt() {
+  return e.directLabor || [];
 }
-
-function setCurrentRawMaterials(rawMaterials) {
-    userData.rawMaterials = rawMaterials;
-    saveUserData();
+function Gt() {
+  return e.recipes || [];
 }
-
-function setCurrentDirectLabor(directLabor) {
-    userData.directLabor = directLabor;
-    saveUserData();
+function _t(t) {
+  (e.rawMaterials = t), dt();
 }
-
-function setCurrentRecipes(recipes) {
-    userData.recipes = recipes;
-    saveUserData();
+function Jt(t) {
+  (e.directLabor = t), dt();
 }
-
-// NEW: Raw Material Edit Prompt Functions
-function showRawMaterialEditPrompt(id, name) {
-    rawMaterialEditName.textContent = name;
-    editingItem = { type: 'rawMaterial', id: id, data: null };
-    rawMaterialEditPromptModal.classList.remove("hidden");
+function jt(t) {
+  (e.recipes = t), dt();
 }
-
-function closeRawMaterialEditPromptModal() {
-    rawMaterialEditPromptModal.classList.add("hidden");
+function Kt() {
+  const e = document.getElementById("modalRawMaterialName").value.trim(),
+    n = document.getElementById("modalRawMaterialCategory").value,
+    o = parseFloat(document.getElementById("modalRawMaterialPrice").value),
+    a = parseFloat(document.getElementById("modalRawMaterialQuantity").value),
+    i = document.getElementById("modalRawMaterialUnit").value,
+    r = parseFloat(document.getElementById("modalCostPerUnit").value),
+    l = document.getElementById("modalCostUnit").value,
+    s =
+      parseFloat(document.getElementById("modalRawMaterialYield").value) || 100;
+  if (!e) return void alert("Please enter a raw material name");
+  if (!n) return void alert("Please select a category");
+  if (isNaN(o) || o <= 0)
+    return void alert("Please enter a valid purchase price");
+  if (isNaN(a) || a <= 0)
+    return void alert("Please enter a valid purchase quantity");
+  if (isNaN(r) || r <= 0)
+    return void alert("Please enter valid cost calculation details");
+  const c = (c, d = null) => {
+    const u = d || e,
+      p = {
+        id: "replace" === c ? t.id : Date.now(),
+        name: u,
+        category: n,
+        price: parseFloat(o.toFixed(2)),
+        quantity: parseFloat(a.toFixed(2)),
+        unit: i,
+        costPerUnit: parseFloat(r.toFixed(4)),
+        costUnit: l,
+        yieldPercentage: parseFloat(s.toFixed(1))
+      },
+      m = Yt();
+    if ("replace" === c) {
+      const e = m.findIndex((e) => e.id === t.id);
+      -1 !== e &&
+        ((m[e] = p), Wt("Raw material updated successfully!", "success"));
+    } else m.push(p), Wt(`Raw material "${u}" saved successfully!`, "success");
+    _t(m), en(), mn(), oo(), Ot(p, "rawMaterial");
+  };
+  p(e, "rawMaterial", t?.id, c) || c(t?.id ? "replace" : "new");
 }
-
-function handleRawMaterialEditChoice(choice) {
-    closeRawMaterialEditPromptModal();
-    
-    if (choice === 'replace') {
-        // Replace existing raw material
-        updateRawMaterial();
-    } else if (choice === 'new') {
-        // Save as new raw material (generate new ID)
-        editingItem.id = null;
-        saveRawMaterial();
+function Xt() {
+  Kt();
+}
+function Zt(e) {
+  if (confirm("Are you sure you want to delete this raw material?")) {
+    _t(Yt().filter((t) => t.id !== e)),
+      en(),
+      mn(),
+      n && Gn(),
+      Wt("Raw material deleted successfully!", "success");
+  }
+}
+function en() {
+  const e = document.getElementById("rawMaterialsTable");
+  let t = tn();
+  (t = mo(t)),
+    (e.innerHTML = t
+      .map(
+        (e) =>
+          `\n                <tr>\n                    <td data-label="Raw Material">${
+            e.name
+          }</td>\n                    <td data-label="Category">${
+            e.category
+          }</td>\n                    <td data-label="Yield">${
+            e.yieldPercentage || 100
+          }%</td> \x3c!-- NEW: Display yield --\x3e\n                    <td data-label="Cost/Unit">${uo(
+            e.costPerUnit
+          )}/${
+            e.costUnit
+          }</td>\n                    <td data-label="Actions">\n                        <button class="btn-secondary small" onclick="openRawMaterialModal(${JSON.stringify(
+            e
+          ).replace(
+            /"/g,
+            "&quot;"
+          )})">Edit</button>\n                        <button class="btn-danger small" onclick="deleteRawMaterial(${
+            e.id
+          })">Delete</button>\n                    </td>\n                </tr>\n            `
+      )
+      .join(""));
+}
+function tn() {
+  const e = document.getElementById("rawMaterialSearch").value.toLowerCase();
+  return Yt().filter(
+    (t) =>
+      t.name.toLowerCase().includes(e) || t.category.toLowerCase().includes(e)
+  );
+}
+function nn() {
+  const e =
+      parseFloat(document.getElementById("modalRawMaterialPrice").value) || 0,
+    t =
+      parseFloat(document.getElementById("modalRawMaterialQuantity").value) ||
+      1,
+    n = document.getElementById("modalRawMaterialUnit").value,
+    o = document.getElementById("modalCostUnit").value,
+    i =
+      parseFloat(document.getElementById("modalRawMaterialYield").value) || 100;
+  let r = 0,
+    l = [];
+  if (e > 0 && t > 0) {
+    const s = e / t;
+    l.push(
+      `Base cost per ${n}: ${e.toFixed(2)} ${tt} ÷ ${t.toFixed(
+        2
+      )} = ${s.toFixed(4)} ${tt}/${n}`
+    );
+    const c = s / (i / 100);
+    if (
+      (l.push(
+        `Adjust for ${i}% yield: ${s.toFixed(
+          4
+        )} ${tt}/${n} ÷ (${i}/100) = ${c.toFixed(4)} ${tt}/${n}`
+      ),
+      n !== o)
+    ) {
+      const e = a[o] / a[n];
+      (r = c * e),
+        l.push(
+          `Convert to ${o}: ${c.toFixed(4)} ${tt}/${n} × ${e.toFixed(
+            6
+          )} = ${r.toFixed(4)} ${tt}/${o}`
+        );
+    } else (r = c), l.push(`No conversion needed (already in ${o})`);
+    l.push(
+      `<strong>Final yield-adjusted cost: ${r.toFixed(4)} ${tt}/${o}</strong>`
+    );
+  }
+  (document.getElementById("modalCostPerUnit").value = r.toFixed(4)),
+    (function (e, t, n) {
+      const o = document.getElementById("costCalculationDetails");
+      if (e.length > 0) {
+        let a = "<div><strong>Calculation Steps:</strong></div>";
+        e.forEach((e) => {
+          a += `<div style="margin: var(--space-xs) 0; padding-left: var(--space-md);">• ${e}</div>`;
+        }),
+          (a += `<div style="margin-top: var(--space-sm); font-weight: bold;">Final Cost: ${t.toFixed(
+            4
+          )} ${tt}/${n}</div>`),
+          (o.innerHTML = a);
+      } else o.textContent = "Enter purchase details to see calculation";
+    })(l, r, o);
+}
+function on() {
+  nn();
+}
+function an(e = null) {
+  const n = document.getElementById("directLaborModal"),
+    o = document.getElementById("directLaborModalTitle");
+  e
+    ? ((o.textContent = "Edit Direct Labor"),
+      (function (e) {
+        (document.getElementById("modalLaborName").value = e.name),
+          (document.getElementById("modalShiftRate").value =
+            e.shiftRate.toFixed(2)),
+          (document.getElementById("modalShiftDuration").value =
+            e.shiftDuration.toFixed(2)),
+          (document.getElementById("modalTimeUnit").value = e.timeUnit),
+          (document.getElementById("modalCostUnitLabor").value = e.costUnit),
+          ln();
+      })(e),
+      (t = { type: "directLabor", id: e.id, data: e }))
+    : ((o.textContent = "Add New Direct Labor"),
+      document.getElementById("directLaborForm").reset(),
+      ln(),
+      (t = { type: null, id: null, data: null })),
+    n.classList.remove("hidden");
+}
+function rn() {
+  document.getElementById("directLaborModal").classList.add("hidden"),
+    document.getElementById("directLaborForm").reset(),
+    (t = { type: null, id: null, data: null });
+}
+function ln() {
+  const e = parseFloat(document.getElementById("modalShiftRate").value) || 0,
+    t = parseFloat(document.getElementById("modalShiftDuration").value) || 1,
+    n = document.getElementById("modalTimeUnit").value,
+    o = document.getElementById("modalCostUnitLabor").value;
+  let i = 0,
+    r = [];
+  if (e > 0 && t > 0) {
+    const l = e / t;
+    if (
+      (r.push(
+        `Cost per ${n}: ${e.toFixed(2)} ${tt} ÷ ${t.toFixed(2)} = ${l.toFixed(
+          4
+        )} ${tt}/${n}`
+      ),
+      n !== o)
+    ) {
+      const e = a[o] / a[n];
+      (i = l * e),
+        r.push(
+          `Convert to ${o}: ${l.toFixed(4)} ${tt}/${n} × ${e.toFixed(
+            6
+          )} = ${i.toFixed(4)} ${tt}/${o}`
+        );
+    } else (i = l), r.push(`No conversion needed (already in ${o})`);
+  }
+  (document.getElementById("modalCostPerUnitLabor").value = i.toFixed(4)),
+    (function (e, t, n) {
+      const o = document.getElementById("laborCostCalculationDetails");
+      if (e.length > 0) {
+        let a = "<div><strong>Calculation Steps:</strong></div>";
+        e.forEach((e) => {
+          a += `<div style="margin: var(--space-xs) 0; padding-left: var(--space-md);">• ${e}</div>`;
+        }),
+          (a += `<div style="margin-top: var(--space-sm); font-weight: bold;">Final Cost: ${t.toFixed(
+            4
+          )} ${tt}/${n}</div>`),
+          (o.innerHTML = a);
+      } else o.textContent = "Enter shift details to see calculation";
+    })(r, i, o);
+}
+function sn() {
+  const e = document.getElementById("modalLaborName").value.trim(),
+    n = parseFloat(document.getElementById("modalShiftRate").value),
+    o = parseFloat(document.getElementById("modalShiftDuration").value),
+    i = document.getElementById("modalTimeUnit").value,
+    r = document.getElementById("modalCostUnitLabor").value;
+  if (!e) return void alert("Please enter a labor name");
+  if (isNaN(n) || n <= 0) return void alert("Please enter a valid shift rate");
+  if (isNaN(o) || o <= 0)
+    return void alert("Please enter a valid shift duration");
+  let l = 0;
+  if (n > 0 && o > 0) {
+    const e = n / o;
+    if (i !== r) {
+      l = e * (a[r] / a[i]);
+    } else l = e;
+  }
+  const s = (a, s = null) => {
+    const c = s || e,
+      d = {
+        id: "replace" === a ? t.id : Date.now(),
+        name: c,
+        shiftRate: parseFloat(n.toFixed(2)),
+        shiftDuration: parseFloat(o.toFixed(2)),
+        timeUnit: i,
+        costPerUnit: parseFloat(l.toFixed(4)),
+        costUnit: r
+      },
+      u = Vt();
+    if ("replace" === a) {
+      const e = u.findIndex((e) => e.id === t.id);
+      -1 !== e &&
+        ((u[e] = d), Wt("Direct labor updated successfully!", "success"));
+    } else u.push(d), Wt(`Direct labor "${c}" saved successfully!`, "success");
+    Jt(u), un(), mn(), In(), Rn(), rn(), Ot(d, "directLabor");
+  };
+  p(e, "directLabor", t?.id, s) || s(t?.id ? "replace" : "new");
+}
+function cn() {
+  sn();
+}
+function dn(e) {
+  if (confirm("Are you sure you want to delete this direct labor item?")) {
+    Jt(Vt().filter((t) => t.id !== e)),
+      un(),
+      mn(),
+      In(),
+      Rn(),
+      Wt("Direct labor deleted successfully!", "success");
+  }
+}
+function un() {
+  const e = document.getElementById("directLaborTable");
+  let t = pn();
+  (t = go(t)),
+    (e.innerHTML = t
+      .map(
+        (e) =>
+          `\n                <tr>\n                    <td data-label="Labor Name">${
+            e.name
+          }</td>\n                    <td data-label="Shift Rate">${uo(
+            e.shiftRate
+          )}/shift</td>\n                    <td data-label="Shift Duration">${
+            e.shiftDuration
+          } ${
+            e.timeUnit
+          }</td>\n                    <td data-label="Cost/Unit">${uo(
+            e.costPerUnit
+          )}/${
+            e.costUnit
+          }</td>\n                    <td data-label="Actions">\n                        <button class="btn-secondary small" onclick="openDirectLaborModal(${JSON.stringify(
+            e
+          ).replace(
+            /"/g,
+            "&quot;"
+          )})">Edit</button>\n                        <button class="btn-danger small" onclick="deleteDirectLabor(${
+            e.id
+          })">Delete</button>\n                    </td>\n                </tr>\n            `
+      )
+      .join(""));
+}
+function pn() {
+  const e = document.getElementById("directLaborSearch").value.toLowerCase();
+  return Vt().filter((t) => t.name.toLowerCase().includes(e));
+}
+function mn() {
+  const e = document.getElementById("unifiedItemSelect");
+  if (!e) return;
+  const t = e.querySelector('optgroup[label="Raw Materials"]'),
+    n = e.querySelector('optgroup[label="Sub-Recipes"]');
+  t && (t.innerHTML = ""), n && (n.innerHTML = "");
+  mo(Yt()).forEach((e) => {
+    const n = document.createElement("option");
+    n.value = `rawMaterial-${e.id}`;
+    const o = Number(e.costPerUnit),
+      a = Number.isFinite(o) ? uo(o) : "",
+      i = e.costUnit || "unit";
+    (n.textContent = a ? `${e.name} (${a}/${i})` : `${e.name} (no cost)`),
+      (n.dataset.yield = e.yieldPercentage || 100),
+      t && t.appendChild(n);
+  });
+  fo(Gt().filter((e) => "sub" === e.type)).forEach((e) => {
+    const t = document.createElement("option");
+    t.value = `subrecipe-${e.id}`;
+    const o = Number(e.costPerUnit),
+      a = Number.isFinite(o) ? uo(o) : "",
+      i = e.costUnit || e.outputUnit || "batch";
+    (t.textContent = a ? `${e.name} (${a}/${i})` : `${e.name} (no cost)`),
+      n && n.appendChild(t);
+  });
+}
+function gn(e = "", t = "0", o = "g", a = "0.00", i = "rawMaterial", r = null) {
+  if (!f) return;
+  const l = document.createElement("tr"),
+    s = "row-" + Date.now();
+  "sub-recipe" === i && l.classList.add("sub-recipe-row"),
+    (l.innerHTML = `\n            <td data-label="Item">\n                ${
+      "sub-recipe" === i ? '<span class="sub-recipe-badge">SUB</span> ' : ""
+    }\n                <input type="text" value="${po(
+      e
+    )}" placeholder="Item" readonly>\n            </td>\n            <td data-label="Qty"> \x3c!-- CHANGED: From "Qty/Time" to "Qty" --\x3e\n                <div class="quantity-input-group">\n                    <input type="number" value="${parseFloat(
+      t
+    ).toFixed(
+      2
+    )}" step="0.01" placeholder="Qty" readonly>\n                    <span class="quantity-unit">${o}</span>\n                </div>\n            </td>\n            <td class="unit-cost-cell" data-label="Unit Cost">\n                <span class="unit-currency">${tt}</span>\n                <input type="number" value="${parseFloat(
+      a
+    ).toFixed(
+      2
+    )}" step="0.01" style="width:60%" readonly>\n                <span class="unit-display">/${o}</span>\n            </td>\n            <td data-label="Total Cost">\n                <span class="unit-currency">${tt}</span>\n                <span class="total-value">0.00</span>\n                <span class="unit-suffix">/recipe</span>\n            </td>\n            <td data-label="Actions">\n                \x3c!-- ADDED: Edit button --\x3e\n                <button class="btn-secondary small edit-recipe-btn" onclick="editRecipeRow('${s}')">Edit</button>\n                <button class="btn-danger small delRow">🗑️</button>\n            </td>\n        `),
+    (l.id = s);
+  const c = l.children[1].querySelector("input"),
+    d = l.children[2].querySelector("input"),
+    u = l.children[3].querySelector(".total-value"),
+    p = l.querySelector(".delRow");
+  function m() {
+    const e = parseFloat(c.value) || 0,
+      t = parseFloat(d.value) || 0;
+    (u.textContent = (e * t).toFixed(2)), zn(), dt(), n && Gn();
+  }
+  (l.dataset.type = i),
+    r && (l.dataset.subRecipeId = r),
+    [c, d].forEach((e) => e.addEventListener("input", m)),
+    p.addEventListener("click", () => {
+      l.remove(), zn(), dt(), n && Gn();
+    }),
+    f.appendChild(l),
+    m(),
+    dt();
+}
+function fn(e, t, o, a) {
+  if (!y) return;
+  const i = document.createElement("tr"),
+    r = "labor-row-" + Date.now();
+  i.classList.add("labor-row"),
+    (i.innerHTML = `\n        <td data-label="Labor Item">\n            <input type="text" value="${po(
+      e
+    )}" placeholder="Labor item" readonly>\n        </td>\n        <td data-label="Time Required">\n            <div class="quantity-input-group">\n                <input type="number" value="${parseFloat(
+      t
+    ).toFixed(
+      2
+    )}" step="0.01" placeholder="Time" readonly>\n                <span class="quantity-unit">${o}</span>\n            </div>\n        </td>\n        <td data-label="Rate">\n            <div class="input-with-unit">\n                <input type="number" value="${parseFloat(
+      a
+    ).toFixed(
+      2
+    )}" step="0.01" placeholder="Rate" readonly>\n                <span class="unit-display-small">/${o}</span>\n            </div>\n        </td>\n        <td data-label="Total Cost">\n            <span class="unit-currency">${tt}</span>\n            <span class="total-value">0.00</span>\n        </td>\n        <td data-label="Actions">\n            \x3c!-- ADDED: Edit button --\x3e\n            <button class="btn-secondary small edit-labor-btn" onclick="editDirectLaborRow('${r}')">Edit</button>\n            <button class="btn-danger small delDirectLaborRow">🗑️</button>\n        </td>\n    `),
+    (i.id = r);
+  const l = i.children[1].querySelector("input"),
+    s = i.children[2].querySelector("input"),
+    c = i.children[3].querySelector(".total-value"),
+    d = i.querySelector(".delDirectLaborRow");
+  function u() {
+    const e = parseFloat(l.value) || 0,
+      t = parseFloat(s.value) || 0;
+    (c.textContent = (e * t).toFixed(2)), zn(), dt(), n && Gn();
+  }
+  (i.dataset.laborId = e),
+    l.addEventListener("input", u),
+    d.addEventListener("click", () => {
+      i.remove(), zn(), dt(), n && Gn();
+    }),
+    y.appendChild(i),
+    u(),
+    dt();
+}
+function yn() {
+  const e = document.getElementById("directLaborSelect"),
+    t = document.getElementById("timeRequirement");
+  if (!e)
+    return void alert(
+      "Direct labor selection element is missing. Please refresh the page."
+    );
+  const n = e.value,
+    o = parseFloat(t ? t.value : NaN);
+  if ((console.log("Adding direct labor - ID:", n, "Time:", o), !n))
+    return (
+      alert("Please select a direct labor item from the dropdown list"),
+      void (e && e.focus())
+    );
+  if (isNaN(o) || o <= 0)
+    return (
+      alert("Please enter a valid time requirement (greater than 0)"),
+      void (t && t.focus())
+    );
+  const a = Vt().find((e) => e.id === parseInt(n, 10));
+  if (!a)
+    return (
+      alert(
+        "Selected direct labor item not found. It may have been deleted. Please reload or reselect the labor item."
+      ),
+      void In()
+    );
+  if (window.currentEditingLaborRow) {
+    const e = document.getElementById(window.currentEditingLaborRow.rowId);
+    e && e.remove(),
+      fn(a.name, o, a.costUnit, a.costPerUnit),
+      (window.currentEditingLaborRow = null);
+    const t = document.querySelector(".add-labor-section .btn-primary");
+    t && ((t.textContent = "Add Direct Labor"), (t.onclick = yn)),
+      Wt(`Updated ${a.name} in recipe`, "success");
+  } else
+    fn(a.name, o, a.costUnit, a.costPerUnit),
+      Wt(`Added ${a.name} to recipe`, "success");
+  (e.value = ""), t && (t.value = "");
+  const i = document.getElementById("selectedLaborRate"),
+    r = document.getElementById("selectedLaborRateUnit"),
+    l = document.getElementById("timeRequirementUnit");
+  l && (l.textContent = "hours"),
+    i && (i.value = ""),
+    r && (r.textContent = "/hour"),
+    zn();
+}
+function bn(e) {
+  const t = document.getElementById(e);
+  if (!t) return;
+  const n = t.children[0].querySelector("input").value,
+    o = parseFloat(t.children[1].querySelector("input").value) || 0,
+    a =
+      (t.children[1].querySelector(".quantity-unit").textContent,
+      parseFloat(t.children[2].querySelector("input").value),
+      t.dataset.type || "rawMaterial"),
+    i = t.dataset.subRecipeId || null;
+  (window.currentEditingRow = { rowId: e, type: a, subRecipeId: i }),
+    t.remove(),
+    (function (e, t, n, o, a) {
+      if ("rawMaterial" === a) {
+        const t = Yt().find((t) => t.name === e);
+        t && ((_.value = `rawMaterial-${t.id}`), hn());
+      } else if ("sub-recipe" === a) {
+        const t = Gt().find((t) => t.name === e);
+        t && ((_.value = `subrecipe-${t.id}`), hn());
+      }
+      J && (J.value = t);
+    })(n, o, 0, 0, a);
+  const r = document.querySelector(".add-ingredient-section .btn-primary");
+  r && ((r.textContent = "Update Item"), (r.onclick = vn)), zn();
+}
+function vn() {
+  if (!window.currentEditingRow) return void Cn();
+  Cn();
+  const e = document.querySelector(".add-ingredient-section .btn-primary");
+  e && ((e.textContent = "Add to Recipe"), (e.onclick = Cn)),
+    (window.currentEditingRow = null);
+}
+function hn() {
+  const e = _.value;
+  if (!e) return void (j && (j.textContent = "g"));
+  const [t, n] = e.split("-"),
+    o = parseInt(n);
+  if ("rawMaterial" === t) {
+    const e = Yt().find((e) => e.id === o);
+    e && j && (j.textContent = e.costUnit);
+  } else if ("subrecipe" === t) {
+    const e = Gt().find((e) => e.id === o);
+    e && j && (j.textContent = e.costUnit || e.outputUnit || "batch");
+  }
+}
+function wn(e) {
+  const t = document.getElementById(e);
+  if (!t) return;
+  const n = t.children[0].querySelector("input").value,
+    o = parseFloat(t.children[1].querySelector("input").value) || 0;
+  t.children[1].querySelector(".quantity-unit").textContent,
+    parseFloat(t.children[2].querySelector("input").value);
+  (window.currentEditingLaborRow = { rowId: e, laborName: n }),
+    t.remove(),
+    (function (e, t) {
+      In();
+      const n = Vt().find((t) => t.name === e);
+      if (n && K) {
+        K.value = n.id;
+        const e = new Event("change", { bubbles: !0 });
+        K.dispatchEvent(e), X && (X.value = t);
+      } else X && (X.value = t);
+    })(n, o);
+  const a = document.querySelector(".add-labor-section .btn-primary");
+  a && ((a.textContent = "Update Labor"), (a.onclick = xn)), zn();
+}
+function xn() {
+  window.currentEditingLaborRow, yn();
+}
+function Cn() {
+  const e = _.value,
+    t = parseFloat(J.value);
+  if (!e || !t)
+    return void alert("Please select an item and enter quantity/time");
+  const [n, o] = e.split("-"),
+    a = parseInt(o);
+  if ("rawMaterial" === n) {
+    const e = Yt().find((e) => e.id === a);
+    if (!e) return;
+    const n = e.costUnit,
+      o = e.costPerUnit;
+    if (window.currentEditingRow) {
+      gn(e.name, t.toFixed(2), n, o.toFixed(2), "rawMaterial"),
+        (window.currentEditingRow = null);
+      const a = document.querySelector(".add-ingredient-section .btn-primary");
+      a && ((a.textContent = "Add to Recipe"), (a.onclick = Cn));
+    } else gn(e.name, t.toFixed(2), n, o.toFixed(2), "rawMaterial");
+  } else if ("subrecipe" === n) {
+    const e = Gt().find((e) => e.id === a);
+    if (!e) return;
+    const n = e.costPerUnit || 0,
+      o = e.costUnit || e.outputUnit || "batch";
+    if (window.currentEditingRow) {
+      gn(e.name, t.toFixed(2), o, n.toFixed(2), "sub-recipe", e.id),
+        (window.currentEditingRow = null);
+      const a = document.querySelector(".add-ingredient-section .btn-primary");
+      a && ((a.textContent = "Add to Recipe"), (a.onclick = Cn));
+    } else gn(e.name, t.toFixed(2), o, n.toFixed(2), "sub-recipe", e.id);
+  }
+  _ && (_.value = ""), J && (J.value = ""), j && (j.textContent = "g");
+}
+function En() {
+  let e = 0,
+    t = 0;
+  return (
+    f &&
+      f.querySelectorAll("tr").forEach((t) => {
+        const n = parseFloat(t.children[1].querySelector("input").value) || 0,
+          o = parseFloat(t.children[2].querySelector("input").value) || 0;
+        e += n * o;
+      }),
+    y &&
+      y.querySelectorAll("tr").forEach((e) => {
+        const n = parseFloat(e.children[1].querySelector("input").value) || 0,
+          o = parseFloat(e.children[2].querySelector("input").value) || 0;
+        t += n * o;
+      }),
+    parseFloat((e + t).toFixed(2))
+  );
+}
+function Ln() {
+  try {
+    eo();
+  } catch (e) {
+    console.warn("Failed to update sub-recipe cost display before save:", e);
+  }
+  const e = document.getElementById("subRecipeNameDisplay").value.trim(),
+    n = document.getElementById("subRecipeCategory").value,
+    o = parseFloat(document.getElementById("subRecipeYieldQuantity").value),
+    a = document.getElementById("subRecipeYieldUnit").value,
+    i = parseFloat(En()) || 0,
+    r = document.getElementById("subRecipeCostPerUnitField"),
+    l = document.getElementById("subRecipeCostPerUnit"),
+    s = document.getElementById("subRecipeCostUnitField"),
+    c = document.getElementById("subRecipeCostUnit"),
+    d = r ? r.value : "",
+    u = l ? l.value : "",
+    m = parseFloat(d || u || "");
+  let g = Number.isFinite(m) ? m : NaN;
+  const f = s ? s.value : "",
+    y = c ? c.value : "",
+    b = f || y || a || "unit";
+  if (!e) return void alert("Please enter a sub-recipe name");
+  if (isNaN(o) || o <= 0)
+    return void alert("Please enter a valid yield quantity");
+  if (!isFinite(g) || g <= 0) {
+    if (!(o > 0)) {
+      const e = document.getElementById("subRecipeValidationMessage");
+      return (
+        e &&
+          (e.classList.remove("hidden"),
+          (e.textContent =
+            "Cannot compute cost per unit for sub-recipe. Please ensure total recipe cost and yield quantity are valid.")),
+        void Qt("Sub-recipe validation error", "error")
+      );
     }
-}
-
-// NEW: Direct Labor Edit Prompt Functions
-function showDirectLaborEditPrompt(id, name) {
-    directLaborEditName.textContent = name;
-    editingItem = { type: 'directLabor', id: id, data: null };
-    directLaborEditPromptModal.classList.remove("hidden");
-}
-
-function closeDirectLaborEditPromptModal() {
-    directLaborEditPromptModal.classList.add("hidden");
-}
-
-function handleDirectLaborEditChoice(choice) {
-    closeDirectLaborEditPromptModal();
-    
-    if (choice === 'replace') {
-        // Replace existing direct labor
-        updateDirectLabor();
-    } else if (choice === 'new') {
-        // Save as new direct labor (generate new ID)
-        editingItem.id = null;
-        saveDirectLabor();
-    }
-}
-
-// =============================================================================
-// FIX: ENHANCED SAVE RAW MATERIAL WITH AUTOMATIC DUPLICATE DETECTION
-// =============================================================================
-function saveRawMaterial() {
-    const name = document.getElementById("modalRawMaterialName").value.trim();
-    const category = document.getElementById("modalRawMaterialCategory").value;
-    const price = parseFloat(document.getElementById("modalRawMaterialPrice").value);
-    const quantity = parseFloat(document.getElementById("modalRawMaterialQuantity").value);
-    const unit = document.getElementById("modalRawMaterialUnit").value;
-    const costPerUnit = parseFloat(document.getElementById("modalCostPerUnit").value);
-    const costUnit = document.getElementById("modalCostUnit").value;
-    const yieldPercentage = parseFloat(document.getElementById("modalRawMaterialYield").value) || 100;
-
-    // Validation
-    if (!name || !category || isNaN(price) || price <= 0 || isNaN(quantity) || quantity <= 0) {
-        alert("Please fill in all required fields with valid values");
-        return;
-    }
-
-    const rawMaterialData = {
-        id: Date.now(),
-        name,
-        category,
-        price: parseFloat(price.toFixed(2)),
-        quantity: parseFloat(quantity.toFixed(2)),
-        unit,
-        costPerUnit: parseFloat(costPerUnit.toFixed(6)),
-        costUnit,
-        yieldPercentage: parseFloat(yieldPercentage.toFixed(1))
+    g = i / o;
+    try {
+      document.getElementById("subRecipeCostPerUnit") &&
+        (document.getElementById("subRecipeCostPerUnit").value = g.toFixed(4)),
+        document.getElementById("subRecipeCostPerUnitField") &&
+          (document.getElementById("subRecipeCostPerUnitField").value =
+            g.toFixed(4)),
+        document.getElementById("subRecipeCostUnitField") &&
+          (document.getElementById("subRecipeCostUnitField").value = b);
+    } catch (e) {}
+  }
+  const v = ro(),
+    h = lo(),
+    w = (r, l = null) => {
+      const s = l || e,
+        c = {
+          id: "replace" === r ? t.id : Date.now(),
+          name: s,
+          type: "sub",
+          category: n,
+          yieldQuantity: o,
+          yieldUnit: a,
+          costPerUnit: Number.isFinite(g) ? parseFloat(g.toFixed(4)) : 0,
+          costUnit: b || "unit",
+          rawMaterialItems: v,
+          directLaborItems: h,
+          totalCost: i
+        },
+        d = Gt();
+      if ("replace" === r) {
+        const e = d.findIndex((e) => e.id === t.id && "sub" === e.type);
+        -1 !== e &&
+          ((d[e] = c),
+          Wt(`Sub-recipe "${s}" updated successfully!`, "success"));
+      } else d.push(c), Wt(`Sub-recipe "${s}" saved successfully!`, "success");
+      jt(d),
+        Fn(),
+        mn(),
+        Kn(),
+        Mn(),
+        Ht(),
+        (t = { type: null, id: null, data: null });
     };
-
-    // Save to data store
-    const rawMaterials = getCurrentRawMaterials();
-    
-    // NEW: Automatic duplicate detection and handling
-    const existingItem = checkForDuplicateName(name, rawMaterials, editingItem.id);
-    
-    if (existingItem && !editingItem.id) {
-        // Show duplicate prompt for new items
-        showRawMaterialEditPrompt(existingItem.id, name);
-        return;
-    }
-    
-    if (editingItem.type === 'rawMaterial' && editingItem.id) {
-        // Update existing
-        const index = rawMaterials.findIndex(item => item.id === editingItem.id);
-        if (index !== -1) {
-            rawMaterials[index] = rawMaterialData;
-            showNotification(`Updated "${name}" with ${yieldPercentage}% yield`, "success");
-        }
-    } else {
-        // Add new
-        rawMaterials.push(rawMaterialData);
-        showNotification(`Added "${name}" with ${yieldPercentage}% yield`, "success");
-    }
-    
-    setCurrentRawMaterials(rawMaterials);
-    renderRawMaterials();
-    populateUnifiedItemSelect();
-    closeRawMaterialModal();
-    
-    // Show cost impact explanation for non-100% yields
-    if (yieldPercentage !== 100) {
-        const baseCost = (price / quantity).toFixed(4);
-        const effectiveCost = costPerUnit.toFixed(4);
-        console.log(`Yield impact: ${baseCost} → ${effectiveCost} (${yieldPercentage}% yield)`);
-    }
+  p(e, "subRecipe", t?.id, w) || w(t?.id ? "replace" : "new");
 }
-
-// NEW: Update raw material function
-function updateRawMaterial() {
-    const name = document.getElementById("modalRawMaterialName").value.trim();
-    const category = document.getElementById("modalRawMaterialCategory").value;
-    const price = parseFloat(document.getElementById("modalRawMaterialPrice").value);
-    const quantity = parseFloat(document.getElementById("modalRawMaterialQuantity").value);
-    const unit = document.getElementById("modalRawMaterialUnit").value;
-    const costPerUnit = parseFloat(document.getElementById("modalCostPerUnit").value);
-    const costUnit = document.getElementById("modalCostUnit").value;
-    const yieldPercentage = parseFloat(document.getElementById("modalRawMaterialYield").value) || 100;
-
-    const rawMaterials = getCurrentRawMaterials();
-    const index = rawMaterials.findIndex(item => item.id === editingItem.id);
-    
-    if (index !== -1) {
-        const updatedItem = {
-            id: editingItem.id,
-            name,
-            category,
-            price: parseFloat(price.toFixed(2)),
-            quantity: parseFloat(quantity.toFixed(2)),
-            unit,
-            costPerUnit: parseFloat(costPerUnit.toFixed(6)),
-            costUnit,
-            yieldPercentage: parseFloat(yieldPercentage.toFixed(1))
-        };
-        
-        rawMaterials[index] = updatedItem;
-        setCurrentRawMaterials(rawMaterials);
-        
-        renderRawMaterials();
-        populateUnifiedItemSelect();
-        closeRawMaterialModal();
-        
-        // Update recipes using this ingredient
-        updateRecipesUsingIngredient(updatedItem, 'rawMaterial');
-        
-        showNotification(`Updated "${name}" with ${yieldPercentage}% yield`, "success");
-    }
+function Sn() {
+  Ln();
 }
-
-function deleteRawMaterial(id) {
-    if (confirm("Are you sure you want to delete this raw material?")) {
-        const rawMaterials = getCurrentRawMaterials();
-        const updatedRawMaterials = rawMaterials.filter((item) => item.id !== id);
-        setCurrentRawMaterials(updatedRawMaterials);
-        renderRawMaterials();
-        populateUnifiedItemSelect();
-        
-        // NEW: Update cost breakdown preview if recipe is loaded
-        if (loadedRecipeForSummary) {
-            updateCostBreakdownPreview();
-        }
-        
-        showNotification("Raw material deleted successfully!", "success");
-    }
+function Pn(e) {
+  const n = x.value.trim();
+  if (!n) return alert("Please enter a recipe name"), void x.focus();
+  const o = ro(),
+    a = lo(),
+    i = (i, r = null) => {
+      const l = r || n,
+        s = {
+          id: "replace" === i ? t.id : Date.now(),
+          name: l,
+          type: e,
+          rawMaterialItems: o,
+          directLaborItems: a,
+          totalCost: En(),
+          servings: parseFloat(D ? D.value : 1) || 1,
+          createdAt: new Date().toISOString()
+        },
+        c = Gt();
+      if ("replace" === i) {
+        const e = c.findIndex((e) => e.id === t.id);
+        -1 !== e &&
+          ((c[e] = s), Wt(`Recipe "${l}" updated successfully!`, "success"));
+      } else c.push(s), Wt(`Recipe "${l}" saved successfully!`, "success");
+      jt(c), Fn(), Kn(), (t = { type: null, id: null, data: null }), Ht();
+    };
+  p(n, "main" === e ? "mainRecipe" : "subRecipe", t?.id, i) ||
+    i(t?.id ? "replace" : "new");
 }
-
-// ENHANCED: Render raw materials with alphabetical sorting and yield column
-function renderRawMaterials() {
-    const tableBody = document.getElementById("rawMaterialsTable");
-    let filteredRawMaterials = filterRawMaterials();
-  
-    // NEW: Apply alphabetical sorting
-    filteredRawMaterials = sortRawMaterialsAlphabetically(filteredRawMaterials);
-
-    tableBody.innerHTML = filteredRawMaterials
+function $n(e) {
+  if (!x.value.trim())
+    return alert("Please enter a recipe name"), void x.focus();
+  Pn(e);
+}
+function Rn() {
+  const e = document.getElementById("directLaborSelect");
+  if (!e) return void console.error("❌ Direct labor select element not found");
+  console.log("🔧 Setting up direct labor select handler...");
+  const t = e.cloneNode(!0);
+  e.parentNode.replaceChild(t, e);
+  const n = document.getElementById("directLaborSelect");
+  (window.directLaborSelect = n),
+    n.addEventListener("change", function () {
+      console.log("🔄 Direct labor selection changed:", this.value),
+        (function (e) {
+          const t = e.options[e.selectedIndex];
+          if (!t.value)
+            return void (function () {
+              Z && (Z.textContent = "hours");
+              const e = document.getElementById("selectedLaborRate"),
+                t = document.getElementById("selectedLaborRateUnit");
+              e && ((e.value = ""), e.classList.remove("success", "error"));
+              t && (t.textContent = "/hour");
+              X && (X.value = "");
+            })();
+          console.log("📊 Selected labor option:", {
+            value: t.value,
+            rate: t.dataset.rate,
+            unit: t.dataset.unit,
+            name: t.dataset.laborName
+          }),
+            Z && (Z.textContent = t.dataset.unit || "hours");
+          (function (e, t) {
+            const n = document.getElementById("selectedLaborRate"),
+              o = document.getElementById("selectedLaborRateUnit");
+            if (!n)
+              return void console.error(
+                "❌ Labor rate display element not found"
+              );
+            if (e && !isNaN(parseFloat(e))) {
+              const t = parseFloat(e).toFixed(2);
+              (n.value = t),
+                n.classList.remove("error"),
+                n.classList.add("success"),
+                console.log("✅ Updated labor rate display:", t);
+            } else
+              (n.value = ""),
+                n.classList.remove("success"),
+                console.warn("⚠️ Invalid rate value:", e);
+            o && t && (o.textContent = "/" + t);
+          })(t.dataset.rate, t.dataset.unit),
+            X && setTimeout(() => X.focus(), 100);
+        })(this);
+    }),
+    console.log("✅ Direct labor select handler attached successfully");
+}
+function In() {
+  const e = document.getElementById("directLaborSelect");
+  if (!e) return void console.error("❌ Direct labor select element not found");
+  const t = e.value;
+  e.innerHTML = '<option value="">Select direct labor...</option>';
+  const n = Vt();
+  if (0 === n.length) {
+    const t = document.createElement("option");
+    return (
+      (t.value = ""),
+      (t.textContent = "No direct labor items available"),
+      (t.disabled = !0),
+      e.appendChild(t),
+      void (window.directLaborSelect = e)
+    );
+  }
+  go(n).forEach((t) => {
+    const n = document.createElement("option");
+    (n.value = String(t.id)),
+      (n.textContent = `${t.name} (${uo(t.costPerUnit)}/${t.costUnit})`),
+      (n.dataset.unit = t.costUnit),
+      (n.dataset.rate = t.costPerUnit),
+      (n.dataset.laborName = t.name),
+      (n.dataset.laborId = t.id),
+      e.appendChild(n);
+  }),
+    t && (e.value = t),
+    (window.directLaborSelect = e);
+  const o = new Event("change", { bubbles: !0 });
+  e.dispatchEvent(o),
+    console.log("✅ Direct labor select populated successfully");
+}
+function Mn() {
+  document.getElementById("subRecipeSaveModal").classList.add("hidden");
+}
+function Fn() {
+  const e = Gt(),
+    t = fo(e.filter((e) => "main" === e.type)),
+    n = fo(e.filter((e) => "sub" === e.type));
+  ce &&
+    (ce.innerHTML = t
+      .map(
+        (e) =>
+          `\n            <div class="recipe-item" onclick="loadRecipe(${
+            e.id
+          })">\n                <h4>${po(
+            e.name
+          )}</h4>\n                <p>Total Cost: ${uo(
+            Number(e.totalCost) || 0
+          )} • ${
+            e.rawMaterialItems.length + e.directLaborItems.length
+          } items • ${
+            e.servings || 1
+          } servings</p>\n                <div class="recipe-actions">\n                    <button class="btn-secondary small" onclick="editRecipe(${
+            e.id
+          }, event)">Edit</button>\n                    <button class="btn-danger small" onclick="deleteRecipe(${
+            e.id
+          }, event)">Delete</button>\n                </div>\n            </div>\n        `
+      )
+      .join("")),
+    de &&
+      (de.innerHTML = n
         .map(
-            (rawMaterial) => `
-                <tr>
-                    <td data-label="Raw Material">${rawMaterial.name}</td>
-                    <td data-label="Category">${rawMaterial.category}</td>
-                    <td data-label="Yield">${rawMaterial.yieldPercentage || 100}%</td> <!-- NEW: Display yield -->
-                    <td data-label="Cost/Unit">${formatCurrency(
-                        rawMaterial.costPerUnit
-                    )}/${rawMaterial.costUnit}</td>
-                    <td data-label="Actions">
-                        <button class="btn-secondary small" onclick="openRawMaterialModal(${JSON.stringify(
-                            rawMaterial
-                        ).replace(/"/g, "&quot;")})">Edit</button>
-                        <button class="btn-danger small" onclick="deleteRawMaterial(${
-                            rawMaterial.id
-                        })">Delete</button>
-                    </td>
-                </tr>
-            `
+          (e) =>
+            `\n            <div class="recipe-item" onclick="loadSubRecipe(${
+              e.id
+            })">\n                <h4>${po(
+              e.name
+            )}</h4>\n                <p>Cost: ${
+              Number.isFinite(Number(e.costPerUnit))
+                ? `${uo(Number(e.costPerUnit))}/${e.costUnit || "unit"}`
+                : "(no cost)"
+            } • ${
+              e.rawMaterialItems.length + e.directLaborItems.length
+            } items</p>\n                <div class="recipe-actions">\n                    <button class="btn-secondary small" onclick="editSubRecipe(${
+              e.id
+            }, event)">Edit</button>\n                    <button class="btn-danger small" onclick="deleteRecipe(${
+              e.id
+            }, event)">Delete</button>\n                </div>\n            </div>\n        `
         )
-        .join("");
+        .join(""));
 }
-
-function filterRawMaterials() {
-    const searchTerm = document
-        .getElementById("rawMaterialSearch")
-        .value.toLowerCase();
-    const rawMaterials = getCurrentRawMaterials();
-    return rawMaterials.filter(
-        (rawMaterial) =>
-            rawMaterial.name.toLowerCase().includes(searchTerm) ||
-            rawMaterial.category.toLowerCase().includes(searchTerm)
+function kn(e) {
+  const n = Gt().find((t) => t.id === e);
+  if (!n) return;
+  const o = l(n);
+  f && (f.innerHTML = ""),
+    y && (y.innerHTML = ""),
+    x && (x.value = o.name),
+    D && (D.value = o.servings || 1),
+    o.rawMaterialItems.forEach((e) => {
+      gn(
+        e.name,
+        e.quantity,
+        e.unit,
+        e.unitCost,
+        e.type || "rawMaterial",
+        e.subRecipeId || null
+      );
+    }),
+    o.directLaborItems.forEach((e) => {
+      const t = e.unitCost ?? e.rate ?? e.costPerUnit ?? 0,
+        n = e.unit ?? e.timeUnit ?? "hours";
+      fn(e.name, e.quantity, n, t);
+    }),
+    (t = { type: "mainRecipe", id: e, data: n }),
+    it("recipes"),
+    zn();
+}
+function Bn(e) {
+  const n = Gt().find((t) => t.id === e && "sub" === t.type);
+  if (!n) return;
+  const o = l(n);
+  f && (f.innerHTML = ""),
+    y && (y.innerHTML = ""),
+    x && (x.value = o.name),
+    o.rawMaterialItems.forEach((e) => {
+      gn(e.name, e.quantity, e.unit, e.unitCost, "rawMaterial");
+    }),
+    o.directLaborItems.forEach((e) => {
+      const t = e.unitCost ?? e.rate ?? e.costPerUnit ?? 0,
+        n = e.unit ?? e.timeUnit ?? "hours";
+      fn(e.name, e.quantity, n, t);
+    }),
+    (t = { type: "subRecipe", id: e, data: n }),
+    it("recipes"),
+    zn();
+}
+function Un(e, n) {
+  n && n.stopPropagation();
+  const o = Gt().find((t) => t.id === e);
+  o && (kn(e), (t = { type: "mainRecipe", id: e, data: o }));
+}
+function Tn(e, n) {
+  n && n.stopPropagation();
+  const o = Gt().find((t) => t.id === e && "sub" === t.type);
+  o && (Bn(e), (t = { type: "subRecipe", id: e, data: o }));
+}
+function qn(e, o) {
+  if (
+    (o && o.stopPropagation(),
+    !confirm("Are you sure you want to delete this recipe?"))
+  )
+    return;
+  jt(Gt().filter((t) => t.id !== e)),
+    Fn(),
+    mn(),
+    Kn(),
+    t.id === e && (t = { type: null, id: null, data: null }),
+    n && n.id === e && ((n = null), Ve && Ve.classList.add("hidden"), _n()),
+    Wt("Recipe deleted successfully!", "success");
+}
+function Dn(e) {
+  Hn(),
+    t && "subRecipe" === t.type
+      ? "replace" === e
+        ? Ln()
+        : "new" === e && ((t.id = null), Ln())
+      : "replace" === e
+      ? Pn("mainRecipe" === t.type ? "main" : "sub")
+      : "new" === e &&
+        ((t.id = null), Pn("mainRecipe" === t.type ? "main" : "sub"));
+}
+function An() {
+  O && O.classList.add("hidden");
+}
+function Nn() {
+  V && V.classList.add("hidden");
+}
+function Hn() {
+  ue && ue.classList.add("hidden");
+}
+function On(e, n, o) {
+  if (!pe || !me || !ue) return;
+  const a = "main" === e ? "Main Recipe" : "Sub-Recipe";
+  (pe.textContent = `Save ${a}`),
+    (me.innerHTML = `\n        <p>A ${a.toLowerCase()} named "<strong>${po(
+      o
+    )}</strong>" already exists.</p>\n        <p>Would you like to replace the existing recipe or save this as a new recipe?</p>\n    `),
+    (t = {
+      type: "main" === e ? "mainRecipe" : "subRecipe",
+      id: n,
+      data: null
+    }),
+    ue.classList.remove("hidden");
+}
+function zn() {
+  const e = parseFloat(D ? D.value : 1) || 1;
+  let t = 0,
+    o = 0;
+  f &&
+    f.querySelectorAll("tr").forEach((e) => {
+      const n = parseFloat(e.children[1].querySelector("input").value) || 0,
+        o = parseFloat(e.children[2].querySelector("input").value) || 0;
+      t += n * o;
+    }),
+    y &&
+      y.querySelectorAll("tr").forEach((e) => {
+        const t = parseFloat(e.children[1].querySelector("input").value) || 0,
+          n = parseFloat(e.children[2].querySelector("input").value) || 0;
+        o += t * n;
+      });
+  const a = t + o;
+  b && (b.textContent = `${tt}${t.toFixed(2)}`),
+    v && (v.textContent = `${tt}${o.toFixed(2)}`),
+    h && (h.textContent = `${tt}${a.toFixed(2)}`),
+    n || Wn(t, o, a, e),
+    n && Gn();
+}
+function Wn(e, t, n, o) {
+  parseFloat(A ? A.value : 1);
+  const a = parseFloat(U ? U.value : 0) || 0,
+    i = parseFloat(T ? T.value : 0) || 0,
+    r = parseFloat(q ? q.value : 0) || 0,
+    l = (function (e, t, n) {
+      const o = parseFloat(A ? A.value : 1) || 1,
+        a = n > 0 ? (e / n) * o : 0,
+        i = n > 0 ? (t / n) * o : 0;
+      return {
+        scaledRawMaterialsCost: a,
+        scaledDirectLaborCost: i,
+        scaledTotalCost: a + i,
+        targetServings: o
+      };
+    })(e, t, o),
+    s = l.scaledRawMaterialsCost,
+    c = l.scaledDirectLaborCost,
+    d = l.scaledTotalCost,
+    u = l.targetServings,
+    p = u > 0 ? d / u : 0,
+    m = p * (1 + a / 100),
+    g = m * (1 + (i + r) / 100),
+    f = m > 0 ? (s / u / m) * 100 : 0,
+    y = m > 0 ? (c / u / m) * 100 : 0,
+    b = m > 0 ? (d / u / m) * 100 : 0,
+    v = m > 0 ? 100 - b : 0,
+    h = m * u,
+    w = h - d;
+  N && (N.textContent = u),
+    S && (S.textContent = `${tt}${s.toFixed(2)}`),
+    P && (P.textContent = `${tt}${c.toFixed(2)}`),
+    $ && ($.textContent = `${tt}${d.toFixed(2)}`),
+    R && (R.textContent = `${tt}${p.toFixed(2)}`),
+    I && (I.textContent = `${tt}${g.toFixed(2)}`),
+    M && (M.textContent = `${f.toFixed(1)}%`),
+    F && (F.textContent = `${y.toFixed(1)}%`),
+    k && (k.textContent = `${b.toFixed(1)}%`),
+    B && (B.textContent = `${v.toFixed(1)}%`),
+    Ke && (Ke.textContent = `${tt}${h.toFixed(2)}`),
+    Xe && (Xe.textContent = `${tt}${w.toFixed(2)}`);
+}
+function Qn(e) {
+  parseFloat(A ? A.value : 1);
+  let t = e.rawMaterialItems.reduce((e, t) => e + t.quantity * t.unitCost, 0),
+    n = e.directLaborItems.reduce((e, t) => e + t.quantity * t.unitCost, 0);
+  Wn(t, n, 0, e.servings || 1);
+}
+function Yn() {
+  n && Qn(n);
+}
+function Vn() {
+  const e = Ye ? Ye.value : null;
+  if (!e) return void alert("Please select a recipe to load");
+  const t = Gt().find((t) => t.id === parseInt(e));
+  if (!t) return;
+  n = t;
+  const o = t.servings || 1;
+  A && (A.value = o),
+    Ge && (Ge.textContent = t.name),
+    _e && (_e.textContent = `${tt}${t.totalCost.toFixed(2)}`),
+    Je && (Je.textContent = o),
+    je &&
+      (je.textContent = `${
+        t.rawMaterialItems.length + t.directLaborItems.length
+      } items`),
+    Ve && Ve.classList.remove("hidden"),
+    Qn(t),
+    Gn(),
+    Wt(
+      `Automatically set Serving Scale to ${o} to match loaded recipe`,
+      "info"
     );
 }
-
-// Direct Labor Management
-function openDirectLaborModal(directLabor = null) {
-    const modal = document.getElementById("directLaborModal");
-    const title = document.getElementById("directLaborModalTitle");
-
-    if (directLabor) {
-        title.textContent = "Edit Direct Labor";
-        populateDirectLaborForm(directLabor);
-        editingItem = { type: 'directLabor', id: directLabor.id, data: directLabor };
-    } else {
-        title.textContent = "Add New Direct Labor";
-        document.getElementById("directLaborForm").reset();
-        updateLaborCostPerUnit();
-        editingItem = { type: null, id: null, data: null };
-    }
-
-    modal.classList.remove("hidden");
-}
-
-function closeDirectLaborModal() {
-    document.getElementById("directLaborModal").classList.add("hidden");
-    document.getElementById("directLaborForm").reset();
-    editingItem = { type: null, id: null, data: null };
-}
-
-// Calculate and display cost per unit for direct labor
-function updateLaborCostPerUnit() {
-    const shiftRate =
-        parseFloat(document.getElementById("modalShiftRate").value) || 0;
-    const shiftDuration =
-        parseFloat(document.getElementById("modalShiftDuration").value) || 1;
-    const timeUnit = document.getElementById("modalTimeUnit").value;
-    const costUnit = document.getElementById("modalCostUnitLabor").value;
-
-    let costPerUnit = 0;
-    let calculationSteps = [];
-
-    if (shiftRate > 0 && shiftDuration > 0) {
-        const costPerTimeUnit = shiftRate / shiftDuration;
-        calculationSteps.push(
-            `Cost per ${timeUnit}: ${shiftRate.toFixed(2)} ${currency} ÷ ${shiftDuration.toFixed(2)} = ${costPerTimeUnit.toFixed(4)} ${currency}/${timeUnit}`
-        );
-
-        if (timeUnit !== costUnit) {
-            const conversionFactor = UNIT_CONVERSIONS[costUnit] / UNIT_CONVERSIONS[timeUnit];
-            costPerUnit = costPerTimeUnit * conversionFactor;
-            calculationSteps.push(
-                `Convert to ${costUnit}: ${costPerTimeUnit.toFixed(4)} ${currency}/${timeUnit} × ${conversionFactor.toFixed(6)} = ${costPerUnit.toFixed(4)} ${currency}/${costUnit}`
-            );
-        } else {
-            costPerUnit = costPerTimeUnit;
-            calculationSteps.push(
-                `No conversion needed (already in ${costUnit})`
-            );
-        }
-    }
-
-    document.getElementById("modalCostPerUnitLabor").value = costPerUnit.toFixed(4);
-
-    updateLaborCalculationDisplay(calculationSteps, costPerUnit, costUnit);
-}
-
-// Update the labor calculation display with step-by-step breakdown
-function updateLaborCalculationDisplay(steps, finalCost, costUnit) {
-    const calculationDetails = document.getElementById(
-        "laborCostCalculationDetails"
-    );
-
-    if (steps.length > 0) {
-        let html = `<div><strong>Calculation Steps:</strong></div>`;
-        steps.forEach((step) => {
-            html += `<div style="margin: var(--space-xs) 0; padding-left: var(--space-md);">• ${step}</div>`;
-        });
-        html += `<div style="margin-top: var(--space-sm); font-weight: bold;">Final Cost: ${finalCost.toFixed(4)} ${currency}/${costUnit}</div>`;
-        calculationDetails.innerHTML = html;
-    } else {
-        calculationDetails.textContent =
-            "Enter shift details to see calculation";
-    }
-}
-
-function populateDirectLaborForm(directLabor) {
-    document.getElementById("modalLaborName").value = directLabor.name;
-    document.getElementById("modalShiftRate").value = directLabor.shiftRate.toFixed(2);
-    document.getElementById("modalShiftDuration").value = directLabor.shiftDuration.toFixed(2);
-    document.getElementById("modalTimeUnit").value = directLabor.timeUnit;
-    document.getElementById("modalCostUnitLabor").value = directLabor.costUnit;
-
-    updateLaborCostPerUnit();
-}
-
-// =============================================================================
-// FIX: ENHANCED SAVE DIRECT LABOR WITH AUTOMATIC DUPLICATE DETECTION
-// =============================================================================
-function saveDirectLabor() {
-    const name = document
-        .getElementById("modalLaborName")
-        .value.trim();
-    const shiftRate = parseFloat(
-        document.getElementById("modalShiftRate").value
-    );
-    const shiftDuration = parseFloat(
-        document.getElementById("modalShiftDuration").value
-    );
-    const timeUnit = document.getElementById("modalTimeUnit").value;
-    const costUnit = document.getElementById("modalCostUnitLabor").value;
-
-    if (!name) {
-        alert("Please enter a labor name");
-        return;
-    }
-
-    if (isNaN(shiftRate) || shiftRate <= 0) {
-        alert("Please enter a valid shift rate");
-        return;
-    }
-
-    if (isNaN(shiftDuration) || shiftDuration <= 0) {
-        alert("Please enter a valid shift duration");
-        return;
-    }
-
-    // Calculate cost per unit
-    let costPerUnit = 0;
-    if (shiftRate > 0 && shiftDuration > 0) {
-        const costPerTimeUnit = shiftRate / shiftDuration;
-        if (timeUnit !== costUnit) {
-            const conversionFactor = UNIT_CONVERSIONS[costUnit] / UNIT_CONVERSIONS[timeUnit];
-            costPerUnit = costPerTimeUnit * conversionFactor;
-        } else {
-            costPerUnit = costPerTimeUnit;
-        }
-    }
-
-    const directLaborData = {
-        id: Date.now(),
-        name,
-        shiftRate: parseFloat(shiftRate.toFixed(2)),
-        shiftDuration: parseFloat(shiftDuration.toFixed(2)),
-        timeUnit,
-        costPerUnit: parseFloat(costPerUnit.toFixed(4)),
-        costUnit
-    };
-
-    // NEW: Automatic duplicate detection and handling
-    const directLabor = getCurrentDirectLabor();
-    const existingItem = checkForDuplicateName(name, directLabor, editingItem.id);
-    
-    if (existingItem && !editingItem.id) {
-        showDirectLaborEditPrompt(existingItem.id, name);
-        return;
-    }
-
-    if (editingItem.type === 'directLabor' && editingItem.id) {
-        // Update existing
-        const index = directLabor.findIndex(item => item.id === editingItem.id);
-        if (index !== -1) {
-            directLabor[index] = directLaborData;
-            showNotification("Direct labor updated successfully!", "success");
-        }
-    } else {
-        // Add new
-        directLabor.push(directLaborData);
-        showNotification("Direct labor saved successfully!", "success");
-    }
-
-    setCurrentDirectLabor(directLabor);
-
-    renderDirectLabor();
-    populateUnifiedItemSelect();
-    populateDirectLaborSelect();
-    closeDirectLaborModal();
-
-    // NEW: Update recipes using this labor item
-    updateRecipesUsingIngredient(directLaborData, 'directLabor');
-
-    showNotification("Direct labor saved successfully!", "success");
-}
-
-// NEW: Update direct labor function
-function updateDirectLabor() {
-    const name = document.getElementById("modalLaborName").value.trim();
-    const shiftRate = parseFloat(document.getElementById("modalShiftRate").value);
-    const shiftDuration = parseFloat(document.getElementById("modalShiftDuration").value);
-    const timeUnit = document.getElementById("modalTimeUnit").value;
-    const costUnit = document.getElementById("modalCostUnitLabor").value;
-
-    // Calculate cost per unit
-    let costPerUnit = 0;
-    if (shiftRate > 0 && shiftDuration > 0) {
-        const costPerTimeUnit = shiftRate / shiftDuration;
-        if (timeUnit !== costUnit) {
-            const conversionFactor = UNIT_CONVERSIONS[costUnit] / UNIT_CONVERSIONS[timeUnit];
-            costPerUnit = costPerTimeUnit * conversionFactor;
-        } else {
-            costPerUnit = costPerTimeUnit;
-        }
-    }
-
-    const directLabor = getCurrentDirectLabor();
-    const index = directLabor.findIndex(item => item.id === editingItem.id);
-    
-    if (index !== -1) {
-        const updatedItem = {
-            id: editingItem.id,
-            name,
-            shiftRate: parseFloat(shiftRate.toFixed(2)),
-            shiftDuration: parseFloat(shiftDuration.toFixed(2)),
-            timeUnit,
-            costPerUnit: parseFloat(costPerUnit.toFixed(4)),
-            costUnit
-        };
-        
-        directLabor[index] = updatedItem;
-        setCurrentDirectLabor(directLabor);
-        
-        renderDirectLabor();
-        populateUnifiedItemSelect();
-        populateDirectLaborSelect();
-        closeDirectLaborModal();
-
-        // Update recipes using this labor item
-        updateRecipesUsingIngredient(updatedItem, 'directLabor');
-        
-        showNotification("Direct labor updated successfully!", "success");
-    }
-}
-
-function deleteDirectLabor(id) {
-    if (confirm("Are you sure you want to delete this direct labor item?")) {
-        const directLabor = getCurrentDirectLabor();
-        const updatedDirectLabor = directLabor.filter((item) => item.id !== id);
-        setCurrentDirectLabor(updatedDirectLabor);
-        renderDirectLabor();
-        populateUnifiedItemSelect();
-        populateDirectLaborSelect();
-        
-        showNotification("Direct labor deleted successfully!", "success");
-    }
-}
-
-// ENHANCED: Render direct labor with alphabetical sorting
-function renderDirectLabor() {
-    const tableBody = document.getElementById("directLaborTable");
-    let filteredDirectLabor = filterDirectLabor();
-  
-    // NEW: Apply alphabetical sorting
-    filteredDirectLabor = sortDirectLaborAlphabetically(filteredDirectLabor);
-
-    tableBody.innerHTML = filteredDirectLabor
-        .map(
-            (labor) => `
-                <tr>
-                    <td data-label="Labor Name">${labor.name}</td>
-                    <td data-label="Shift Rate">${formatCurrency(labor.shiftRate)}/shift</td>
-                    <td data-label="Shift Duration">${labor.shiftDuration} ${labor.timeUnit}</td>
-                    <td data-label="Cost/Unit">${formatCurrency(labor.costPerUnit)}/${labor.costUnit}</td>
-                    <td data-label="Actions">
-                        <button class="btn-secondary small" onclick="openDirectLaborModal(${JSON.stringify(
-                            labor
-                        ).replace(/"/g, "&quot;")})">Edit</button>
-                        <button class="btn-danger small" onclick="deleteDirectLabor(${
-                            labor.id
-                        })">Delete</button>
-                    </td>
-                </tr>
-            `
-        )
-        .join("");
-}
-
-function filterDirectLabor() {
-    const searchTerm = document
-        .getElementById("directLaborSearch")
-        .value.toLowerCase();
-    const directLabor = getCurrentDirectLabor();
-    return directLabor.filter(
-        (labor) => labor.name.toLowerCase().includes(searchTerm)
-    );
-}
-
-// ENHANCED: Populate unified item select with alphabetical sorting and yield display
-function populateUnifiedItemSelect() {
-    const select = document.getElementById("unifiedItemSelect");
-    const rawMaterialsGroup = select.querySelector('optgroup[label="Raw Materials"]');
-    const subRecipesGroup = select.querySelector('optgroup[label="Sub-Recipes"]');
-    
-    rawMaterialsGroup.innerHTML = '';
-    subRecipesGroup.innerHTML = '';
-    
-    // NEW: Sort raw materials alphabetically and show yield percentage
-    const sortedRawMaterials = sortRawMaterialsAlphabetically(getCurrentRawMaterials());
-    sortedRawMaterials.forEach(item => {
-        const option = document.createElement('option');
-        option.value = `rawMaterial-${item.id}`;
-        const yieldText = item.yieldPercentage !== 100 ? ` (${item.yieldPercentage}% yield)` : '';
-        option.textContent = `${item.name} (${formatCurrency(item.costPerUnit)}/${item.costUnit}${yieldText})`;
-        option.dataset.yield = item.yieldPercentage || 100;
-        rawMaterialsGroup.appendChild(option);
-    });
-    
-    // NEW: Sort sub-recipes alphabetically
-    const subRecipes = getCurrentRecipes().filter(recipe => recipe.type === 'sub');
-    const sortedSubRecipes = sortRecipesAlphabetically(subRecipes);
-    sortedSubRecipes.forEach(recipe => {
-        const option = document.createElement('option');
-        option.value = `subrecipe-${recipe.id}`;
-        const unitCost = recipe.costPerUnit || 0;
-        const costUnit = recipe.costUnit || recipe.outputUnit || 'batch';
-        option.textContent = `${recipe.name} (${formatCurrency(unitCost)}/${costUnit})`;
-        subRecipesGroup.appendChild(option);
-    });
-}
-
-// ENHANCED: Populate direct labor select with alphabetical sorting
-function populateDirectLaborSelect() {
-    const select = document.getElementById("directLaborSelect");
-    select.innerHTML = '<option value="">Select direct labor...</option>';
-    
-    // NEW: Sort direct labor alphabetically
-    const sortedDirectLabor = sortDirectLaborAlphabetically(getCurrentDirectLabor());
-    sortedDirectLabor.forEach(labor => {
-        const option = document.createElement('option');
-        option.value = labor.id;
-        option.textContent = `${labor.name} (${formatCurrency(labor.costPerUnit)}/${labor.costUnit})`;
-        option.dataset.unit = labor.costUnit; // Store unit for dynamic updates
-        select.appendChild(option);
-    });
-}
-
-// =============================================================================
-// FIX: ENHANCED DIRECT LABOR RATE DISPLAY IN RECIPE CALCULATOR
-// =============================================================================
-function addDirectLaborToRecipe() {
-    const laborId = directLaborSelect.value;
-    const timeRequired = parseFloat(timeRequirement.value);
-
-    if (!laborId || !timeRequired || timeRequired <= 0) {
-        alert("Please select a direct labor item and enter a valid time requirement");
-        return;
-    }
-
-    const labor = getCurrentDirectLabor().find(item => item.id === parseInt(laborId));
-    if (!labor) {
-        console.error("Direct labor item not found:", laborId);
-        alert("Selected direct labor item not found. Please refresh the list.");
-        return;
-    }
-
-    // DEBUG: Log labor data to verify rate
-    console.log("Adding direct labor:", {
-        name: labor.name,
-        costPerUnit: labor.costPerUnit,
-        costUnit: labor.costUnit,
-        timeRequired: timeRequired
-    });
-
-    // Check if we're updating an existing row
-    if (window.currentEditingLaborRow) {
-        addDirectLaborRow(
-            labor.name,
-            timeRequired,
-            labor.costUnit,
-            labor.costPerUnit // Use the pre-calculated costPerUnit
-        );
-        
-        // Clear editing state
-        window.currentEditingLaborRow = null;
-        
-        // Reset button text and function
-        const addButton = document.querySelector('.add-labor-section .btn-primary');
-        addButton.textContent = 'Add Direct Labor';
-        addButton.onclick = addDirectLaborToRecipe;
-    } else {
-        // Create new row
-        addDirectLaborRow(
-            labor.name,
-            timeRequired,
-            labor.costUnit,
-            labor.costPerUnit // Use the pre-calculated costPerUnit
-        );
-    }
-
-    // Clear inputs
-    directLaborSelect.value = "";
-    timeRequirement.value = "";
-    timeRequirementUnit.textContent = "hours"; // Reset to default
-    
-    // Force recalculation to update display
-    recalc();
-}
-
-// =============================================================================
-// FIX: CORRECT RECIPE TABLE COLUMN INDEXES AFTER YIELD COLUMN ADDITION
-// =============================================================================
-function addRow(
-    name = "",
-    qtyVal = "0",
-    unit = "g",
-    unitCostVal = "0.00",
-    type = "rawMaterial",
-    subRecipeId = null
-) {
-    const tr = document.createElement("tr");
-    const rowId = 'row-' + Date.now(); // Unique ID for each row
-    
-    if (type === 'sub-recipe') {
-        tr.classList.add('sub-recipe-row');
-    }
-    
-    // NEW: Get yield percentage for display
-    let yieldPercentage = "N/A";
-    if (type === 'rawMaterial') {
-        const rawMaterial = getCurrentRawMaterials().find(item => item.name === name);
-        yieldPercentage = rawMaterial ? (rawMaterial.yieldPercentage || 100) + "%" : "100%";
-    }
-
-    // FIXED COLUMN STRUCTURE: 0:Item, 1:Qty, 2:Yield%, 3:UnitCost, 4:TotalCost, 5:Actions
-    tr.innerHTML = `
-            <td data-label="Item">
-                ${type === 'sub-recipe' ? `<span class="sub-recipe-badge">SUB</span> ` : ''}
-                <input type="text" value="${escapeHtml(name)}" placeholder="Item" readonly>
-            </td>
-            <td data-label="Qty">
-                <div class="quantity-input-group">
-                    <input type="number" value="${parseFloat(qtyVal).toFixed(2)}" step="0.01" placeholder="Qty" readonly>
-                    <span class="quantity-unit">${unit}</span>
-                </div>
-            </td>
-            <!-- NEW: Yield % Column (Index 2) -->
-            <td class="yield-display-cell" data-label="Yield %">
-                <span class="yield-value">${yieldPercentage}</span>
-            </td>
-            <!-- Unit Cost Column (NOW Index 3) -->
-            <td class="unit-cost-cell" data-label="Unit Cost">
-                <span class="unit-currency">${currency}</span>
-                <input type="number" value="${parseFloat(unitCostVal).toFixed(2)}" step="0.01" style="width:60%" readonly>
-                <span class="unit-display">/${unit}</span>
-            </td>
-            <!-- Total Cost Column (NOW Index 4) -->
-            <td data-label="Total Cost">
-                <span class="unit-currency">${currency}</span>
-                <span class="total-value">0.00</span>
-                <span class="unit-suffix">/recipe</span>
-            </td>
-            <!-- Actions Column (NOW Index 5) -->
-            <td data-label="Actions">
-                <!-- ADDED: Edit button -->
-                <button class="btn-secondary small edit-recipe-btn" onclick="editRecipeRow('${rowId}')">Edit</button>
-                <button class="btn-danger small delRow">🗑️</button>
-            </td>
-        `;
-
-    tr.id = rowId;
-    
-    // FIXED: Correct column indexes after adding yield column
-    const qty = tr.children[1].querySelector("input"); // Index 1: Quantity
-    const unitCostInput = tr.children[3].querySelector("input"); // Index 3: Unit Cost (was 2)
-    const totalVal = tr.children[4].querySelector(".total-value"); // Index 4: Total Cost (was 3)
-    const delBtn = tr.querySelector(".delRow");
-
-    tr.dataset.type = type;
-    if (subRecipeId) {
-        tr.dataset.subRecipeId = subRecipeId;
-    }
-
-    function updateRow() {
-        const q = parseFloat(qty.value) || 0;
-        const uc = parseFloat(unitCostInput.value) || 0;
-        
-        // SIMPLIFIED: No yield calculation needed - cost already includes yield
-        totalVal.textContent = (q * uc).toFixed(2);
-        recalc();
-        saveCurrentRecipeState();
-        
-        // NEW: Update cost breakdown preview if recipe is loaded
-        if (loadedRecipeForSummary) {
-            updateCostBreakdownPreview();
-        }
-    }
-
-    [qty, unitCostInput].forEach((e) =>
-        e.addEventListener("input", updateRow)
-    );
-    delBtn.addEventListener("click", () => {
-        tr.remove();
-        recalc();
-        
-        // Auto-save current recipe state
-        saveCurrentRecipeState();
-        
-        // NEW: Update cost breakdown preview if recipe is loaded
-        if (loadedRecipeForSummary) {
-            updateCostBreakdownPreview();
-        }
-    });
-    recipeBody.appendChild(tr);
-    updateRow();
-    
-    // Auto-save current recipe state
-    saveCurrentRecipeState();
-}
-
-// MODIFIED: Add direct labor row to recipe - readonly with Edit button
-function addDirectLaborRow(name, timeRequired, timeUnit, rate) {
-    const tr = document.createElement("tr");
-    const rowId = 'labor-row-' + Date.now(); // Unique ID for each labor row
-    
-    tr.classList.add('labor-row');
-    
-    // MODIFIED: Made all inputs readonly and added Edit button
-    tr.innerHTML = `
-        <td data-label="Labor Item">
-            <input type="text" value="${escapeHtml(name)}" placeholder="Labor item" readonly>
-        </td>
-        <td data-label="Time Required">
-            <div class="quantity-input-group">
-                <input type="number" value="${parseFloat(timeRequired).toFixed(2)}" step="0.01" placeholder="Time" readonly>
-                <span class="quantity-unit">${timeUnit}</span>
-            </div>
-        </td>
-        <td data-label="Rate">
-            <div class="input-with-unit">
-                <input type="number" value="${parseFloat(rate).toFixed(2)}" step="0.01" placeholder="Rate" readonly>
-                <span class="unit-display-small">/${timeUnit}</span>
-            </div>
-        </td>
-        <td data-label="Total Cost">
-            <span class="unit-currency">${currency}</span>
-            <span class="total-value">0.00</span>
-        </td>
-        <td data-label="Actions">
-            <!-- ADDED: Edit button -->
-            <button class="btn-secondary small edit-labor-btn" onclick="editDirectLaborRow('${rowId}')">Edit</button>
-            <button class="btn-danger small delDirectLaborRow">🗑️</button>
-        </td>
-    `;
-
-    tr.id = rowId;
-    const timeInput = tr.children[1].querySelector("input");
-    const rateInput = tr.children[2].querySelector("input");
-    const totalVal = tr.children[3].querySelector(".total-value");
-    const delBtn = tr.querySelector(".delDirectLaborRow");
-
-    tr.dataset.laborId = name; // Store labor name for editing
-
-    function updateRow() {
-        const time = parseFloat(timeInput.value) || 0;
-        const rate = parseFloat(rateInput.value) || 0;
-        totalVal.textContent = (time * rate).toFixed(2);
-        recalc();
-        
-        // Auto-save current recipe state
-        saveCurrentRecipeState();
-        
-        // Update cost breakdown preview if recipe is loaded
-        if (loadedRecipeForSummary) {
-            updateCostBreakdownPreview();
-        }
-    }
-
-    timeInput.addEventListener("input", updateRow);
-    delBtn.addEventListener("click", () => {
-        tr.remove();
-        recalc();
-        
-        // Auto-save current recipe state
-        saveCurrentRecipeState();
-        
-        // Update cost breakdown preview if recipe is loaded
-        if (loadedRecipeForSummary) {
-            updateCostBreakdownPreview();
-        }
-    });
-    directLaborRecipeBody.appendChild(tr);
-    updateRow();
-    
-    // Auto-save current recipe state
-    saveCurrentRecipeState();
-}
-
-// MODIFIED: Add direct labor to recipe with editing support
-function addDirectLaborToRecipe() {
-    const laborId = directLaborSelect.value;
-    const timeRequired = parseFloat(timeRequirement.value);
-
-    if (!laborId || !timeRequired || timeRequired <= 0) {
-        alert("Please select a direct labor item and enter a valid time requirement");
-        return;
-    }
-
-    const labor = getCurrentDirectLabor().find(item => item.id === parseInt(laborId));
-    if (!labor) return;
-
-    // Check if we're updating an existing row
-    if (window.currentEditingLaborRow) {
-        // Remove the old row (it was already removed when editing started)
-        // Just create the updated row
-        addDirectLaborRow(
-            labor.name,
-            timeRequired,
-            labor.costUnit,
-            labor.costPerUnit
-        );
-        
-        // Clear editing state
-        window.currentEditingLaborRow = null;
-        
-        // Reset button text and function
-        const addButton = document.querySelector('.add-labor-section .btn-primary');
-        addButton.textContent = 'Add Direct Labor';
-        addButton.onclick = addDirectLaborToRecipe;
-    } else {
-        // Create new row
-        addDirectLaborRow(
-            labor.name,
-            timeRequired,
-            labor.costUnit,
-            labor.costPerUnit
-        );
-    }
-
-    // Clear inputs
-    directLaborSelect.value = "";
-    timeRequirement.value = "";
-    timeRequirementUnit.textContent = "hours"; // Reset to default
-}
-
-// NEW: Function to edit recipe row
-function editRecipeRow(rowId) {
-    const row = document.getElementById(rowId);
-    if (!row) return;
-    
-    // Get current row data
-    const name = row.children[0].querySelector("input").value;
-    const quantity = parseFloat(row.children[1].querySelector("input").value) || 0;
-    const unit = row.children[1].querySelector(".quantity-unit").textContent;
-    const unitCost = parseFloat(row.children[3].querySelector("input").value) || 0; // FIXED: Index 3 for unit cost
-    const type = row.dataset.type || 'rawMaterial';
-    const subRecipeId = row.dataset.subRecipeId || null;
-    
-    // Store editing state
-    window.currentEditingRow = {
-        rowId: rowId,
-        type: type,
-        subRecipeId: subRecipeId
-    };
-    
-    // Remove the row temporarily (will be re-added after editing)
-    row.remove();
-    
-    // Populate the add item form with current values
-    populateRecipeFormForEditing(name, quantity, unit, unitCost, type, subRecipeId);
-    
-    // Update button text to indicate edit mode
-    const addButton = document.querySelector('.add-ingredient-section .btn-primary');
-    addButton.textContent = 'Update Item';
-    addButton.onclick = updateRecipeRow;
-    
-    // Recalculate totals
-    recalc();
-}
-
-// NEW: Function to populate recipe form for editing
-function populateRecipeFormForEditing(name, quantity, unit, unitCost, type, subRecipeId) {
-    // Find the item in the unified select dropdown
-    if (type === 'rawMaterial') {
-        const rawMaterial = getCurrentRawMaterials().find(item => item.name === name);
-        if (rawMaterial) {
-            unifiedItemSelect.value = `rawMaterial-${rawMaterial.id}`;
-            onUnifiedItemSelectChange(); // Update unit display
-        }
-    } else if (type === 'sub-recipe') {
-        const subRecipe = getCurrentRecipes().find(recipe => recipe.name === name);
-        if (subRecipe) {
-            unifiedItemSelect.value = `subrecipe-${subRecipe.id}`;
-            onUnifiedItemSelectChange(); // Update unit display
-        }
-    }
-    
-    // Populate form fields
-    addIngredientQty.value = quantity;
-    
-    // Note: Unit cost is automatically set based on selection
-}
-
-// NEW: Function to update recipe row after editing
-function updateRecipeRow() {
-    if (!window.currentEditingRow) {
-        addItemToRecipe(); // Fallback to normal add
-        return;
-    }
-    
-    // Use the normal add function but with the edited data
-    addItemToRecipe();
-    
-    // Reset button text and function
-    const addButton = document.querySelector('.add-ingredient-section .btn-primary');
-    addButton.textContent = 'Add to Recipe';
-    addButton.onclick = addItemToRecipe;
-    
-    // Clear editing state
-    window.currentEditingRow = null;
-}
-
-// NEW: Helper function to update unit when unified item selection changes
-function onUnifiedItemSelectChange() {
-    const selectedValue = unifiedItemSelect.value;
-    if (!selectedValue) {
-        addIngredientUnit.textContent = "g"; // Default unit
-        return;
-    }
-    
-    const [type, id] = selectedValue.split('-');
-    const itemId = parseInt(id);
-    
-    if (type === 'rawMaterial') {
-        const rawMaterial = getCurrentRawMaterials().find(item => item.id === itemId);
-        if (rawMaterial) {
-            addIngredientUnit.textContent = rawMaterial.costUnit;
-        }
-    } else if (type === 'subrecipe') {
-        const subRecipe = getCurrentRecipes().find(recipe => recipe.id === itemId);
-        if (subRecipe) {
-            addIngredientUnit.textContent = subRecipe.costUnit || subRecipe.outputUnit || 'batch';
-        }
-    }
-}
-
-// NEW: Function to edit direct labor row
-function editDirectLaborRow(rowId) {
-    const row = document.getElementById(rowId);
-    if (!row) return;
-    
-    // Get current row data
-    const name = row.children[0].querySelector("input").value;
-    const timeRequired = parseFloat(row.children[1].querySelector("input").value) || 0;
-    const timeUnit = row.children[1].querySelector(".quantity-unit").textContent;
-    const rate = parseFloat(row.children[2].querySelector("input").value) || 0;
-    
-    // Store editing state
-    window.currentEditingLaborRow = {
-        rowId: rowId,
-        laborName: name
-    };
-    
-    // Remove the row temporarily
-    row.remove();
-    
-    // Populate the direct labor form with current values
-    populateDirectLaborFormForEditing(name, timeRequired, timeUnit, rate);
-    
-    // Update button text to indicate edit mode
-    const addButton = document.querySelector('.add-labor-section .btn-primary');
-    addButton.textContent = 'Update Labor';
-    addButton.onclick = updateDirectLaborRow;
-    
-    // Recalculate totals
-    recalc();
-}
-
-// NEW: Function to populate direct labor form for editing
-function populateDirectLaborFormForEditing(name, timeRequired, timeUnit, rate) {
-    // Find and select the labor item
-    const labor = getCurrentDirectLabor().find(item => item.name === name);
-    if (labor) {
-        directLaborSelect.value = labor.id;
-        // Trigger the change event to update the time unit
-        const event = new Event('change');
-        directLaborSelect.dispatchEvent(event);
-    }
-    
-    // Populate time requirement
-    timeRequirement.value = timeRequired;
-}
-
-// NEW: Function to update direct labor row after editing
-function updateDirectLaborRow() {
-    if (!window.currentEditingLaborRow) {
-        addDirectLaborToRecipe(); // Fallback to normal add
-        return;
-    }
-    
-    // Use the normal add function but with the edited data
-    addDirectLaborToRecipe();
-}
-
-// MODIFIED: Simplified function to add items to recipe - uses yield-inclusive costs
-function addItemToRecipe() {
-    const selectedValue = unifiedItemSelect.value;
-    const quantity = parseFloat(addIngredientQty.value);
-
-    if (!selectedValue || !quantity) {
-        alert("Please select an item and enter quantity/time");
-        return;
-    }
-
-    const [type, id] = selectedValue.split('-');
-    const itemId = parseInt(id);
-
-    if (type === 'rawMaterial') {
-        const rawMaterial = getCurrentRawMaterials().find(item => item.id === itemId);
-        if (!rawMaterial) return;
-
-        const unit = rawMaterial.costUnit;
-        const unitCost = rawMaterial.costPerUnit; // Already yield-inclusive
-
-        // Check if we're updating an existing row
-        if (window.currentEditingRow) {
-            // Remove the old row (it was already removed when editing started)
-            // Just create the updated row
-            addRow(
-                rawMaterial.name,
-                quantity.toFixed(2),
-                unit,
-                unitCost.toFixed(2),
-                'rawMaterial'
-            );
-            
-            // Clear editing state
-            window.currentEditingRow = null;
-            
-            // Reset button text and function
-            const addButton = document.querySelector('.add-ingredient-section .btn-primary');
-            addButton.textContent = 'Add to Recipe';
-            addButton.onclick = addItemToRecipe;
-        } else {
-            // Create new row
-            addRow(
-                rawMaterial.name,
-                quantity.toFixed(2),
-                unit,
-                unitCost.toFixed(2),
-                'rawMaterial'
-            );
-        }
-    } else if (type === 'subrecipe') {
-        const subRecipe = getCurrentRecipes().find(recipe => recipe.id === itemId);
-        if (!subRecipe) return;
-
-        // Use costPerUnit instead of unitCost
-        const unitCost = subRecipe.costPerUnit || 0;
-        const unit = subRecipe.costUnit || subRecipe.outputUnit || 'batch';
-
-        // Check if we're updating an existing row
-        if (window.currentEditingRow) {
-            // Remove the old row (it was already removed when editing started)
-            // Just create the updated row
-            addRow(
-                subRecipe.name,
-                quantity.toFixed(2),
-                unit,
-                unitCost.toFixed(2),
-                'sub-recipe',
-                subRecipe.id
-            );
-            
-            // Clear editing state
-            window.currentEditingRow = null;
-            
-            // Reset button text and function
-            const addButton = document.querySelector('.add-ingredient-section .btn-primary');
-            addButton.textContent = 'Add to Recipe';
-            addButton.onclick = addItemToRecipe;
-        } else {
-            // Create new row
-            addRow(
-                subRecipe.name,
-                quantity.toFixed(2),
-                unit,
-                unitCost.toFixed(2),
-                'sub-recipe',
-                subRecipe.id
-            );
-        }
-    }
-
-    unifiedItemSelect.value = "";
-    addIngredientQty.value = "";
-    addIngredientUnit.textContent = "g";
-}
-
-// Open sub-recipe save modal
-function openSubRecipeSaveModal() {
-    const recipeName = document.getElementById('recipeName').value.trim();
-    if (!recipeName) {
-        alert('Please enter a recipe name before saving as sub-recipe');
-        document.getElementById('recipeName').focus();
-        return;
-    }
-
-    // Set the sub-recipe name in the modal
-    document.getElementById('subRecipeNameDisplay').value = recipeName;
-    
-    // Reset form to default values
-    document.getElementById('subRecipeCategory').value = 'weight';
-    document.getElementById('subRecipeYieldQuantity').value = '1';
-    
-    // Update unit options and cost display
-    updateSubRecipeUnitOptions();
-    updateSubRecipeCostDisplay();
-    
-    // Show the modal
-    document.getElementById('subRecipeSaveModal').classList.remove('hidden');
-}
-
-// =============================================================================
-// FIX: SUB-RECIPE DUPLICATE PREVENTION - ENHANCED
-// =============================================================================
-
-// MODIFIED: Enhanced saveSubRecipe function with proper duplicate detection
-function saveSubRecipe() {
-    const servingScale = parseFloat(servingScaleInput.value) || 1;
-    
-    // Informational log for debugging
-    if (servingScale !== 1) {
-        console.log(`INFO: Saving sub-recipe with Serving Scale = ${servingScale}. Sub-recipe costs use yield system, Serving Scale ignored.`);
-    }
-    
-    const name = document.getElementById('subRecipeNameDisplay').value;
-    const category = document.getElementById('subRecipeCategory').value;
-    const yieldQuantity = parseFloat(document.getElementById('subRecipeYieldQuantity').value);
-    const yieldUnit = document.getElementById('subRecipeYieldUnit').value;
-    const costPerUnit = parseFloat(document.getElementById('subRecipeCostPerUnit').value);
-    const costUnit = document.getElementById('subRecipeCostUnit').value;
-
-    if (!name) {
-        alert('Please enter a sub-recipe name');
-        return;
-    }
-
-    if (isNaN(yieldQuantity) || yieldQuantity <= 0) {
-        alert('Please enter a valid yield quantity');
-        return;
-    }
-
-    // Get current recipe items
-    const rawMaterialItems = [];
-    const directLaborItems = [];
-    
-    recipeBody.querySelectorAll("tr").forEach(row => {
-        const itemName = row.children[0].querySelector("input").value;
-        const quantity = parseFloat(row.children[1].querySelector("input").value) || 0;
-        const unit = row.children[1].querySelector(".quantity-unit").textContent;
-        const unitCost = parseFloat(row.children[3].querySelector("input").value) || 0; // FIXED: Index 3
-        const type = row.dataset.type || 'rawMaterial';
-        const subRecipeId = row.dataset.subRecipeId || null;
-        
-        if (type === 'rawMaterial' || type === 'sub-recipe') {
-            rawMaterialItems.push({
-                name: itemName,
-                quantity: quantity,
-                unit: unit,
-                unitCost: unitCost,
-                type: type,
-                subRecipeId: subRecipeId
-            });
-        }
-    });
-
-    directLaborRecipeBody.querySelectorAll("tr").forEach(row => {
-        const laborName = row.children[0].querySelector("input").value;
-        const timeRequired = parseFloat(row.children[1].querySelector("input").value) || 0;
-        const timeUnit = row.children[1].querySelector(".quantity-unit").textContent;
-        const rate = parseFloat(row.children[2].querySelector("input").value) || 0;
-        
-        directLaborItems.push({
-            name: laborName,
-            quantity: timeRequired,
-            unit: timeUnit,
-            rate: rate
-        });
-    });
-
-    // Create sub-recipe object
-    const subRecipe = {
-        id: Date.now(),
-        name: name,
-        type: 'sub',
-        category: category,
-        yieldQuantity: yieldQuantity,
-        yieldUnit: yieldUnit,
-        costPerUnit: costPerUnit,
-        costUnit: costUnit,
-        rawMaterialItems: rawMaterialItems,
-        directLaborItems: directLaborItems,
-        totalCost: calculateCurrentRecipeTotalCost()
-    };
-
-    // FIXED: Enhanced duplicate detection for sub-recipes
-    const recipes = getCurrentRecipes();
-    
-    // Filter only sub-recipes for duplicate checking
-    const subRecipes = recipes.filter(recipe => recipe.type === 'sub');
-    const existingSubRecipe = checkForDuplicateName(name, subRecipes, editingItem.id);
-    
-    // DEBUG: Log duplicate detection results
-    console.log("Sub-recipe duplicate check:", {
-        name: name,
-        existingSubRecipe: existingSubRecipe,
-        editingItem: editingItem,
-        subRecipesCount: subRecipes.length
-    });
-    
-    if (existingSubRecipe && !editingItem.id) {
-        console.log("Duplicate sub-recipe detected, showing prompt");
-        showEditPrompt('subRecipe', existingSubRecipe.id, name);
-        return;
-    }
-
-    // Add to saved recipes
-    recipes.push(subRecipe);
-    setCurrentRecipes(recipes);
-
-    // Update displays
-    renderRecipesList();
-    populateUnifiedItemSelect();
-    populateSummaryRecipeSelect();
-    
-    // Close modal
-    closeSubRecipeSaveModal();
-    
-    // Auto-reset after save
-    autoResetAfterSave();
-    
-    showNotification(`Sub-recipe "${name}" saved successfully!`, "success");
-}
-
-// =============================================================================
-// NEW: FUNCTION TO UPDATE EXISTING SUB-RECIPE
-// =============================================================================
-function updateExistingSubRecipe() {
-    const name = document.getElementById('subRecipeNameDisplay').value;
-    const category = document.getElementById('subRecipeCategory').value;
-    const yieldQuantity = parseFloat(document.getElementById('subRecipeYieldQuantity').value);
-    const yieldUnit = document.getElementById('subRecipeYieldUnit').value;
-    const costPerUnit = parseFloat(document.getElementById('subRecipeCostPerUnit').value);
-    const costUnit = document.getElementById('subRecipeCostUnit').value;
-
-    // Get current recipe items
-    const rawMaterialItems = [];
-    const directLaborItems = [];
-    
-    recipeBody.querySelectorAll("tr").forEach(row => {
-        const itemName = row.children[0].querySelector("input").value;
-        const quantity = parseFloat(row.children[1].querySelector("input").value) || 0;
-        const unit = row.children[1].querySelector(".quantity-unit").textContent;
-        const unitCost = parseFloat(row.children[3].querySelector("input").value) || 0; // FIXED: Index 3
-        const type = row.dataset.type || 'rawMaterial';
-        const subRecipeId = row.dataset.subRecipeId || null;
-        
-        if (type === 'rawMaterial' || type === 'sub-recipe') {
-            rawMaterialItems.push({
-                name: itemName,
-                quantity: quantity,
-                unit: unit,
-                unitCost: unitCost,
-                type: type,
-                subRecipeId: subRecipeId
-            });
-        }
-    });
-
-    directLaborRecipeBody.querySelectorAll("tr").forEach(row => {
-        const laborName = row.children[0].querySelector("input").value;
-        const timeRequired = parseFloat(row.children[1].querySelector("input").value) || 0;
-        const timeUnit = row.children[1].querySelector(".quantity-unit").textContent;
-        const rate = parseFloat(row.children[2].querySelector("input").value) || 0;
-        
-        directLaborItems.push({
-            name: laborName,
-            quantity: timeRequired,
-            unit: timeUnit,
-            rate: rate
-        });
-    });
-
-    // Create updated sub-recipe object
-    const updatedSubRecipe = {
-        id: editingItem.id, // Keep the same ID
-        name: name,
-        type: 'sub',
-        category: category,
-        yieldQuantity: yieldQuantity,
-        yieldUnit: yieldUnit,
-        costPerUnit: costPerUnit,
-        costUnit: costUnit,
-        rawMaterialItems: rawMaterialItems,
-        directLaborItems: directLaborItems,
-        totalCost: calculateCurrentRecipeTotalCost()
-    };
-
-    // Update the existing sub-recipe
-    const recipes = getCurrentRecipes();
-    const index = recipes.findIndex(recipe => recipe.id === editingItem.id);
-    
-    if (index !== -1) {
-        recipes[index] = updatedSubRecipe;
-        setCurrentRecipes(recipes);
-        
-        // Update displays
-        renderRecipesList();
-        populateUnifiedItemSelect();
-        populateSummaryRecipeSelect();
-        
-        // Close modal
-        closeSubRecipeSaveModal();
-        
-        // Auto-reset after save
-        autoResetAfterSave();
-        
-        showNotification(`Sub-recipe "${name}" updated successfully!`, "success");
-    } else {
-        console.error("Could not find sub-recipe to update:", editingItem.id);
-        alert("Error: Could not find the existing sub-recipe to update. It may have been deleted.");
-    }
-}
-
-// =============================================================================
-// FIX: CORRECT calculateCurrentRecipeTotalCost FUNCTION - BASE COSTS ONLY
-// =============================================================================
-function calculateCurrentRecipeTotalCost() {
-    let rawMaterialsTotal = 0;
-    let directLaborTotal = 0;
-    
-    // Calculate raw materials total from current recipe table (BASE calculation)
-    recipeBody.querySelectorAll("tr").forEach((row) => {
-        const q = parseFloat(row.children[1].querySelector("input").value) || 0;
-        const uc = parseFloat(row.children[3].querySelector("input").value) || 0; // FIXED: Index 3 for unit cost
-        
-        // SIMPLIFIED: No yield calculation needed - cost already includes yield
-        rawMaterialsTotal += q * uc; // BASE cost - no scaling
-    });
-    
-    // Calculate direct labor total from current labor table (BASE calculation)  
-    directLaborRecipeBody.querySelectorAll("tr").forEach((row) => {
-        const time = parseFloat(row.children[1].querySelector("input").value) || 0;
-        const rate = parseFloat(row.children[2].querySelector("input").value) || 0;
-        directLaborTotal += time * rate; // BASE cost - no scaling
-    });
-    
-    // RETURN: Base total cost without serving scale contamination
-    return parseFloat((rawMaterialsTotal + directLaborTotal).toFixed(2));
-}
-
-// Close sub-recipe save modal
-function closeSubRecipeSaveModal() {
-    document.getElementById('subRecipeSaveModal').classList.add('hidden');
-}
-
-// =============================================================================
-// FIX: ENHANCED SERVING SCALE ISOLATION
-// =============================================================================
-function calculateScaledCostsForSummary(baseRawMaterialsCost, baseDirectLaborCost, baseServings) {
-    const servingScale = parseFloat(servingScaleInput.value) || 1;
-    
-    // Apply serving scale formula: (Base Cost ÷ Base Servings) × Target Servings
-    const scaledRawMaterialsCost = baseServings > 0 ? 
-        (baseRawMaterialsCost / baseServings) * servingScale : 0;
-    const scaledDirectLaborCost = baseServings > 0 ? 
-        (baseDirectLaborCost / baseServings) * servingScale : 0;
-    const scaledTotalCost = scaledRawMaterialsCost + scaledDirectLaborCost;
-    
-    return {
-        scaledRawMaterialsCost,
-        scaledDirectLaborCost, 
-        scaledTotalCost,
-        targetServings: servingScale
-    };
-}
-
-// =============================================================================
-// FIX: ENHANCED SAVE RECIPE WITH AUTOMATIC DUPLICATE DETECTION
-// =============================================================================
-function saveRecipe(type) {
-    const servingScale = parseFloat(servingScaleInput.value) || 1;
-    
-    // Show warning if Serving Scale ≠ 1 when saving (informational only)
-    if (servingScale !== 1) {
-        console.log(`INFO: Saving recipe with Serving Scale = ${servingScale}. This affects Summary analysis but NOT saved recipe costs.`);
-    }
-    
-    const name = recipeNameInput.value.trim();
-    if (!name) {
-        alert("Please enter a recipe name");
-        recipeNameInput.focus();
-        return;
-    }
-
-    // Get current recipe items (BASE costs)
-    const rawMaterialItems = [];
-    const directLaborItems = [];
-    
-    recipeBody.querySelectorAll("tr").forEach(row => {
-        const itemName = row.children[0].querySelector("input").value;
-        const quantity = parseFloat(row.children[1].querySelector("input").value) || 0;
-        const unit = row.children[1].querySelector(".quantity-unit").textContent;
-        const unitCost = parseFloat(row.children[3].querySelector("input").value) || 0; // FIXED: Index 3
-        const type = row.dataset.type || 'rawMaterial';
-        const subRecipeId = row.dataset.subRecipeId || null;
-        
-        if (type === 'rawMaterial' || type === 'sub-recipe') {
-            rawMaterialItems.push({
-                name: itemName,
-                quantity: quantity,
-                unit: unit,
-                unitCost: unitCost,
-                type: type,
-                subRecipeId: subRecipeId
-            });
-        } else if (type === 'directLabor') {
-            directLaborItems.push({
-                name: itemName,
-                quantity: quantity,
-                unit: unit,
-                unitCost: unitCost,
-                type: 'directLabor'
-            });
-        }
-    });
-
-    directLaborRecipeBody.querySelectorAll("tr").forEach(row => {
-        const laborName = row.children[0].querySelector("input").value;
-        const timeRequired = parseFloat(row.children[1].querySelector("input").value) || 0;
-        const timeUnit = row.children[1].querySelector(".quantity-unit").textContent;
-        const rate = parseFloat(row.children[2].querySelector("input").value) || 0;
-        
-        directLaborItems.push({
-            name: laborName,
-            quantity: timeRequired,
-            unit: timeUnit,
-            rate: rate,
-            type: 'directLabor'
-        });
-    });
-
-    // Create recipe object with BASE costs
-    const recipe = {
-        id: Date.now(),
-        name: name,
-        type: type,
-        rawMaterialItems: rawMaterialItems,
-        directLaborItems: directLaborItems,
-        totalCost: calculateCurrentRecipeTotalCost(), // BASE cost only
-        servings: parseFloat(servingsInput.value) || 1,
-        createdAt: new Date().toISOString()
-    };
-
-    // NEW: Automatic duplicate detection and handling
-    const recipes = getCurrentRecipes();
-    const existingRecipe = checkForDuplicateName(name, recipes, editingItem.id);
-    
-    if (existingRecipe && !editingItem.id) {
-        showEditPrompt(type === 'main' ? 'mainRecipe' : 'subRecipe', existingRecipe.id, name);
-        return;
-    }
-
-    // Add to saved recipes
-    if (editingItem.type === 'mainRecipe' && editingItem.id) {
-        const existingIndex = recipes.findIndex(r => r.id === editingItem.id);
-        if (existingIndex !== -1) {
-            recipes[existingIndex] = recipe;
-        }
-    } else if (editingItem.type === 'subRecipe' && editingItem.id) {
-        const existingIndex = recipes.findIndex(r => r.id === editingItem.id);
-        if (existingIndex !== -1) {
-            recipes[existingIndex] = recipe;
-        }
-    } else {
-        recipes.push(recipe);
-    }
-
-    setCurrentRecipes(recipes);
-
-    // Update displays
-    renderRecipesList();
-    populateSummaryRecipeSelect();
-    
-    // Reset editing state
-    editingItem = { type: null, id: null, data: null };
-    
-    // Auto-reset after save
-    autoResetAfterSave();
-    
-    showNotification(`Recipe "${name}" saved successfully!`, "success");
-}
-
-// ENHANCED: Render recipes list with alphabetical sorting
-function renderRecipesList() {
-    const recipes = getCurrentRecipes();
-    
-    // NEW: Apply alphabetical sorting
-    const mainRecipes = sortRecipesAlphabetically(recipes.filter(recipe => recipe.type === 'main'));
-    const subRecipes = sortRecipesAlphabetically(recipes.filter(recipe => recipe.type === 'sub'));
-
-    // Render main recipes
-    mainRecipesList.innerHTML = mainRecipes.map(recipe => `
-        <div class="recipe-item" onclick="loadRecipe(${recipe.id})">
-            <h4>${escapeHtml(recipe.name)}</h4>
-            <p>Total Cost: ${formatCurrency(recipe.totalCost)} • ${recipe.rawMaterialItems.length + recipe.directLaborItems.length} items • ${recipe.servings || 1} servings</p>
-            <div class="recipe-actions">
-                <button class="btn-secondary small" onclick="editRecipe(${recipe.id}, event)">Edit</button>
-                <button class="btn-danger small" onclick="deleteRecipe(${recipe.id}, event)">Delete</button>
-            </div>
-        </div>
-    `).join('');
-
-    // Render sub-recipes
-    subRecipesList.innerHTML = subRecipes.map(recipe => `
-        <div class="recipe-item" onclick="loadSubRecipe(${recipe.id})">
-            <h4>${escapeHtml(recipe.name)}</h4>
-            <p>Cost: ${formatCurrency(recipe.costPerUnit)}/${recipe.costUnit} • ${recipe.rawMaterialItems.length + recipe.directLaborItems.length} items</p>
-            <div class="recipe-actions">
-                <button class="btn-secondary small" onclick="editSubRecipe(${recipe.id}, event)">Edit</button>
-                <button class="btn-danger small" onclick="deleteRecipe(${recipe.id}, event)">Delete</button>
-            </div>
-        </div>
-    `).join('');
-}
-
-// Load recipe into current recipe
-function loadRecipe(recipeId) {
-    const recipes = getCurrentRecipes();
-    const recipe = recipes.find(r => r.id === recipeId);
-    if (!recipe) return;
-
-    // Clear current recipe
-    recipeBody.innerHTML = "";
-    directLaborRecipeBody.innerHTML = "";
-
-    // Set recipe name
-    recipeNameInput.value = recipe.name;
-
-    // Set servings
-    servingsInput.value = recipe.servings || 1;
-
-    // Add raw material items
-    recipe.rawMaterialItems.forEach(item => {
-        addRow(
-            item.name,
-            item.quantity,
-            item.unit,
-            item.unitCost,
-            item.type || 'rawMaterial',
-            item.subRecipeId || null
-        );
-    });
-
-    // Add direct labor items
-    recipe.directLaborItems.forEach(item => {
-        addDirectLaborRow(
-            item.name,
-            item.quantity,
-            item.unit,
-            item.unitCost
-        );
-    });
-
-    // Set editing state
-    editingItem = { type: 'mainRecipe', id: recipeId, data: recipe };
-
-    // Switch to recipes tab
-    switchTab('recipes');
-    
-    // Recalculate
-    recalc();
-}
-
-// Load sub-recipe into current recipe
-function loadSubRecipe(recipeId) {
-    const recipes = getCurrentRecipes();
-    const recipe = recipes.find(r => r.id === recipeId && r.type === 'sub');
-    if (!recipe) return;
-
-    // Clear current recipe
-    recipeBody.innerHTML = "";
-    directLaborRecipeBody.innerHTML = "";
-
-    // Set recipe name
-    recipeNameInput.value = recipe.name;
-
-    // Add raw material items from sub-recipe
-    recipe.rawMaterialItems.forEach(item => {
-        addRow(
-            item.name,
-            item.quantity,
-            item.unit,
-            item.unitCost,
-            'rawMaterial'
-        );
-    });
-
-    // Add direct labor items from sub-recipe
-    recipe.directLaborItems.forEach(item => {
-        addDirectLaborRow(
-            item.name,
-            item.quantity,
-            item.unit,
-            item.unitCost
-        );
-    });
-
-    // Set editing state
-    editingItem = { type: 'subRecipe', id: recipeId, data: recipe };
-
-    // Switch to recipes tab
-    switchTab('recipes');
-    
-    // Recalculate
-    recalc();
-}
-
-// Edit recipe
-function editRecipe(recipeId, event) {
-    if (event) event.stopPropagation();
-    const recipes = getCurrentRecipes();
-    const recipe = recipes.find(r => r.id === recipeId);
-    if (!recipe) return;
-
-    // Load the recipe
-    loadRecipe(recipeId);
-    
-    // Set editing state
-    editingItem = { type: 'mainRecipe', id: recipeId, data: recipe };
-}
-
-// Edit sub-recipe
-function editSubRecipe(recipeId, event) {
-    if (event) event.stopPropagation();
-    const recipes = getCurrentRecipes();
-    const recipe = recipes.find(r => r.id === recipeId && r.type === 'sub');
-    if (!recipe) return;
-
-    // Load the sub-recipe
-    loadSubRecipe(recipeId);
-    
-    // Set editing state
-    editingItem = { type: 'subRecipe', id: recipeId, data: recipe };
-}
-
-// Delete recipe
-function deleteRecipe(recipeId, event) {
-    if (event) event.stopPropagation();
-    
-    if (!confirm("Are you sure you want to delete this recipe?")) return;
-
-    const recipes = getCurrentRecipes();
-    const updatedRecipes = recipes.filter(recipe => recipe.id !== recipeId);
-    setCurrentRecipes(updatedRecipes);
-
-    // Update displays
-    renderRecipesList();
-    populateUnifiedItemSelect();
-    
-    // NEW: Update summary recipe selector
-    populateSummaryRecipeSelect();
-    
-    // If we're editing the deleted recipe, clear editing state
-    if (editingItem.id === recipeId) {
-        editingItem = { type: null, id: null, data: null };
-    }
-    
-    // NEW: If the deleted recipe was loaded for summary, clear it
-    if (loadedRecipeForSummary && loadedRecipeForSummary.id === recipeId) {
-        loadedRecipeForSummary = null;
-        loadedRecipeDisplay.classList.add('hidden');
-        clearCostBreakdownPreview();
-    }
-    
-    showNotification("Recipe deleted successfully!", "success");
-}
-
-// =============================================================================
-// FIX: ENHANCED EDIT PROMPT FOR SUB-RECIPES
-// =============================================================================
-
-// MODIFIED: Enhanced showEditPrompt function for sub-recipes
-function showEditPrompt(type, id, name) {
-    console.log("Showing edit prompt for:", { type, id, name });
-    
-    let title = "Save Changes";
-    let message = '';
-    
-    switch(type) {
-        case 'mainRecipe':
-            title = "Save Main Recipe";
-            message = `A main recipe named "<strong>${escapeHtml(name)}</strong>" already exists.`;
-            break;
-        case 'subRecipe':
-            title = "Save Sub-Recipe"; 
-            message = `A sub-recipe named "<strong>${escapeHtml(name)}</strong>" already exists.`;
-            break;
-        case 'rawMaterial':
-            title = "Save Raw Material";
-            message = `A raw material named "<strong>${escapeHtml(name)}</strong>" already exists.`;
-            break;
-        case 'directLabor':
-            title = "Save Direct Labor";
-            message = `A direct labor item named "<strong>${escapeHtml(name)}</strong>" already exists.`;
-            break;
-        default:
-            message = `An item named "<strong>${escapeHtml(name)}</strong>" already exists.`;
-    }
-    
-    message += `<p>Would you like to replace the existing item or save this as a new item?</p>`;
-    
-    editPromptTitle.textContent = title;
-    editPromptMessage.innerHTML = message;
-    
-    // Store editing context
-    editingItem = { type, id, data: null };
-    
-    editPromptModal.classList.remove("hidden");
-}
-
-// MODIFIED: Enhanced handleEditPromptChoice for sub-recipes
-function handleEditPromptChoice(choice) {
-    console.log("Edit prompt choice:", choice, "for:", editingItem);
-    
-    closeEditPromptModal();
-    
-    if (choice === 'replace') {
-        // Replace existing item based on type
-        switch(editingItem.type) {
-            case 'mainRecipe':
-                saveRecipe('main');
-                break;
-            case 'subRecipe':
-                // For sub-recipes, we need to update the existing one
-                updateExistingSubRecipe();
-                break;
-            case 'rawMaterial':
-                updateRawMaterial();
-                break;
-            case 'directLabor':
-                updateDirectLabor();
-                break;
-        }
-    } else if (choice === 'new') {
-        // Save as new item (generate new ID)
-        editingItem.id = null;
-        
-        switch(editingItem.type) {
-            case 'mainRecipe':
-                saveRecipe('main');
-                break;
-            case 'subRecipe':
-                saveSubRecipe();
-                break;
-            case 'rawMaterial':
-                saveRawMaterial();
-                break;
-            case 'directLabor':
-                saveDirectLabor();
-                break;
-        }
-    }
-}
-
-// Close help modal
-function closeHelpModal() {
-    helpModal.classList.add("hidden");
-}
-
-// Close print preview
-function closePrintPreview() {
-    printPreviewModal.classList.add("hidden");
-}
-
-// Close edit prompt modal
-function closeEditPromptModal() {
-    editPromptModal.classList.add("hidden");
-}
-
-// =============================================================================
-// FIX: UPDATE RECALC FUNCTION WITH CLEAR SEPARATION
-// =============================================================================
-function recalc() {
-    // Recipe Calculator Tab calculations remain exactly the same - BASE costs only
-    const servings = parseFloat(servingsInput.value) || 1;
-    
-    let rawMaterialsTotal = 0;
-    let directLaborTotal = 0;
-
-    // Calculate base recipe totals (UNCHANGED - no scaling)
-    recipeBody.querySelectorAll("tr").forEach((row) => {
-        const q = parseFloat(row.children[1].querySelector("input").value) || 0;
-        const uc = parseFloat(row.children[3].querySelector("input").value) || 0; // FIXED: Index 3 for unit cost
-        
-        // SIMPLIFIED: No yield calculation needed - cost already includes yield
-        rawMaterialsTotal += q * uc; // BASE calculation
-    });
-
-    directLaborRecipeBody.querySelectorAll("tr").forEach((row) => {
-        const time = parseFloat(row.children[1].querySelector("input").value) || 0;
-        const rate = parseFloat(row.children[2].querySelector("input").value) || 0;
-        directLaborTotal += time * rate; // BASE calculation
-    });
-
-    // Recipe Calculator Tab displays BASE totals (UNCHANGED)
-    const grandTotal = rawMaterialsTotal + directLaborTotal;
-
-    // Update Recipe Calculator Tab display (UNCHANGED)
-    rawMaterialsTotalEl.textContent = `${currency}${rawMaterialsTotal.toFixed(2)}`;
-    directLaborTotalEl.textContent = `${currency}${directLaborTotal.toFixed(2)}`;
-    grandTotalEl.textContent = `${currency}${grandTotal.toFixed(2)}`;
-
-    // Only update summary when no recipe is loaded for analysis
-    if (!loadedRecipeForSummary) {
-        updateSummary(rawMaterialsTotal, directLaborTotal, grandTotal, servings);
-    }
-    
-    // Update cost breakdown preview if a recipe is loaded for summary
-    if (loadedRecipeForSummary) {
-        updateCostBreakdownPreview();
-    }
-}
-
-// =============================================================================
-// FIX: ENHANCED UPDATE SUMMARY FUNCTION WITH NaN PREVENTION
-// =============================================================================
-function updateSummary(rawMaterialsCost, directLaborCost, totalCost, baseServings) {
-    // VALIDATION: Ensure all inputs are valid numbers
-    rawMaterialsCost = Number(rawMaterialsCost) || 0;
-    directLaborCost = Number(directLaborCost) || 0;
-    totalCost = Number(totalCost) || 0;
-    baseServings = Number(baseServings) || 1;
-    
-    // Get serving scale with validation
-    const servingScale = parseFloat(servingScaleInput.value) || 1;
-    const markup = parseFloat(markupInput.value) || 0;
-    const tax = parseFloat(taxInput.value) || 0;
-    const vat = parseFloat(vatInput.value) || 0;
-
-    // Use the enhanced scaling function for Summary Tab
-    const scaledCosts = calculateScaledCostsForSummary(rawMaterialsCost, directLaborCost, baseServings);
-    
-    const scaledRawMaterialsCost = scaledCosts.scaledRawMaterialsCost;
-    const scaledDirectLaborCost = scaledCosts.scaledDirectLaborCost;
-    const scaledTotalCost = scaledCosts.scaledTotalCost;
-    const targetServings = scaledCosts.targetServings;
-
-    // Calculate cost per serving with zero division protection
-    const costPerServing = targetServings > 0 ? scaledTotalCost / targetServings : 0;
-    
-    // Calculate selling prices with validation
-    const sellingPriceBeforeTax = costPerServing * (1 + markup / 100);
-    const sellingPriceAfterTax = sellingPriceBeforeTax * (1 + (tax + vat) / 100);
-
-    // Calculate percentages with zero division protection
-    const foodCostPercent = sellingPriceBeforeTax > 0 ? (scaledRawMaterialsCost / targetServings / sellingPriceBeforeTax) * 100 : 0;
-    const laborCostPercent = sellingPriceBeforeTax > 0 ? (scaledDirectLaborCost / targetServings / sellingPriceBeforeTax) * 100 : 0;
-    const totalCostPercent = sellingPriceBeforeTax > 0 ? (scaledTotalCost / targetServings / sellingPriceBeforeTax) * 100 : 0;
-    const grossProfitPercent = sellingPriceBeforeTax > 0 ? 100 - totalCostPercent : 0;
-
-    // Update terminology and calculations
-    const totalRevenue = sellingPriceBeforeTax * targetServings;
-    const totalProfit = totalRevenue - scaledTotalCost;
-
-    // UPDATE: Show target servings
-    if (summaryServingsDisplay) {
-        summaryServingsDisplay.textContent = targetServings;
-    }
-
-    // Update Summary Tab with SCALED costs - with null checks
-    if (summaryRawMaterialsCost) summaryRawMaterialsCost.textContent = `${currency}${scaledRawMaterialsCost.toFixed(2)}`;
-    if (summaryDirectLaborCost) summaryDirectLaborCost.textContent = `${currency}${scaledDirectLaborCost.toFixed(2)}`;
-    if (summaryTotalCost) summaryTotalCost.textContent = `${currency}${scaledTotalCost.toFixed(2)}`;
-    if (summaryCostServing) summaryCostServing.textContent = `${currency}${costPerServing.toFixed(2)}`;
-    if (summarySellingPrice) summarySellingPrice.textContent = `${currency}${sellingPriceAfterTax.toFixed(2)}`;
-    
-    if (summaryFoodCost) summaryFoodCost.textContent = `${foodCostPercent.toFixed(1)}%`;
-    if (summaryLaborCostPercent) summaryLaborCostPercent.textContent = `${laborCostPercent.toFixed(1)}%`;
-    if (summaryTotalCostPercent) summaryTotalCostPercent.textContent = `${totalCostPercent.toFixed(1)}%`;
-    if (summaryGrossProfit) summaryGrossProfit.textContent = `${grossProfitPercent.toFixed(1)}%`;
-
-    // Update batch profit analysis with null checks
-    if (summaryBatchRevenue) summaryBatchRevenue.textContent = `${currency}${totalRevenue.toFixed(2)}`;
-    if (summaryBatchProfit) summaryBatchProfit.textContent = `${currency}${totalProfit.toFixed(2)}`;
-}
-
-// =============================================================================
-// FIX: ENHANCED LOADED RECIPE DISPLAY UPDATE
-// =============================================================================
-function updateLoadedRecipeDisplay() {
-    if (!loadedRecipeForSummary || !loadedRecipeDisplay) return;
-    
-    currentRecipeNameDisplay.textContent = loadedRecipeForSummary.name || "Unnamed Recipe";
-    loadedRecipeTotalCost.textContent = `${currency}${(loadedRecipeForSummary.totalCost || 0).toFixed(2)}`;
-    loadedRecipeServings.textContent = loadedRecipeForSummary.servings || 1;
-    loadedRecipeItemCount.textContent = `${(loadedRecipeForSummary.rawMaterialItems?.length || 0) + (loadedRecipeForSummary.directLaborItems?.length || 0)} items`;
-    
-    loadedRecipeDisplay.classList.remove('hidden');
-}
-
-// PURPOSE: Update loaded recipe summary with serving scale
-function updateSummaryWithLoadedRecipe(recipe) {
-    // NEW: Use serving scale instead of batch scale
-    const servingScale = parseFloat(servingScaleInput.value) || 1;
-    
-    // Calculate base totals from the loaded recipe (UNCHANGED)
-    let rawMaterialsTotal = recipe.rawMaterialItems.reduce((total, item) => {
-        // SIMPLIFIED: No yield calculation needed - cost already includes yield
-        return total + (item.quantity * item.unitCost);
-    }, 0);
-
-    let directLaborTotal = recipe.directLaborItems.reduce((total, item) => {
-        return total + (item.quantity * item.unitCost);
-    }, 0);
-
-    const baseServings = recipe.servings || 1;
-    const totalCost = rawMaterialsTotal + directLaborTotal;
-    
-    // Call updateSummary with serving scale applied
-    updateSummary(rawMaterialsTotal, directLaborTotal, totalCost, baseServings);
-}
-
-// NEW: Separate function to update loaded recipe summary
-function updateLoadedRecipeSummary() {
-    if (loadedRecipeForSummary) {
-        updateSummaryWithLoadedRecipe(loadedRecipeForSummary);
-    }
-}
-
-// =============================================================================
-// PURPOSE: NEW - Auto-set Serving Scale when loading recipes in Summary Tab
-// =============================================================================
-function loadRecipeForSummary() {
-    const recipeId = summaryRecipeSelect.value;
-    if (!recipeId) {
-        alert("Please select a recipe to load");
-        return;
-    }
-
-    const recipe = getCurrentRecipes().find(r => r.id === parseInt(recipeId));
-    if (!recipe) return;
-
-    loadedRecipeForSummary = recipe;
-    
-    // NEW: Automatically set serving scale to match the loaded recipe's base servings
-    const baseServings = recipe.servings || 1;
-    servingScaleInput.value = baseServings;
-    
-    // Update display
-    updateLoadedRecipeDisplay();
-    
-    // Update summary with loaded recipe data (now using the correct serving scale)
-    updateSummaryWithLoadedRecipe(recipe);
-    
-    // Update cost breakdown preview with loaded recipe
-    updateCostBreakdownPreview();
-    
-    // NEW: Show notification about auto-setting
-    showNotification(`Automatically set Serving Scale to ${baseServings} to match loaded recipe`, "info");
-}
-
-// =============================================================================
-// PURPOSE: Update cost breakdown preview with serving scale and alphabetical sorting
-// =============================================================================
-function updateCostBreakdownPreviewWithRecipe(recipe) {
-    // NEW: Use serving scale instead of batch scale
-    const servingScale = parseFloat(servingScaleInput.value) || 1;
-    const baseServings = recipe.servings || 1;
-    
-    // NEW: Calculate scaling factor using serving scale formula
-    const scaleFactor = baseServings > 0 ? servingScale / baseServings : 0;
-    
-    // Use recipe items directly
-    const rawMaterialItems = recipe.rawMaterialItems || [];
-    const directLaborItems = recipe.directLaborItems || [];
-    
-    // NEW: Sort items alphabetically for display
-    const sortedRawMaterialItems = sortRecipeItemsAlphabetically([...rawMaterialItems]);
-    const sortedDirectLaborItems = sortRecipeItemsAlphabetically([...directLaborItems]);
-    
-    // Update raw materials preview with SCALED quantities for Summary Tab
-    rawMaterialsCount.textContent = `${sortedRawMaterialItems.length} items`;
-    
-    let rawMaterialsSubtotal = 0;
-    rawMaterialsPreviewBody.innerHTML = '';
-    
-    sortedRawMaterialItems.forEach(item => {
-        // NEW: Scale quantity using serving scale factor
-        const scaledQuantity = item.quantity * scaleFactor; // SCALED for Summary Tab
-        
-        // MODIFIED: Get yield from raw material for display only (costs already yield-inclusive)
-        let yieldPct = 100;
-        if (item.type === 'rawMaterial') {
-            const rawMaterial = getCurrentRawMaterials().find(rm => rm.name === item.name);
-            if (rawMaterial && rawMaterial.yieldPercentage) {
-                yieldPct = rawMaterial.yieldPercentage;
+function Gn() {
+  n
+    ? (function (e) {
+        const t = parseFloat(A ? A.value : 1) || 1,
+          n = e.servings || 1,
+          o = n > 0 ? t / n : 0,
+          a = e.rawMaterialItems || [],
+          i = e.directLaborItems || [],
+          r = yo([...a]),
+          l = yo([...i]);
+        Ne && (Ne.textContent = `${r.length} items`);
+        let s = 0;
+        De && (De.innerHTML = ""),
+          r.forEach((e) => {
+            const t = e.quantity * o,
+              n = t * e.unitCost;
+            if (((s += n), De)) {
+              const o = document.createElement("tr");
+              (o.innerHTML = `\n                <td>${po(e.name)}${
+                "sub-recipe" === e.type
+                  ? ' <span class="sub-recipe-badge">SUB</span>'
+                  : ""
+              }</td>\n                <td>${t.toFixed(2)} ${
+                e.unit
+              }</td> \x3c!-- SCALED quantity --\x3e\n                <td>${zt(
+                e.name,
+                e.type
+              ).toFixed(
+                1
+              )}%</td> \x3c!-- Display yield from raw material --\x3e\n                <td>${tt}${parseFloat(
+                e.unitCost
+              ).toFixed(2)}/${
+                e.unit
+              }</td>\n                <td>${tt}${n.toFixed(
+                2
+              )}</td>\n            `),
+                De.appendChild(o);
             }
-        } else if (item.type === 'sub-recipe') {
-            // Sub-recipes already account for yield in their cost
-            yieldPct = 100;
-        }
-        
-        // SIMPLIFIED: No yield calculation needed - cost already includes yield
-        const totalCost = scaledQuantity * item.unitCost;
-        rawMaterialsSubtotal += totalCost;
-        
-        const rowElement = document.createElement('tr');
-        rowElement.innerHTML = `
-            <td>${escapeHtml(item.name)}${item.type === 'sub-recipe' ? ' <span class="sub-recipe-badge">SUB</span>' : ''}</td>
-            <td>${scaledQuantity.toFixed(2)} ${item.unit}</td> <!-- SCALED quantity -->
-            <td>${parseFloat(yieldPct).toFixed(1)}%</td> <!-- Display yield from raw material -->
-            <td>${currency}${parseFloat(item.unitCost).toFixed(2)}/${item.unit}</td>
-            <td>${currency}${totalCost.toFixed(2)}</td>
-        `;
-        rawMaterialsPreviewBody.appendChild(rowElement);
-    });
-    
-    rawMaterialsPreviewTotal.textContent = `${currency}${rawMaterialsSubtotal.toFixed(2)}`;
-    rawMaterialsPreviewSubtotal.textContent = `${currency}${rawMaterialsSubtotal.toFixed(2)}`;
-    
-    // Update direct labor preview with SCALED quantities for Summary Tab
-    directLaborCount.textContent = `${sortedDirectLaborItems.length} items`;
-    
-    let directLaborSubtotal = 0;
-    directLaborPreviewBody.innerHTML = '';
-    
-    sortedDirectLaborItems.forEach(item => {
-        // NEW: Scale time using serving scale factor
-        const scaledTime = item.quantity * scaleFactor; // SCALED for Summary Tab
-        const totalCost = scaledTime * item.unitCost;
-        directLaborSubtotal += totalCost;
-        
-        const rowElement = document.createElement('tr');
-        rowElement.innerHTML = `
-            <td>${escapeHtml(item.name)}</td>
-            <td>${scaledTime.toFixed(2)} ${item.unit}</td> <!-- SCALED time -->
-            <td>${currency}${parseFloat(item.unitCost).toFixed(2)}/${item.unit}</td>
-            <td>${currency}${totalCost.toFixed(2)}</td>
-        `;
-        directLaborPreviewBody.appendChild(rowElement);
-    });
-    
-    directLaborPreviewTotal.textContent = `${currency}${directLaborSubtotal.toFixed(2)}`;
-    directLaborPreviewSubtotal.textContent = `${currency}${directLaborSubtotal.toFixed(2)}`;
-}
-
-// NEW: Update cost breakdown preview (only shows loaded recipe, not current recipe)
-function updateCostBreakdownPreview() {
-    // Only show data when a recipe is loaded for summary
-    if (loadedRecipeForSummary) {
-        updateCostBreakdownPreviewWithRecipe(loadedRecipeForSummary);
-    } else {
-        clearCostBreakdownPreview();
-    }
-}
-
-// NEW: Clear cost breakdown preview
-function clearCostBreakdownPreview() {
-    if (!rawMaterialsCount) return;
-    
-    rawMaterialsCount.textContent = "0 items";
-    directLaborCount.textContent = "0 items";
-    rawMaterialsPreviewTotal.textContent = `${currency}0.00`;
-    directLaborPreviewTotal.textContent = `${currency}0.00`;
-    rawMaterialsPreviewSubtotal.textContent = `${currency}0.00`;
-    directLaborPreviewSubtotal.textContent = `${currency}0.00`;
-    rawMaterialsPreviewBody.innerHTML = '';
-    directLaborPreviewBody.innerHTML = '';
-}
-
-// =============================================================================
-// FIX: ENHANCE PRINT PREVIEW WITH COMPREHENSIVE ERROR HANDLING
-// =============================================================================
-function generatePrintPreview() {
-    console.log("Starting print preview generation...");
-    
-    try {
-        // Check if there's any data to print
-        const hasLoadedRecipe = loadedRecipeForSummary !== null;
-        const hasCurrentRecipe = recipeBody.children.length > 0 || directLaborRecipeBody.children.length > 0;
-        
-        if (!hasLoadedRecipe && !hasCurrentRecipe) {
-            throw new Error("No recipe data available to print. Please either:\n\n1. Add items to your current recipe, OR\n2. Load a saved recipe in the Summary tab for analysis");
-        }
-
-        // Determine which recipe to print
-        let recipeToPrint;
-        let recipeName;
-        let baseServings;
-        
-        if (loadedRecipeForSummary) {
-            // Use the loaded recipe from summary analysis
-            recipeToPrint = loadedRecipeForSummary;
-            recipeName = recipeToPrint.name || "Unnamed Recipe";
-            baseServings = recipeToPrint.servings || 1;
-            
-            // Validate loaded recipe data
-            if (!recipeToPrint.rawMaterialItems && !recipeToPrint.directLaborItems) {
-                throw new Error("Loaded recipe has no valid data. Please reload the recipe.");
+          }),
+          Oe && (Oe.textContent = `${tt}${s.toFixed(2)}`),
+          We && (We.textContent = `${tt}${s.toFixed(2)}`),
+          He && (He.textContent = `${l.length} items`);
+        let c = 0;
+        Ae && (Ae.innerHTML = ""),
+          l.forEach((e) => {
+            const t = e.quantity * o,
+              n = t * e.unitCost;
+            if (((c += n), Ae)) {
+              const o = document.createElement("tr");
+              (o.innerHTML = `\n                <td>${po(
+                e.name
+              )}</td>\n                <td>${t.toFixed(2)} ${
+                e.unit
+              }</td> \x3c!-- SCALED time --\x3e\n                <td>${tt}${parseFloat(
+                e.unitCost
+              ).toFixed(2)}/${
+                e.unit
+              }</td>\n                <td>${tt}${n.toFixed(
+                2
+              )}</td>\n            `),
+                Ae.appendChild(o);
             }
-        } else {
-            // Fall back to current recipe in calculator
-            recipeName = recipeNameInput.value || "Current Recipe";
-            baseServings = parseFloat(servingsInput.value) || 1;
-        }
-        
-        const servingScale = parseFloat(servingScaleInput.value) || 1;
-        
-        // Calculate scaling factor with validation
-        const scaleFactor = baseServings > 0 ? servingScale / baseServings : 0;
-        const targetServings = servingScale;
-        
-        // Validate scaling configuration
-        if (targetServings <= 0) {
-            throw new Error("Invalid servings configuration. Serving scale must be greater than zero.");
-        }
-
-        // Generate print HTML with enhanced error handling
-        let printHTML = `
-            <div class="print-header">
-                <h1>${escapeHtml(recipeName)} - Costing Report</h1>
-                <p>Generated on ${new Date().toLocaleDateString()}</p>
-                <div style="background: #f0f8f0; padding: 10px; border-radius: 5px; margin: 10px 0;">
-                    <strong>Scaling Information:</strong><br>
-                    • Base Servings: ${baseServings}<br>
-                    • Serving Scale: ${servingScale}x<br>
-                    • Total Servings: ${targetServings}<br>
-                    • <em>All costs below are SCALED for analysis</em>
-                </div>
-                ${loadedRecipeForSummary ? '<p style="color: #666; font-style: italic;">Printed from Saved Recipe Analysis</p>' : ''}
-            </div>
-        `;
-        
-        // Calculate costs with validation
-        let rawMaterialsCost = 0;
-        let rawMaterialItems = [];
-        let directLaborCost = 0;
-        let laborItems = [];
-        
-        if (loadedRecipeForSummary) {
-            // Calculate from loaded recipe with serving scale for print
-            rawMaterialItems = recipeToPrint.rawMaterialItems || [];
-            laborItems = recipeToPrint.directLaborItems || [];
-            
-            rawMaterialsCost = rawMaterialItems.reduce((total, item) => {
-                const scaledQuantity = (item.quantity || 0) * scaleFactor;
-                const unitCost = item.unitCost || 0;
-                return total + (scaledQuantity * unitCost);
-            }, 0);
-            
-            directLaborCost = laborItems.reduce((total, item) => {
-                const scaledTime = (item.quantity || 0) * scaleFactor;
-                const unitCost = item.unitCost || 0;
-                return total + (scaledTime * unitCost);
-            }, 0);
-        } else {
-            // Calculate from current recipe with serving scale for print
-            recipeBody.querySelectorAll("tr").forEach((row) => {
-                try {
-                    const q = parseFloat(row.children[1].querySelector("input").value) || 0;
-                    const uc = parseFloat(row.children[3].querySelector("input").value) || 0; // FIXED: Index 3
-                    const itemName = row.children[0].querySelector("input").value;
-                    const type = row.dataset.type || 'rawMaterial';
-                    const scaledQuantity = q * scaleFactor;
-                    
-                    // Get yield for display only
-                    let yieldPct = 100;
-                    if (type === 'rawMaterial') {
-                        const rawMaterial = getCurrentRawMaterials().find(rm => rm.name === itemName);
-                        if (rawMaterial && rawMaterial.yieldPercentage) {
-                            yieldPct = rawMaterial.yieldPercentage;
-                        }
-                    }
-                    
-                    const itemCost = scaledQuantity * uc;
-                    rawMaterialsCost += itemCost;
-                    
-                    rawMaterialItems.push({
-                        name: itemName,
-                        quantity: scaledQuantity,
-                        unit: row.children[1].querySelector(".quantity-unit").textContent,
-                        yield: yieldPct,
-                        unitCost: uc,
-                        totalCost: itemCost
-                    });
-                } catch (error) {
-                    console.warn("Error processing recipe row for print:", error);
-                }
-            });
-            
-            directLaborRecipeBody.querySelectorAll("tr").forEach((row) => {
-                try {
-                    const time = parseFloat(row.children[1].querySelector("input").value) || 0;
-                    const rate = parseFloat(row.children[2].querySelector("input").value) || 0;
-                    const scaledTime = time * scaleFactor;
-                    const itemCost = scaledTime * rate;
-                    directLaborCost += itemCost;
-                    
-                    laborItems.push({
-                        name: row.children[0].querySelector("input").value,
-                        timeRequired: scaledTime,
-                        timeUnit: row.children[1].querySelector(".quantity-unit").textContent,
-                        rate: rate,
-                        totalCost: itemCost
-                    });
-                } catch (error) {
-                    console.warn("Error processing labor row for print:", error);
-                }
-            });
-        }
-        
-        const totalCost = rawMaterialsCost + directLaborCost;
-        const costPerServing = targetServings > 0 ? totalCost / targetServings : 0;
-        
-        // Calculate selling prices
-        const sellingPriceBeforeTax = costPerServing * (1 + (parseFloat(markupInput.value) || 0) / 100);
-        const sellingPriceAfterTax = sellingPriceBeforeTax * (1 + ((parseFloat(taxInput.value) || 0) + (parseFloat(vatInput.value) || 0)) / 100);
-        
-        // Calculate percentages with zero division protection
-        const foodCostPercent = sellingPriceBeforeTax > 0 ? (rawMaterialsCost / targetServings / sellingPriceBeforeTax) * 100 : 0;
-        const laborCostPercent = sellingPriceBeforeTax > 0 ? (directLaborCost / targetServings / sellingPriceBeforeTax) * 100 : 0;
-        const totalCostPercent = sellingPriceBeforeTax > 0 ? (totalCost / targetServings / sellingPriceBeforeTax) * 100 : 0;
-        const grossProfitPercent = sellingPriceBeforeTax > 0 ? 100 - totalCostPercent : 0;
-
-        // Update terminology in print preview
-        const totalRevenue = sellingPriceBeforeTax * targetServings;
-        const totalProfit = totalRevenue - totalCost;
-
-        printHTML += `
-            <div class="print-section">
-                <h3>Serving Scale Analysis</h3>
-                <table class="cost-breakdown">
-                    <tbody>
-                        <tr>
-                            <td>Base Servings:</td>
-                            <td>${baseServings}</td>
-                        </tr>
-                        <tr>
-                            <td>Target Servings:</td>
-                            <td>${targetServings}</td>
-                        </tr>
-                        <tr>
-                            <td>Scaling Factor:</td>
-                            <td>${scaleFactor.toFixed(2)}x</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="print-section">
-                <h3>Raw Materials (Scaled)</h3>
-                <table class="cost-breakdown">
-                    <thead>
-                        <tr>
-                            <th>Item</th>
-                            <th>Quantity</th>
-                            <th>Yield %</th>
-                            <th>Unit Cost</th>
-                            <th>Total Cost</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-        `;
-
-        // Add raw materials rows with SCALED quantities
-        rawMaterialItems.forEach(item => {
-            printHTML += `
-                <tr>
-                    <td>${escapeHtml(item.name)}${item.type === 'sub-recipe' ? ' <span class="sub-recipe-badge">SUB</span>' : ''}</td>
-                    <td>${item.quantity.toFixed(2)} ${item.unit}</td>
-                    <td>${parseFloat(item.yield).toFixed(1)}%</td>
-                    <td>${currency}${parseFloat(item.unitCost).toFixed(2)}/${item.unit}</td>
-                    <td>${currency}${item.totalCost.toFixed(2)}</td>
-                </tr>
-            `;
-        });
-
-        printHTML += `
-                    </tbody>
-                    <tfoot>
-                        <tr class="summary-highlight">
-                            <td colspan="4">Raw Materials Subtotal</td>
-                            <td>${currency}${rawMaterialsCost.toFixed(2)}</td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-
-            <div class="print-section">
-                <h3>Direct Labor (Scaled)</h3>
-                <table class="cost-breakdown">
-                    <thead>
-                        <tr>
-                            <th>Labor Item</th>
-                            <th>Time Required</th>
-                            <th>Rate</th>
-                            <th>Total Cost</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-        `;
-
-        // Add direct labor rows with SCALED quantities
-        laborItems.forEach(item => {
-            printHTML += `
-                <tr>
-                    <td>${escapeHtml(item.name)}</td>
-                    <td>${item.timeRequired.toFixed(2)} ${item.timeUnit}</td>
-                    <td>${currency}${parseFloat(item.rate).toFixed(2)}/${item.timeUnit}</td>
-                    <td>${currency}${item.totalCost.toFixed(2)}</td>
-                </tr>
-            `;
-        });
-
-        printHTML += `
-                    </tbody>
-                    <tfoot>
-                        <tr class="summary-highlight">
-                            <td colspan="3">Direct Labor Subtotal</td>
-                            <td>${currency}${directLaborCost.toFixed(2)}</td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-
-            <div class="print-section">
-                <h3>Cost Summary</h3>
-                <table class="cost-breakdown">
-                    <tbody>
-                        <tr>
-                            <td>Raw Materials Cost:</td>
-                            <td>${currency}${rawMaterialsCost.toFixed(2)}</td>
-                        </tr>
-                        <tr>
-                            <td>Direct Labor Cost:</td>
-                            <td>${currency}${directLaborCost.toFixed(2)}</td>
-                        </tr>
-                        <tr class="totals-row">
-                            <td><strong>Total Recipe Cost:</strong></td>
-                            <td><strong>${currency}${totalCost.toFixed(2)}</strong></td>
-                        </tr>
-                        <tr>
-                            <td>Target Servings:</td>
-                            <td>${targetServings}</td>
-                        </tr>
-                        <tr>
-                            <td>Cost per Serving (Before Tax):</td>
-                            <td>${currency}${costPerServing.toFixed(2)}</td>
-                        </tr>
-                        <tr>
-                            <td>Selling Price (After Tax):</td>
-                            <td>${currency}${sellingPriceAfterTax.toFixed(2)}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="print-section">
-                <h3>Profit Analysis</h3>
-                <table class="cost-breakdown">
-                    <tbody>
-                        <tr>
-                            <td>Food Cost %:</td>
-                            <td>${foodCostPercent.toFixed(1)}%</td>
-                        </tr>
-                        <tr>
-                            <td>Labor Cost %:</td>
-                            <td>${laborCostPercent.toFixed(1)}%</td>
-                        </tr>
-                        <tr>
-                            <td>Total Cost %:</td>
-                            <td>${totalCostPercent.toFixed(1)}%</td>
-                        </tr>
-                        <tr class="summary-highlight">
-                            <td><strong>Gross Profit Margin %:</strong></td>
-                            <td><strong>${grossProfitPercent.toFixed(1)}%</strong></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="print-section">
-                <h3>Production Analysis</h3>
-                <table class="cost-breakdown">
-                    <tbody>
-                        <tr>
-                            <td>Serving Scale:</td>
-                            <td>${servingScale}x</td>
-                        </tr>
-                        <tr>
-                            <td>Total Servings:</td>
-                            <td>${targetServings}</td>
-                        </tr>
-                        <tr>
-                            <td>Total Revenue (Before Tax):</td>
-                            <td>${currency}${totalRevenue.toFixed(2)}</td>
-                        </tr>
-                        <tr>
-                            <td>Total Cost:</td>
-                            <td>${currency}${totalCost.toFixed(2)}</td>
-                        </tr>
-                        <tr class="summary-highlight">
-                            <td><strong>Total Profit:</strong></td>
-                            <td><strong>${currency}${totalProfit.toFixed(2)}</strong></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="print-footer">
-                <p>Generated by ProfitPerPlate - Know your profit in every plate</p>
-            </div>
-        `;
-
-        printPreviewContent.innerHTML = printHTML;
-        console.log("Print preview generated successfully");
-        
-    } catch (error) {
-        console.error("Error generating print preview:", error);
-        
-        // Create user-friendly error message
-        const errorHTML = `
-            <div class="print-header">
-                <h2 style="color: #ff3b30;">Error Generating Print Preview</h2>
-                <p><strong>What happened:</strong> ${error.message}</p>
-                <div style="background: #fff0f0; padding: 15px; border-radius: 5px; margin: 15px 0;">
-                    <h4>Possible Solutions:</h4>
-                    <ul>
-                        <li>Ensure you have recipe data (either loaded or in current recipe)</li>
-                        <li>Check that all recipe items have valid quantities and costs</li>
-                        <li>Verify serving scale is greater than zero</li>
-                        <li>Try refreshing the page and reloading your recipe</li>
-                    </ul>
-                </div>
-                <p><em>Technical details have been logged to the console for debugging.</em></p>
-            </div>
-        `;
-        
-        printPreviewContent.innerHTML = errorHTML;
-        throw error; // Re-throw to allow modal to handle it
-    }
+          }),
+          ze && (ze.textContent = `${tt}${c.toFixed(2)}`),
+          Qe && (Qe.textContent = `${tt}${c.toFixed(2)}`);
+      })(n)
+    : _n();
 }
-
-// Print costing report
-function printCostingReport() {
-    // Close modal first
-    closePrintPreview();
-    
-    // Wait a moment for modal to close, then print
+function _n() {
+  Ne &&
+    ((Ne.textContent = "0 items"),
+    He && (He.textContent = "0 items"),
+    Oe && (Oe.textContent = `${tt}0.00`),
+    ze && (ze.textContent = `${tt}0.00`),
+    We && (We.textContent = `${tt}0.00`),
+    Qe && (Qe.textContent = `${tt}0.00`),
+    De && (De.innerHTML = ""),
+    Ae && (Ae.innerHTML = ""));
+}
+function Jn() {
+  try {
+    if ((console.log("Generating print preview..."), !G))
+      throw new Error("Print preview content element not found");
+    let e, t, o;
+    n
+      ? ((e = n),
+        (t = e.name || "Unnamed Recipe"),
+        (o = e.servings || 1),
+        console.log("Printing loaded recipe:", t))
+      : ((t = x ? x.value.trim() : "Unnamed Recipe"),
+        (o = (D && parseFloat(D.value)) || 1),
+        console.log("Printing current recipe:", t));
+    const a = (A && parseFloat(A.value)) || 1,
+      i = (U && parseFloat(U.value)) || 0,
+      r = (T && parseFloat(T.value)) || 0,
+      l = (q && parseFloat(q.value)) || 0,
+      s = document.body.classList.contains("dark-mode");
+    console.log("Print parameters:", {
+      recipeName: t,
+      baseServings: o,
+      servingScale: a,
+      markup: i,
+      tax: r,
+      vat: l,
+      isDark: s
+    });
+    let c = (function (e, t, n, o, a, i, r) {
+      function l(e, t = 2) {
+        try {
+          const n = parseFloat(e);
+          return isNaN(n) ? "0.00" : n.toFixed(t);
+        } catch (t) {
+          return console.error("Error in safeToFixed:", t, e), "0.00";
+        }
+      }
+      function s(e) {
+        return `${tt}${l(e)}`;
+      }
+      const c = n > 0 ? o / n : 0,
+        d = o;
+      let u = 0,
+        p = [],
+        m = 0,
+        g = [];
+      e
+        ? ((p = e.rawMaterialItems || []),
+          (g = e.directLaborItems || []),
+          (u = p.reduce(
+            (e, t) => e + (t.quantity || 0) * c * (t.unitCost || 0),
+            0
+          )),
+          (m = g.reduce(
+            (e, t) => e + (t.quantity || 0) * c * (t.unitCost || 0),
+            0
+          )))
+        : (f &&
+            f.querySelectorAll("tr").forEach((e) => {
+              try {
+                const t =
+                    parseFloat(e.children[1].querySelector("input").value) || 0,
+                  n =
+                    parseFloat(e.children[2].querySelector("input").value) || 0,
+                  o = e.children[0].querySelector("input").value,
+                  a = e.dataset.type || "rawMaterial",
+                  i =
+                    e.children[1].querySelector(".quantity-unit")
+                      ?.textContent || "g",
+                  r = t * c,
+                  l = r * n;
+                (u += l),
+                  p.push({
+                    name: o || "Unnamed Item",
+                    quantity: r,
+                    unit: i,
+                    yield: zt(o, a),
+                    unitCost: n,
+                    totalCost: l,
+                    type: a
+                  });
+              } catch (e) {
+                console.error("Error processing raw material row:", e);
+              }
+            }),
+          y &&
+            y.querySelectorAll("tr").forEach((e) => {
+              try {
+                const t =
+                    parseFloat(e.children[1].querySelector("input").value) || 0,
+                  n =
+                    parseFloat(e.children[2].querySelector("input").value) || 0,
+                  o = t * c,
+                  a = o * n;
+                (m += a),
+                  g.push({
+                    name:
+                      e.children[0].querySelector("input").value ||
+                      "Unnamed Labor",
+                    timeRequired: o,
+                    timeUnit:
+                      e.children[1].querySelector(".quantity-unit")
+                        ?.textContent || "hours",
+                    rate: n,
+                    totalCost: a
+                  });
+              } catch (e) {
+                console.error("Error processing labor row:", e);
+              }
+            }));
+      const b = u + m;
+      if (d <= 0)
+        return '\n            <div class="print-header">\n                <h2>Invalid Servings Configuration</h2>\n                <p>Target servings cannot be zero. Please check your serving scale settings.</p>\n            </div>\n        ';
+      const v = b / d,
+        h = v * (1 + (a || 0) / 100),
+        w = h * (1 + ((i || 0) + (r || 0)) / 100),
+        x = h > 0 ? (u / d / h) * 100 : 0,
+        C = h > 0 ? (m / d / h) * 100 : 0,
+        E = h > 0 ? (b / d / h) * 100 : 0,
+        L = h > 0 ? 100 - E : 0,
+        S = h * d,
+        P = S - b;
+      let $ = `\n        <div class="print-header">\n            <h1>${po(
+        t
+      )} - Costing Report</h1>\n            <p>Generated on ${new Date().toLocaleDateString()}</p>\n            <div class="scaling-info">\n                <strong>Scaling Information:</strong><br>\n                • Base Servings: ${n}<br>\n                • Serving Scale: ${o}x<br>\n                • Total Servings: ${d}<br>\n                • <em>All costs below are SCALED for analysis</em>\n            </div>\n            ${
+        e
+          ? '<p style="color: #666; font-style: italic;">Printed from Saved Recipe Analysis</p>'
+          : ""
+      }\n        </div>\n\n        <div class="print-section">\n            <h3>Serving Scale Analysis</h3>\n            <table class="cost-breakdown">\n                <tbody>\n                    <tr>\n                        <td>Base Servings:</td>\n                        <td>${n}</td>\n                    </tr>\n                    <tr>\n                        <td>Target Servings:</td>\n                        <td>${d}</td>\n                    </tr>\n                    <tr>\n                        <td>Scaling Factor:</td>\n                        <td>${l(
+        c,
+        2
+      )}x</td>\n                    </tr>\n                </tbody>\n            </table>\n        </div>\n    `;
+      p.length > 0 &&
+        (($ +=
+          '\n            <div class="print-section">\n                <h3>Raw Materials (Scaled)</h3>\n                <table class="cost-breakdown">\n                    <thead>\n                        <tr>\n                            <th>Item</th>\n                            <th>Quantity</th>\n                            <th>Yield %</th>\n                            <th>Unit Cost</th>\n                            <th>Total Cost</th>\n                        </tr>\n                    </thead>\n                    <tbody>\n        '),
+        p.forEach((e) => {
+          $ += `\n                <tr>\n                    <td>${po(e.name)}${
+            "sub-recipe" === e.type
+              ? ' <span class="sub-recipe-badge">SUB</span>'
+              : ""
+          }</td>\n                    <td>${l(e.quantity)} ${
+            e.unit
+          }</td>\n                    <td>${l(
+            e.yield,
+            1
+          )}%</td>\n                    <td>${s(e.unitCost)}/${
+            e.unit
+          }</td>\n                    <td>${s(
+            e.totalCost
+          )}</td>\n                </tr>\n            `;
+        }),
+        ($ += `\n                    </tbody>\n                    <tfoot>\n                        <tr class="summary-highlight">\n                            <td colspan="4">Raw Materials Subtotal</td>\n                            <td>${s(
+          u
+        )}</td>\n                        </tr>\n                    </tfoot>\n                </table>\n            </div>\n        `));
+      g.length > 0 &&
+        (($ +=
+          '\n            <div class="print-section">\n                <h3>Direct Labor (Scaled)</h3>\n                <table class="cost-breakdown">\n                    <thead>\n                        <tr>\n                            <th>Labor Item</th>\n                            <th>Time Required</th>\n                            <th>Rate</th>\n                            <th>Total Cost</th>\n                        </tr>\n                    </thead>\n                    <tbody>\n        '),
+        g.forEach((e) => {
+          $ += `\n                <tr>\n                    <td>${po(
+            e.name
+          )}</td>\n                    <td>${l(e.timeRequired)} ${
+            e.timeUnit
+          }</td>\n                    <td>${s(e.rate)}/${
+            e.timeUnit
+          }</td>\n                    <td>${s(
+            e.totalCost
+          )}</td>\n                </tr>\n            `;
+        }),
+        ($ += `\n                    </tbody>\n                    <tfoot>\n                        <tr class="summary-highlight">\n                            <td colspan="3">Direct Labor Subtotal</td>\n                            <td>${s(
+          m
+        )}</td>\n                        </tr>\n                    </tfoot>\n                </table>\n            </div>\n        `));
+      return (
+        ($ += `\n        <div class="print-section">\n            <h3>Cost Summary</h3>\n            <table class="cost-breakdown">\n                <tbody>\n                    <tr>\n                        <td>Raw Materials Cost:</td>\n                        <td>${s(
+          u
+        )}</td>\n                    </tr>\n                    <tr>\n                        <td>Direct Labor Cost:</td>\n                        <td>${s(
+          m
+        )}</td>\n                    </tr>\n                    <tr class="totals-row">\n                        <td><strong>Total Recipe Cost:</strong></td>\n                        <td><strong>${s(
+          b
+        )}</strong></td>\n                    </tr>\n                    <tr>\n                        <td>Target Servings:</td>\n                        <td>${d}</td>\n                    </tr>\n                    <tr>\n                        <td>Cost per Serving (Before Tax):</td>\n                        <td>${s(
+          v
+        )}</td>\n                    </tr>\n                    <tr>\n                        <td>Selling Price (After Tax):</td>\n                        <td>${s(
+          w
+        )}</td>\n                    </tr>\n                </tbody>\n            </table>\n        </div>\n\n        <div class="print-section">\n            <h3>Profit Analysis</h3>\n            <table class="cost-breakdown">\n                <tbody>\n                    <tr>\n                        <td>Food Cost %:</td>\n                        <td>${l(
+          x,
+          1
+        )}%</td>\n                    </tr>\n                    <tr>\n                        <td>Labor Cost %:</td>\n                        <td>${l(
+          C,
+          1
+        )}%</td>\n                    </tr>\n                    <tr>\n                        <td>Total Cost %:</td>\n                        <td>${l(
+          E,
+          1
+        )}%</td>\n                    </tr>\n                    <tr class="summary-highlight">\n                        <td><strong>Gross Profit Margin %:</strong></td>\n                        <td><strong>${l(
+          L,
+          1
+        )}%</strong></td>\n                    </tr>\n                </tbody>\n            </table>\n        </div>\n\n        <div class="print-section">\n            <h3>Production Analysis</h3>\n            <table class="cost-breakdown">\n                <tbody>\n                    <tr>\n                        <td>Serving Scale:</td>\n                        <td>${o}x</td>\n                    </tr>\n                    <tr>\n                        <td>Total Servings:</td>\n                        <td>${d}</td>\n                    </tr>\n                    <tr>\n                        <td>Total Revenue (Before Tax):</td>\n                        <td>${s(
+          S
+        )}</td>\n                    </tr>\n                    <tr>\n                        <td>Total Cost:</td>\n                        <td>${s(
+          b
+        )}</td>\n                    </tr>\n                    <tr class="summary-highlight">\n                        <td><strong>Total Profit:</strong></td>\n                        <td><strong>${s(
+          P
+        )}</strong></td>\n                    </tr>\n                </tbody>\n            </table>\n        </div>\n\n        <div class="print-footer">\n            <p>Generated by ProfitPerPlate - Know your profit in every plate</p>\n        </div>\n    `),
+        $
+      );
+    })(e, t, o, a, i, r, l, s);
+    (G.innerHTML = c),
+      s ? G.classList.add("theme-dark") : G.classList.remove("theme-dark"),
+      console.log("Print preview generated successfully");
+  } catch (e) {
+    console.error("Error in generatePrintPreview:", e);
+    const t = G
+      ? `<div class="print-header">\n                <h2>Error Generating Print Preview</h2>\n                <p>There was an error generating the print preview. Please try again.</p>\n                <p style="color: #666; font-size: 12px;">Error: ${e.message}</p>\n                <p style="color: #666; font-size: 12px;">Check the browser console for details.</p>\n            </div>`
+      : "Print preview content element not available";
+    G && (G.innerHTML = t);
+  }
+}
+function jn() {
+  Nn(),
     setTimeout(() => {
-        // Create a new window with the print content
-        const printWindow = window.open('', '_blank');
-        const printContent = printPreviewContent.innerHTML;
-        
-        printWindow.document.write(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Recipe Costing Report</title>
-                <style>
-                    body { font-family: Arial, sans-serif; padding: 20px; }
-                    .print-header { text-align: center; border-bottom: 2px solid #2D5A3D; padding-bottom: 10px; margin-bottom: 20px; }
-                    .print-section { margin-bottom: 20px; page-break-inside: avoid; }
-                    .print-section h3 { background: #f5f7fa; padding: 8px; margin: 0 0 10px 0; border-left: 4px solid #2D5A3D; }
-                    .cost-breakdown { width: 100%; border-collapse: collapse; margin: 10px 0; }
-                    .cost-breakdown th { background: #f5f7fa; font-weight: bold; padding: 8px; border: 1px solid #ddd; }
-                    .cost-breakdown td { padding: 8px; border: 1px solid #ddd; }
-                    .summary-highlight { background: #f5f7fa !important; font-weight: bold; }
-                    .totals-row { border-top: 2px solid #000 !important; font-weight: bold; }
-                    .print-footer { margin-top: 30px; font-size: 10pt; color: #666; text-align: center; border-top: 1px solid #ddd; padding-top: 10px; }
-                    @media print {
-                        body { margin: 0; padding: 15px; }
-                        .print-section { page-break-inside: avoid; }
-                    }
-                </style>
-            </head>
-            <body>
-                ${printContent}
-            </body>
-            </html>
-        `);
-        
-        printWindow.document.close();
-        
-        // Wait for content to load, then print
+      const e = window.open("", "_blank"),
+        t = G ? G.innerHTML : "";
+      e.document.write(
+        `\n            <!DOCTYPE html>\n            <html>\n            <head>\n                <title>Recipe Costing Report</title>\n                <style>\n                    body { font-family: Arial, sans-serif; padding: 20px; }\n                    .print-header { text-align: center; border-bottom: 2px solid #2D5A3D; padding-bottom: 10px; margin-bottom: 20px; }\n                    .print-section { margin-bottom: 20px; page-break-inside: avoid; }\n                    .print-section h3 { background: #f5f7fa; padding: 8px; margin: 0 0 10px 0; border-left: 4px solid #2D5A3D; }\n                    .cost-breakdown { width: 100%; border-collapse: collapse; margin: 10px 0; }\n                    .cost-breakdown th { background: #f5f7fa; font-weight: bold; padding: 8px; border: 1px solid #ddd; }\n                    .cost-breakdown td { padding: 8px; border: 1px solid #ddd; }\n                    .summary-highlight { background: #f5f7fa !important; font-weight: bold; }\n                    .totals-row { border-top: 2px solid #000 !important; font-weight: bold; }\n                    .scaling-info { background: #f0f8f0; padding: 10px; border-radius: 5px; margin: 10px 0; }\n                    .print-footer { margin-top: 30px; font-size: 10pt; color: #666; text-align: center; border-top: 1px solid #ddd; padding-top: 10px; }\n                    @media print {\n                        body { margin: 0; padding: 15px; }\n                        .print-section { page-break-inside: avoid; }\n                    }\n                </style>\n            </head>\n            <body>\n                ${t}\n            </body>\n            </html>\n        `
+      ),
+        e.document.close(),
         setTimeout(() => {
-            printWindow.print();
-            printWindow.close();
+          e.print(), e.close();
         }, 250);
     }, 100);
 }
-
-// NEW: Populate summary recipe selector
-function populateSummaryRecipeSelect() {
-    if (!summaryRecipeSelect) return;
-    
-    summaryRecipeSelect.innerHTML = '<option value="">Select a recipe to analyze...</option>';
-    
-    const mainRecipes = getCurrentRecipes().filter(recipe => recipe.type === 'main');
-    mainRecipes.forEach(recipe => {
-        const option = document.createElement('option');
-        option.value = recipe.id;
-        option.textContent = `${recipe.name} (${formatCurrency(recipe.totalCost)})`;
-        summaryRecipeSelect.appendChild(option);
+function Kn() {
+  if (!Ye) return;
+  Ye.innerHTML = '<option value="">Select a recipe to analyze...</option>';
+  Gt()
+    .filter((e) => "main" === e.type)
+    .forEach((e) => {
+      const t = document.createElement("option");
+      (t.value = e.id),
+        (t.textContent = `${e.name} (${uo(Number(e.totalCost) || 0)})`),
+        Ye.appendChild(t);
     });
 }
-
-// Generate comprehensive help content
-function generateCompleteHelpContent() {
-    let html = `
-        <div style="margin-bottom: var(--space-xl);">
-            <p><strong>Welcome to ProfitPerPlate!</strong> This complete guide explains every field in simple terms with practical examples for beginners.</p>
-        </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xl);">
-            <div>
-                <h4 style="color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: var(--space-sm);">Raw Materials & Recipe Fields</h4>
-    `;
-
-    // Add raw material and recipe fields
-    const rawMaterialFields = [
-        'ingredientName', 'ingredientCategory', 'purchasePrice', 'purchaseQuantity', 
-        'purchaseUnit', 'costPerUnit', 'selectItem', 'quantity', 'servings'
-    ];
-    
-    rawMaterialFields.forEach(fieldKey => {
-        const field = fieldDefinitions[fieldKey];
-        if (field) {
-            html += `
-                <div style="margin-bottom: var(--space-lg); padding-bottom: var(--space-lg); border-bottom: 1px dashed var(--border);">
-                    <strong>${field.title}</strong>
-                    <p style="margin: var(--space-sm) 0; font-size: 13px;">${field.content}</p>
-                    <div class="field-example">
-                        <strong>Example:</strong> ${field.example}
-                    </div>
-                </div>
-            `;
-        }
-    });
-
-    html += `
-            </div>
-            <div>
-                <h4 style="color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: var(--space-sm);">Direct Labor & Business Fields</h4>
-    `;
-
-    // Add direct labor and business fields
-    const laborFields = [
-        'laborName', 'shiftRate', 'shiftDuration', 'timeUnit', 'costUnit',
-        'markup', 'tax', 'vat', 'servingScale', 'subRecipeName', 'subRecipeCategory',
-        'subRecipeYieldQuantity', 'yieldPercentage'
-    ];
-    
-    laborFields.forEach(fieldKey => {
-        const field = fieldDefinitions[fieldKey];
-        if (field) {
-            html += `
-                <div style="margin-bottom: var(--space-lg); padding-bottom: var(--space-lg); border-bottom: 1px dashed var(--border);">
-                    <strong>${field.title}</strong>
-                    <p style="margin: var(--space-sm) 0; font-size: 13px;">${field.content}</p>
-                    <div class="field-example">
-                        <strong>Example:</strong> ${field.example}
-                    </div>
-                </div>
-            `;
-        }
-    });
-
-    html += `
-            </div>
-        </div>
-
-        <div style="margin-top: var(--space-xl); padding: var(--space-lg); background: var(--background); border-radius: var(--radius-lg);">
-            <h4 style="color: var(--primary); margin-top: 0;">Quick Tip for Beginners</h4>
-            <p>Start by adding your raw materials with their purchase details and direct labor items with shift details. Then create recipes by adding those items with the quantities or time required. Finally, set your desired markup and number of servings to see your profit per plate!</p>
-            <p><strong>Remember:</strong> Accurate costs for both materials and labor lead to accurate profit calculations. Don't forget to account for yield (waste) for raw materials.</p>
-        </div>
-    `;
-
-    return html;
+function Xn() {
+  let e =
+    '\n        <div style="margin-bottom: var(--space-xl);">\n            <p><strong>Welcome to ProfitPerPlate!</strong> This complete guide explains every field in simple terms with practical examples for beginners.</p>\n        </div>\n\n        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xl);">\n            <div>\n                <h4 style="color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: var(--space-sm);">Raw Materials & Recipe Fields</h4>\n    ';
+  [
+    "ingredientName",
+    "ingredientCategory",
+    "purchasePrice",
+    "purchaseQuantity",
+    "purchaseUnit",
+    "costPerUnit",
+    "selectItem",
+    "quantity",
+    "servings"
+  ].forEach((t) => {
+    const n = d[t];
+    n &&
+      (e += `\n                <div style="margin-bottom: var(--space-lg); padding-bottom: var(--space-lg); border-bottom: 1px dashed var(--border);">\n                    <strong>${n.title}</strong>\n                    <p style="margin: var(--space-sm) 0; font-size: 13px;">${n.content}</p>\n                    <div class="field-example">\n                        <strong>Example:</strong> ${n.example}\n                    </div>\n                </div>\n            `);
+  }),
+    (e +=
+      '\n            </div>\n            <div>\n                <h4 style="color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: var(--space-sm);">Direct Labor & Business Fields</h4>\n    ');
+  return (
+    [
+      "laborName",
+      "shiftRate",
+      "shiftDuration",
+      "timeUnit",
+      "costUnit",
+      "markup",
+      "tax",
+      "vat",
+      "servingScale",
+      "subRecipeName",
+      "subRecipeCategory",
+      "subRecipeYieldQuantity",
+      "yieldPercentage",
+      "selectedLaborRate"
+    ].forEach((t) => {
+      const n = d[t];
+      n &&
+        (e += `\n                <div style="margin-bottom: var(--space-lg); padding-bottom: var(--space-lg); border-bottom: 1px dashed var(--border);">\n                    <strong>${n.title}</strong>\n                    <p style="margin: var(--space-sm) 0; font-size: 13px;">${n.content}</p>\n                    <div class="field-example">\n                        <strong>Example:</strong> ${n.example}\n                    </div>\n                </div>\n            `);
+    }),
+    (e +=
+      '\n            </div>\n        </div>\n\n        <div style="margin-top: var(--space-xl); padding: var(--space-lg); background: var(--background); border-radius: var(--radius-lg);">\n            <h4 style="color: var(--primary); margin-top: 0;">Quick Tip for Beginners</h4>\n            <p>Start by adding your raw materials with their purchase details and direct labor items with shift details. Then create recipes by adding those items with the quantities or time required. Finally, set your desired markup and number of servings to see your profit per plate!</p>\n            <p><strong>Remember:</strong> Accurate costs for both materials and labor lead to accurate profit calculations. Don\'t forget to account for yield (waste) for raw materials.</p>\n        </div>\n    '),
+    e
+  );
 }
-
-// Show field-specific help with examples
-function showFieldHelp(fieldKey, event) {
-    if (event) {
-        event.stopPropagation();
-        event.preventDefault();
-    }
-    
-    const definition = fieldDefinitions[fieldKey];
-    if (definition) {
-        helpModalTitle.textContent = definition.title + " - Field Definition";
-        helpModalContent.innerHTML = `
-            <p><strong>${definition.title}</strong> — ${definition.content}</p>
-            <div class="field-example">
-                <strong>Example:</strong> ${definition.example}
-            </div>
-            <div style="margin-top: var(--space-lg); padding: var(--space-md); background: rgba(45, 90, 61, 0.05); border-radius: var(--radius-md);">
-                <strong>💡 Tip:</strong> Look for the "?" buttons next to other fields for more explanations. 
-                Use the main "?" button in the header for a complete field guide.
-            </div>
-        `;
-    } else {
-        helpModalTitle.textContent = "Field Definitions";
-        helpModalContent.innerHTML = `<p>Definition not found for "${fieldKey}". Please refer to the general help.</p>`;
-    }
-    helpModal.classList.remove("hidden");
+function Zn(e, t) {
+  t && (t.stopPropagation(), t.preventDefault());
+  const n = d[e];
+  n
+    ? (z && (z.textContent = n.title + " - Field Definition"),
+      W &&
+        (W.innerHTML = `\n                <p><strong>${n.title}</strong> — ${n.content}</p>\n                <div class="field-example">\n                    <strong>Example:</strong> ${n.example}\n                </div>\n                <div style="margin-top: var(--space-lg); padding: var(--space-md); background: rgba(45, 90, 61, 0.05); border-radius: var(--radius-md);">\n                    <strong>💡 Tip:</strong> Look for the "?" buttons next to other fields for more explanations. \n                    Use the main "?" button in the header for a complete field guide.\n                </div>\n            `))
+    : (z && (z.textContent = "Field Definitions"),
+      W &&
+        (W.innerHTML = `<p>Definition not found for "${e}". Please refer to the general help.</p>`)),
+    O && O.classList.remove("hidden");
 }
-
-// Update sub-recipe unit options based on category
-function updateSubRecipeUnitOptions() {
-    if (!subRecipeCategory) return;
-    
-    const category = subRecipeCategory.value;
-    
-    [subRecipeYieldUnit, subRecipeCostUnit].forEach(unitSelect => {
-        if (!unitSelect) return;
-        
-        unitSelect.innerHTML = '';
-        
-        categoryUnits[category].forEach((unit) => {
-            const option = document.createElement("option");
-            option.value = unit;
-            option.textContent = unit;
-            unitSelect.appendChild(option);
-        });
-    });
-    
-    updateSubRecipeCostDisplay();
+function eo() {
+  if (!le) return;
+  const e = parseFloat(En()) || 0,
+    t = parseFloat(oe ? oe.value : 1) || 1,
+    n = ae ? ae.value : r || "g",
+    o = re ? re.value : n || "g";
+  let i = 0;
+  try {
+    if (t > 0 && a[n] && a[o]) {
+      i = (e / (t * a[n])) * a[o];
+    } else i = t > 0 ? e / t : 0;
+  } catch (e) {
+    console.error("Error computing sub-recipe cost per unit:", e), (i = 0);
+  }
+  if (
+    ((le.textContent = `${tt}${e.toFixed(2)}`),
+    ie &&
+      (isFinite(i)
+        ? (ie.value = parseFloat(i).toFixed(4))
+        : (ie.value = "0.0000")),
+    se)
+  ) {
+    const e = isFinite(i) ? parseFloat(i).toFixed(4) : "0.0000";
+    se.textContent = `${tt}${e} per ${o}`;
+  }
+  try {
+    const e = document.getElementById("subRecipeCostPerUnitField"),
+      t = document.getElementById("subRecipeCostUnitField");
+    e && (e.value = isFinite(i) ? parseFloat(i).toFixed(4) : "0.0000"),
+      t && (t.value = o || n || "unit");
+  } catch (e) {
+    console.warn("Could not update canonical sub-recipe hidden fields:", e);
+  }
 }
-
-// Update sub-recipe cost display
-function updateSubRecipeCostDisplay() {
-    if (!currentRecipeCostDisplay) return;
-    
-    const totalCost = calculateCurrentRecipeTotalCost();
-    const yieldQty = parseFloat(subRecipeYieldQuantity.value) || 1;
-    const yieldUnit = subRecipeYieldUnit.value;
-    const costUnit = subRecipeCostUnit.value;
-    
-    let costPerUnit = 0;
-    
-    if (yieldQty > 0) {
-        const costPerBaseUnit = totalCost / (yieldQty * UNIT_CONVERSIONS[yieldUnit]);
-        costPerUnit = costPerBaseUnit * UNIT_CONVERSIONS[costUnit];
-    }
-    
-    currentRecipeCostDisplay.textContent = `${currency}${totalCost.toFixed(2)}`;
-    if (subRecipeCostPerUnit) {
-        subRecipeCostPerUnit.value = costPerUnit.toFixed(4);
-    }
-    if (costPerOutputUnit) {
-        costPerOutputUnit.textContent = `${currency}${costPerUnit.toFixed(4)} per ${costUnit}`;
-    }
+function to() {
+  if (!ne) return;
+  const e = ne.value;
+  [ae, re].forEach((t) => {
+    t &&
+      ((t.innerHTML = ""),
+      i[e].forEach((e) => {
+        const n = document.createElement("option");
+        (n.value = e), (n.textContent = e), t.appendChild(n);
+      }));
+  }),
+    eo();
 }
-
-// Raw Material Management
-function openRawMaterialModal(rawMaterial = null) {
-    const modal = document.getElementById("rawMaterialModal");
-    const title = document.getElementById("rawMaterialModalTitle");
-
-    updateUnitOptions();
-
-    if (rawMaterial) {
-        title.textContent = "Edit Raw Material";
-        populateRawMaterialForm(rawMaterial);
-        editingItem = { type: 'rawMaterial', id: rawMaterial.id, data: rawMaterial };
-    } else {
-        title.textContent = "Add New Raw Material";
-        document.getElementById("rawMaterialForm").reset();
-        updateCostPerUnit();
-        editingItem = { type: null, id: null, data: null };
-    }
-
-    modal.classList.remove("hidden");
+function no(e = null) {
+  const n = document.getElementById("rawMaterialModal"),
+    o = document.getElementById("rawMaterialModalTitle");
+  ao(),
+    e
+      ? ((o.textContent = "Edit Raw Material"),
+        (function (e) {
+          (document.getElementById("modalRawMaterialName").value = e.name),
+            (document.getElementById("modalRawMaterialCategory").value =
+              e.category),
+            ao(),
+            (document.getElementById("modalRawMaterialPrice").value =
+              e.price.toFixed(2)),
+            (document.getElementById("modalRawMaterialQuantity").value =
+              e.quantity.toFixed(2)),
+            (document.getElementById("modalRawMaterialUnit").value = e.unit),
+            (document.getElementById("modalCostPerUnit").value =
+              e.costPerUnit.toFixed(4)),
+            (document.getElementById("modalCostUnit").value = e.costUnit),
+            (document.getElementById("modalRawMaterialYield").value =
+              e.yieldPercentage || 100),
+            nn();
+        })(e),
+        (t = { type: "rawMaterial", id: e.id, data: e }))
+      : ((o.textContent = "Add New Raw Material"),
+        document.getElementById("rawMaterialForm").reset(),
+        nn(),
+        (t = { type: null, id: null, data: null })),
+    n.classList.remove("hidden");
 }
-
-function closeRawMaterialModal() {
-    document.getElementById("rawMaterialModal").classList.add("hidden");
-    document.getElementById("rawMaterialForm").reset();
-    editingItem = { type: null, id: null, data: null };
+function oo() {
+  document.getElementById("rawMaterialModal").classList.add("hidden"),
+    document.getElementById("rawMaterialForm").reset(),
+    (t = { type: null, id: null, data: null });
 }
-
-// Update unit options based on selected category
-function updateUnitOptions() {
-    const category = document.getElementById(
-        "modalRawMaterialCategory"
-    ).value;
-    const unitSelect = document.getElementById("modalRawMaterialUnit");
-    const costUnitSelect = document.getElementById("modalCostUnit");
-
-    if (!unitSelect || !costUnitSelect) return;
-
-    unitSelect.innerHTML = "";
-    costUnitSelect.innerHTML = "";
-
-    categoryUnits[category].forEach((unit) => {
-        const option = document.createElement("option");
-        option.value = unit;
-        option.textContent = unit;
-        unitSelect.appendChild(option);
-
-        const costOption = document.createElement("option");
-        costOption.value = unit;
-        costOption.textContent = unit;
-        costUnitSelect.appendChild(costOption);
-    });
-
-    updateCostPerUnit();
+function ao() {
+  const e = document.getElementById("modalRawMaterialCategory").value,
+    t = document.getElementById("modalRawMaterialUnit"),
+    n = document.getElementById("modalCostUnit");
+  t &&
+    n &&
+    ((t.innerHTML = ""),
+    (n.innerHTML = ""),
+    i[e].forEach((e) => {
+      const o = document.createElement("option");
+      (o.value = e), (o.textContent = e), t.appendChild(o);
+      const a = document.createElement("option");
+      (a.value = e), (a.textContent = e), n.appendChild(a);
+    }),
+    nn());
 }
-
-// UPDATED: Calculate and display cost per unit for raw materials with yield-inclusive calculation
-function updateCostPerUnit() {
-    const price = parseFloat(document.getElementById("modalRawMaterialPrice").value) || 0;
-    const quantity = parseFloat(document.getElementById("modalRawMaterialQuantity").value) || 1;
-    const purchaseUnit = document.getElementById("modalRawMaterialUnit").value;
-    const costUnit = document.getElementById("modalCostUnit").value;
-    const yieldPercentage = parseFloat(document.getElementById("modalRawMaterialYield").value) || 100;
-
-    let costPerUnit = 0;
-    let calculationSteps = [];
-
-    if (price > 0 && quantity > 0) {
-        // NEW: Apply yield directly to cost calculation
-        const baseCostPerUnit = price / quantity;
-        calculationSteps.push(
-            `Base cost: ${price.toFixed(2)} ${currency} ÷ ${quantity.toFixed(2)} = ${baseCostPerUnit.toFixed(4)} ${currency}/${purchaseUnit}`
-        );
-
-        // Apply yield adjustment
-        const yieldAdjustedCost = baseCostPerUnit * (100 / yieldPercentage);
-        calculationSteps.push(
-            `With ${yieldPercentage}% yield: ${baseCostPerUnit.toFixed(4)} × (100 ÷ ${yieldPercentage}) = ${yieldAdjustedCost.toFixed(4)} ${currency}/${purchaseUnit}`
-        );
-
-        if (purchaseUnit !== costUnit) {
-            const conversionFactor = UNIT_CONVERSIONS[costUnit] / UNIT_CONVERSIONS[purchaseUnit];
-            costPerUnit = yieldAdjustedCost * conversionFactor;
-            calculationSteps.push(
-                `Convert to ${costUnit}: ${yieldAdjustedCost.toFixed(4)} × ${conversionFactor.toFixed(6)} = ${costPerUnit.toFixed(4)} ${currency}/${costUnit}`
-            );
-        } else {
-            costPerUnit = yieldAdjustedCost;
-            calculationSteps.push(`No conversion needed (already in ${costUnit})`);
-        }
-    }
-
-    document.getElementById("modalCostPerUnit").value = costPerUnit.toFixed(6);
-    updateCalculationDisplay(calculationSteps, costPerUnit, costUnit);
-}
-
-// Update cost per unit when user changes the cost unit
-function updateCostPerUnitValue() {
-    updateCostPerUnit();
-}
-
-// Update the calculation display with step-by-step breakdown
-function updateCalculationDisplay(steps, finalCost, costUnit) {
-    const calculationDetails = document.getElementById(
-        "costCalculationDetails"
+function io() {
+  console.log("🔧 Opening sub-recipe save modal...");
+  const e = document.getElementById("recipeName"),
+    t = e ? e.value.trim() : "";
+  if ((console.log("📝 Current recipe name:", t), !t)) {
+    const t =
+      "Please enter a recipe name in the 'Current Recipe' field before saving as sub-recipe";
+    return (
+      console.error("❌ Sub-recipe validation failed:", t),
+      alert(t),
+      void (
+        e &&
+        (e.focus(),
+        e.classList.add("error"),
+        setTimeout(() => e.classList.remove("error"), 2e3))
+      )
     );
-
-    if (steps.length > 0) {
-        let html = `<div><strong>Calculation Steps:</strong></div>`;
-        steps.forEach((step) => {
-            html += `<div style="margin: var(--space-xs) 0; padding-left: var(--space-md);">• ${step}</div>`;
-        });
-        html += `<div style="margin-top: var(--space-sm); font-weight: bold;">Final Cost: ${finalCost.toFixed(4)} ${currency}/${costUnit}</div>`;
-        calculationDetails.innerHTML = html;
-    } else {
-        calculationDetails.textContent =
-            "Enter purchase details to see calculation";
-    }
+  }
+  if (
+    !(function () {
+      let e = 0;
+      f && (e += f.querySelectorAll("tr").length);
+      y && (e += y.querySelectorAll("tr").length);
+      return e > 0;
+    })()
+  )
+    return void alert(
+      "Please add some items to the recipe before saving as sub-recipe"
+    );
+  const n = document.getElementById("subRecipeNameDisplay");
+  if (!n)
+    return (
+      console.error("❌ Sub-recipe name display element not found"),
+      void alert(
+        "Error: Could not initialize sub-recipe modal. Please refresh and try again."
+      )
+    );
+  (n.value = t),
+    console.log("✅ Set sub-recipe name in modal:", t),
+    (function () {
+      const e = {
+        category: "weight",
+        yieldQuantity: "1",
+        yieldUnit: "g",
+        costUnit: "g"
+      };
+      ne && (ne.value = e.category);
+      oe && (oe.value = e.yieldQuantity);
+      ae && (ae.value = e.yieldUnit);
+      re && (re.value = e.costUnit);
+    })(),
+    to(),
+    eo();
+  const o = document.getElementById("subRecipeValidationMessage");
+  o && (o.classList.add("hidden"), (o.textContent = ""));
+  try {
+    const e = document.getElementById("subRecipeCostPerUnitField"),
+      t = document.getElementById("subRecipeCostUnitField");
+    !e ||
+      (e.value && "" !== e.value) ||
+      (e.value = (parseFloat(En() / (parseFloat(oe.value) || 1)) || 0).toFixed(
+        4
+      )),
+      !t ||
+        (t.value && "" !== t.value) ||
+        (t.value = re ? re.value : ae.value || "unit");
+  } catch (e) {
+    console.warn("While initializing sub-recipe hidden canonical fields:", e);
+  }
+  const a = document.getElementById("subRecipeSaveModal");
+  a
+    ? (a.classList.remove("hidden"),
+      console.log("✅ Sub-recipe modal opened successfully"),
+      Wt(`Ready to save "${t}" as sub-recipe`, "success"))
+    : console.error("❌ Sub-recipe modal element not found");
 }
-
-// ENHANCED: Populate raw material form with yield field
-function populateRawMaterialForm(rawMaterial) {
-    document.getElementById("modalRawMaterialName").value = rawMaterial.name;
-    document.getElementById("modalRawMaterialCategory").value =
-        rawMaterial.category;
-
-    updateUnitOptions();
-
-    document.getElementById("modalRawMaterialPrice").value =
-        rawMaterial.price.toFixed(2);
-    document.getElementById("modalRawMaterialQuantity").value =
-        rawMaterial.quantity.toFixed(2);
-    document.getElementById("modalRawMaterialUnit").value = rawMaterial.unit;
-    document.getElementById("modalCostPerUnit").value =
-        rawMaterial.costPerUnit.toFixed(4);
-    document.getElementById("modalCostUnit").value = rawMaterial.costUnit;
-    document.getElementById("modalRawMaterialYield").value = rawMaterial.yieldPercentage || 100; // NEW: Populate yield
-
-    updateCostPerUnit();
+function ro() {
+  const e = [];
+  return (
+    f &&
+      f.querySelectorAll("tr").forEach((t) => {
+        const n = t.children[0].querySelector("input").value,
+          o = parseFloat(t.children[1].querySelector("input").value) || 0,
+          a = t.children[1].querySelector(".quantity-unit").textContent,
+          i = parseFloat(t.children[2].querySelector("input").value) || 0,
+          r = t.dataset.type || "rawMaterial",
+          l = t.dataset.subRecipeId || null;
+        ("rawMaterial" !== r && "sub-recipe" !== r) ||
+          e.push({
+            name: n,
+            quantity: o,
+            unit: a,
+            unitCost: i,
+            type: r,
+            subRecipeId: l
+          });
+      }),
+    e
+  );
+}
+function lo() {
+  const e = [];
+  return (
+    y &&
+      y.querySelectorAll("tr").forEach((t) => {
+        const n = t.children[0].querySelector("input").value,
+          o = parseFloat(t.children[1].querySelector("input").value) || 0,
+          a = t.children[1].querySelector(".quantity-unit").textContent,
+          i = parseFloat(t.children[2].querySelector("input").value) || 0;
+        e.push({ name: n, quantity: o, unit: a, unitCost: i });
+      }),
+    e
+  );
+}
+function so(e, t) {
+  const n = e.querySelector("svg");
+  n &&
+    (n.innerHTML = t
+      ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>'
+      : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>');
+}
+function co(e, t) {
+  const n = document.getElementById(e);
+  if (!n)
+    return void console.error("❌ Password input not found for field:", e);
+  const o = "password" === n.type;
+  (n.type = o ? "text" : "password"),
+    t && so(t, !o),
+    console.log("✅ Password visibility toggled for field:", e);
+}
+function uo(e) {
+  return `${tt}${parseFloat(e).toFixed(2)}`;
+}
+function po(e) {
+  const t = document.createElement("div");
+  return (t.textContent = e), t.innerHTML;
+}
+function mo(e) {
+  return [...e].sort((e, t) => e.name.localeCompare(t.name));
+}
+function go(e) {
+  return [...e].sort((e, t) => e.name.localeCompare(t.name));
+}
+function fo(e) {
+  return [...e].sort((e, t) => e.name.localeCompare(t.name));
+}
+function yo(e) {
+  return [...e].sort((e, t) => e.name.localeCompare(t.name));
 }
 
 // =============================================================================
-// NEW: ALPHABETICAL SORTING FUNCTIONS
+// ENHANCED INITIALIZATION WITH DATA PROTECTION
 // =============================================================================
 
-// NEW: Alphabetical Sorting Functions
-function sortRawMaterialsAlphabetically(rawMaterials) {
-    return [...rawMaterials].sort((a, b) => a.name.localeCompare(b.name));
+async function normalInitialization() {
+  console.log("🚀 Initializing ProfitPerPlate with comprehensive fixes...");
+  try {
+    !(function () {
+      console.log(
+        "🔧 Initializing DOM elements with enhanced error handling..."
+      );
+      try {
+        (f = yt("recipeBody")),
+          (y = yt("directLaborRecipeBody")),
+          (b = yt("rawMaterialsTotal")),
+          (v = yt("directLaborTotal")),
+          (h = yt("grandTotal")),
+          (w = yt("currencySelect")),
+          (x = yt("recipeName")),
+          (C = yt("resetRecipe")),
+          (E = yt("saveMainRecipeBtn")),
+          (L = yt("saveSubRecipeBtn")),
+          (S = yt("summaryRawMaterialsCost")),
+          (P = yt("summaryDirectLaborCost")),
+          ($ = yt("summaryTotalCost")),
+          (R = yt("summaryCostServing")),
+          (I = yt("summarySellingPrice")),
+          (M = yt("summaryFoodCost")),
+          (F = yt("summaryLaborCostPercent")),
+          (k = yt("summaryTotalCostPercent")),
+          (B = yt("summaryGrossProfit")),
+          (U = yt("markup")),
+          (T = yt("tax")),
+          (q = yt("vat")),
+          (D = yt("servings")),
+          (A = yt("servingScale")),
+          (N = yt("summaryServingsDisplay")),
+          (H = yt("helpBtn")),
+          (O = yt("helpModal")),
+          (z = yt("helpModalTitle")),
+          (W = yt("helpModalContent")),
+          (Q = yt("closeHelp")),
+          (Y = yt("printBtn")),
+          (V = yt("printPreviewModal")),
+          (G = yt("printPreviewContent")),
+          (_ = yt("unifiedItemSelect")),
+          (J = yt("addIngredientQty")),
+          (j = yt("addIngredientUnit")),
+          (K = yt("directLaborSelect")),
+          (X = yt("timeRequirement")),
+          (Z = yt("timeRequirementUnit")),
+          (ee = yt("subRecipeSaveModal")),
+          (te = yt("subRecipeNameDisplay")),
+          (ne = yt("subRecipeCategory")),
+          (oe = yt("subRecipeYieldQuantity")),
+          (ae = yt("subRecipeYieldUnit")),
+          (ie = yt("subRecipeCostPerUnit")),
+          (re = yt("subRecipeCostUnit")),
+          (le = yt("currentRecipeCostDisplay")),
+          (se = yt("costPerOutputUnit")),
+          (ce = yt("mainRecipesList")),
+          (de = yt("subRecipesList")),
+          (ue = yt("editPromptModal")),
+          (pe = yt("editPromptTitle")),
+          (me = yt("editPromptMessage")),
+          (ve = yt("authModal")),
+          (he = yt("authModalTitle")),
+          (we = yt("authForm")),
+          (xe = yt("authEmail")),
+          (Ce = yt("authPassword")),
+          (Ee = yt("authSubmitBtn")),
+          (Le = yt("authError")),
+          (Se = yt("authSwitchBtn")),
+          (Pe = yt("authSwitchText")),
+          ($e = yt("forgotPasswordModal")),
+          (Re = yt("forgotPasswordBtn")),
+          (Ie = yt("forgotPasswordEmail")),
+          (Me = yt("forgotPasswordError")),
+          (Fe = yt("forgotPasswordSuccess")),
+          (ke = yt("sendResetEmailBtn")),
+          (Be = yt("togglePassword")),
+          (Ue = yt("loginBtn")),
+          (Te = yt("logoutBtn")),
+          (qe = yt("signupBtn")),
+          (De = yt("rawMaterialsPreviewBody")),
+          (Ae = yt("directLaborPreviewBody")),
+          (Ne = yt("rawMaterialsCount")),
+          (He = yt("directLaborCount")),
+          (Oe = yt("rawMaterialsPreviewTotal")),
+          (ze = yt("directLaborPreviewTotal")),
+          (We = yt("rawMaterialsPreviewSubtotal")),
+          (Qe = yt("directLaborPreviewSubtotal")),
+          (Ye = yt("summaryRecipeSelect")),
+          (Ve = yt("loadedRecipeDisplay")),
+          (Ge = yt("currentRecipeNameDisplay")),
+          (_e = yt("loadedRecipeTotalCost")),
+          (Je = yt("loadedRecipeServings")),
+          (je = yt("loadedRecipeItemCount")),
+          (Ke = yt("summaryBatchRevenue")),
+          (Xe = yt("summaryBatchProfit")),
+          (Ze = document.querySelectorAll(".sidebar-btn")),
+          (et = document.querySelectorAll(".mobile-tabs .tab-btn")),
+          console.log(
+            `✅ DOM elements initialized - Sidebar: ${Ze.length}, Mobile: ${et.length}`
+          );
+      } catch (e) {
+        console.error("💥 DOM element initialization failed:", e),
+          setTimeout(() => {
+            (Ze = document.querySelectorAll(".sidebar-btn")),
+              (et = document.querySelectorAll(".mobile-tabs .tab-btn")),
+              console.log(
+                `🔄 Recovered navigation - Sidebar: ${Ze.length}, Mobile: ${et.length}`
+              );
+          }, 100);
+      }
+    })(),
+      (function () {
+        const e = localStorage.getItem("profitPerPlate_theme"),
+          t =
+            window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches,
+          n = "dark" === e || (!e && t);
+        document.body.classList.toggle("dark-mode", n);
+        const o = document.querySelector("#darkModeToggle svg");
+        o &&
+          (o.innerHTML = n
+            ? '<path d="M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10z"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>'
+            : '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>');
+      })(),
+      (function () {
+        console.log("🔧 Setting up universal password toggles..."),
+          document.addEventListener("click", function (e) {
+            const t = e.target.closest(".password-toggle");
+            t &&
+              (e.preventDefault(),
+              e.stopPropagation(),
+              console.log("👁️ Password toggle clicked"),
+              (function (e) {
+                const t = e.closest(".password-input-group");
+                if (!t)
+                  return void console.error(
+                    "❌ Password input group not found for toggle"
+                  );
+                const n = t.querySelector(
+                  'input[type="password"], input[type="text"]'
+                );
+                if (!n)
+                  return void console.error(
+                    "❌ Password input not found in group"
+                  );
+                const o = "password" === n.type;
+                (n.type = o ? "text" : "password"),
+                  so(e, !o),
+                  console.log("✅ Password visibility toggled to:", n.type);
+              })(t));
+          });
+        const e = document.getElementById("togglePassword");
+        e &&
+          e.addEventListener("click", function (e) {
+            e.preventDefault(),
+              e.stopPropagation(),
+              console.log("👁️ Auth password toggle clicked"),
+              (function () {
+                const e = document.getElementById("authPassword");
+                if (!e)
+                  return void console.error("❌ Auth password input not found");
+                const t = "password" === e.type;
+                e.type = t ? "text" : "password";
+                const n = document.getElementById("togglePassword");
+                n && so(n, !t);
+                console.log("✅ Auth password visibility toggled");
+              })();
+          });
+        console.log("✅ Universal password toggles setup completed");
+      })(),
+      (function () {
+        const e = document.getElementById("unifiedEditPromptModal");
+        e &&
+          e.addEventListener("click", function (t) {
+            t.target === e && g();
+          }),
+          document.addEventListener("keydown", function (t) {
+            "Escape" === t.key && e && !e.classList.contains("hidden") && g();
+          });
+      })(),
+      ot(),
+      await window.supabaseClient.checkAuthState(),
+      setupEnhancedAutoSave(),
+      (function () {
+        console.log("🔧 Setting up enhanced event listeners..."), It();
+        const t = document.getElementById("darkModeToggle");
+        t && t.addEventListener("click", ht);
+        Rn(),
+          w &&
+            w.addEventListener("change", () => {
+              (tt = w.value),
+                (e.currency = tt),
+                document
+                  .querySelectorAll(".unit-currency")
+                  .forEach((e) => (e.textContent = tt)),
+                zn(),
+                dt();
+            });
+        [U, T, q, D, x, A].forEach((e) => {
+          e &&
+            e.addEventListener("input", () => {
+              zn(), dt(), n && Yn();
+            });
+        }),
+          C && C.addEventListener("click", Nt);
+        E &&
+          E.addEventListener("click", function () {
+            if (!x.value.trim())
+              return (
+                alert("Please enter a recipe name before saving"),
+                void x.focus()
+              );
+            $n("main");
+          });
+        L &&
+          L.addEventListener("click", function () {
+            io();
+          });
+        const o = document.getElementById("saveRawMaterialBtn");
+        o && o.addEventListener("click", Xt);
+        const a = document.getElementById("saveDirectLaborBtn");
+        a && a.addEventListener("click", cn);
+        H &&
+          H.addEventListener("click", (e) => {
+            e.stopPropagation(),
+              (z.textContent = "Complete Field Guide — ProfitPerPlate"),
+              (W.innerHTML = Xn()),
+              O.classList.remove("hidden");
+          });
+        Q && Q.addEventListener("click", An);
+        O &&
+          O.addEventListener("click", (e) => {
+            e.target === O && An();
+          });
+        void (
+          Y &&
+          (Y.replaceWith(Y.cloneNode(!0)),
+          (Y = document.getElementById("printBtn")),
+          Y.addEventListener("click", function () {
+            console.log("Print button clicked");
+            const e = null !== n,
+              t = (f && f.children.length > 0) || (y && y.children.length > 0);
+            if (e || t)
+              try {
+                Jn(),
+                  V
+                    ? V.classList.remove("hidden")
+                    : (console.error("Print preview modal not found"),
+                      alert("Error: Print preview modal not available"));
+              } catch (e) {
+                console.error("Error generating print preview:", e),
+                  alert(
+                    "Error generating print preview. Please check the console for details."
+                  );
+              }
+            else
+              alert(
+                "No recipe data available to print. Please either:\n\n1. Add items to your current recipe, OR\n2. Load a saved recipe in the Summary tab for analysis"
+              );
+          }),
+          console.log("Print button setup completed"))
+        ),
+          void [
+            { id: "rawMaterialModal", closeFn: oo },
+            { id: "directLaborModal", closeFn: rn },
+            { id: "printPreviewModal", closeFn: Nn },
+            { id: "subRecipeSaveModal", closeFn: Mn },
+            { id: "editPromptModal", closeFn: Hn },
+            { id: "authModal", closeFn: kt },
+            { id: "forgotPasswordModal", closeFn: xt },
+            { id: "resetPasswordModal", closeFn: St },
+            { id: "helpModal", closeFn: An },
+            { id: "unifiedEditPromptModal", closeFn: g }
+          ].forEach((e) => {
+            const t = document.getElementById(e.id);
+            t &&
+              t.addEventListener("click", (t) => {
+                t.target.id === e.id && e.closeFn();
+              });
+          }),
+          _ && _.addEventListener("change", hn);
+        A &&
+          A.addEventListener("input", function () {
+            parseFloat(this.value);
+            zn(), dt(), n && Yn();
+          });
+        document.addEventListener("keydown", (e) => {
+          "Escape" === e.key && Rt();
+        }),
+          console.log("✅ Enhanced event listeners setup completed");
+      })(),
+      await gt(),
+      vt(),
+      zn(),
+      mn(),
+      In(),
+      to(),
+      Kn(),
+      W && (W.innerHTML = Xn()),
+      _n(),
+      await window.supabaseClient.handlePasswordReset(),
+      At(),
+      (function () {
+        const e = document.querySelectorAll(".batch-profit-analysis label");
+        e.length >= 2 &&
+          ((e[0].textContent = "Total Revenue:"),
+          (e[1].textContent = "Total Profit:"));
+        const t = document.querySelector(".batch-profit-analysis:nth-child(3)");
+        t && t.remove();
+      })(),
+      console.log("🔗 Exporting all global functions..."),
+      (window.switchTab = it),
+      (window.setupNavigationSystem = ot),
+      (window.setupDirectNavigationListeners = at),
+      (window.openAuthModal = Mt),
+      (window.closeAuthModal = kt),
+      (window.handleAuth = Ft),
+      (window.handleLogout = qt),
+      (window.toggleAuthMode = Tt),
+      (window.openForgotPasswordModal = wt),
+      (window.closeForgotPasswordModal = xt),
+      (window.sendPasswordReset = Ct),
+      (window.showResetPasswordModal = Lt),
+      (window.closeResetPasswordModal = St),
+      (window.togglePasswordVisibilityGeneric = co),
+      (window.handlePasswordReset = Pt),
+      (window.showResetPasswordError = $t),
+      (window.closeAllModals = Rt),
+      (window.openRawMaterialModal = no),
+      (window.closeRawMaterialModal = oo),
+      (window.saveRawMaterial = Kt),
+      (window.deleteRawMaterial = Zt),
+      (window.updateCostPerUnit = nn),
+      (window.updateCostPerUnitValue = on),
+      (window.updateUnitOptions = ao),
+      (window.openDirectLaborModal = an),
+      (window.closeDirectLaborModal = rn),
+      (window.saveDirectLabor = sn),
+      (window.deleteDirectLabor = dn),
+      (window.updateLaborCostPerUnit = ln),
+      (window.addItemToRecipe = Cn),
+      (window.addDirectLaborToRecipe = yn),
+      (window.editRecipeRow = bn),
+      (window.editDirectLaborRow = wn),
+      (window.updateRecipeRow = vn),
+      (window.updateDirectLaborRow = xn),
+      (window.saveRecipe = Pn),
+      (window.deleteRecipe = qn),
+      (window.editRecipe = Un),
+      (window.editSubRecipe = Tn),
+      (window.loadRecipe = kn),
+      (window.loadSubRecipe = Bn),
+      (window.openSubRecipeSaveModal = io),
+      (window.closeSubRecipeSaveModal = Mn),
+      (window.saveSubRecipe = Ln),
+      (window.updateSubRecipeUnitOptions = to),
+      (window.updateSubRecipeCostDisplay = eo),
+      (window.loadRecipeForSummary = Vn),
+      (window.recalc = zn),
+      (window.printCostingReport = jn),
+      (window.closePrintPreview = Nn),
+      (window.generatePrintPreview = Jn),
+      (window.showFieldHelp = Zn),
+      (window.closeHelpModal = An),
+      (window.handleEditPromptChoice = Dn),
+      (window.renderRawMaterials = en),
+      (window.renderDirectLabor = un),
+      (window.filterRawMaterials = tn),
+      (window.filterDirectLabor = pn),
+      (window.saveRecipeWithDuplicateCheck = $n),
+      (window.saveRawMaterialWithDuplicateCheck = Xt),
+      (window.saveDirectLaborWithDuplicateCheck = cn),
+      (window.saveSubRecipeWithDuplicateCheck = Sn),
+      (window.showRecipeEditPrompt = On),
+      (window.initializeAuth = It),
+      (window.setupEnhancedAutoSave = setupEnhancedAutoSave),
+      (window.loadRecipeStateWithFallback = gt),
+      (window.loadUserDataFromLocalStorage = rt),
+      (window.safeClearLocalData = lt),
+      (window.normalizeRecipeData = l),
+      (window.normalizeUserData = s),
+      (window.prepareUserDataForSave = c),
+      (window.handleUnifiedEditPromptChoice = m),
+      (window.closeUnifiedEditPromptModal = g),
+      
+      // Export enhanced data protection functions
+      (window.hasMeaningfulData = hasMeaningfulData),
+      (window.attemptDataRecovery = attemptDataRecovery),
+      (window.initializeWithDataProtection = initializeWithDataProtection),
+      (window.setupEnhancedAutoSave = setupEnhancedAutoSave),
+      (window.showDataOperationNotification = showDataOperationNotification),
+      (window.updateDataStateIndicator = updateDataStateIndicator),
+      
+      console.log("✅ All global functions exported successfully"),
+      console.log("🎉 ProfitPerPlate initialization completed successfully"),
+      Wt(
+        "Welcome to ProfitPerPlate! Your data is automatically saved.",
+        "success"
+      );
+  } catch (e) {
+    console.error("💥 Initialization failed:", e),
+      Wt(
+        "Initialization completed with minor issues. Some features may be limited.",
+        "warning"
+      );
+  }
 }
 
-function sortDirectLaborAlphabetically(directLabor) {
-    return [...directLabor].sort((a, b) => a.name.localeCompare(b.name));
-}
-
-function sortRecipesAlphabetically(recipes) {
-    return [...recipes].sort((a, b) => a.name.localeCompare(b.name));
-}
-
-function sortRecipeItemsAlphabetically(items) {
-    return [...items].sort((a, b) => a.name.localeCompare(b.name));
-}
-
-// =============================================================================
-// FIX: ADD SERVING SCALE RESET ON TAB SWITCH
-// =============================================================================
-function switchTab(tabName) {
-    // Update desktop sidebar
-    document.querySelectorAll(".sidebar-btn").forEach((btn) => {
-        btn.classList.toggle("active", btn.dataset.tab === tabName);
-    });
-
-    // Update mobile tabs
-    document.querySelectorAll(".mobile-tabs .tab-btn").forEach((btn) => {
-        btn.classList.toggle("active", btn.dataset.tab === tabName);
-    });
-
-    document.querySelectorAll(".tab-content").forEach((tab) => {
-        tab.classList.toggle("active", tab.id === `${tabName}-tab`);
-    });
-
-    // NEW: Reset Serving Scale to 1 when leaving Summary tab to prevent confusion
-    if (tabName !== 'summary' && servingScaleInput) {
-        const currentScale = parseFloat(servingScaleInput.value) || 1;
-        if (currentScale !== 1) {
-            console.log(`INFO: Auto-resetting Serving Scale from ${currentScale} to 1 when leaving Summary tab`);
-            servingScaleInput.value = 1;
-            
-            // If we have a loaded recipe, update the display with reset scale
-            if (loadedRecipeForSummary) {
-                updateLoadedRecipeSummary();
-                updateCostBreakdownPreview();
-            }
-        }
-    }
-
-    // Update cost breakdown preview when switching to summary tab if a recipe is loaded
-    if (tabName === 'summary') {
-        if (loadedRecipeForSummary) {
-            updateCostBreakdownPreview();
-        } else {
-            clearCostBreakdownPreview();
-        }
-    }
+// Replace the existing DOMContentLoaded initialization
+document.addEventListener('DOMContentLoaded', async function() {
+  console.log("🚀 Initializing ProfitPerPlate with comprehensive data protection...");
+  
+  try {
+    // Use enhanced initialization
+    await initializeWithDataProtection();
     
-    // Save current tab state
-    saveCurrentRecipeState();
-}
-
-// Utility functions
-function formatCurrency(amount) {
-    return `${currency}${parseFloat(amount).toFixed(2)}`;
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-// Add auth state update function
-function updateAuthUI() {
-    const authButtons = document.getElementById('authButtons');
-    const userInfo = document.getElementById('userInfo');
-    const userEmail = document.getElementById('userEmail');
+    console.log("🎉 ProfitPerPlate initialization with data protection completed successfully");
+    Wt("Welcome to ProfitPerPlate! Your data is protected with enhanced backup.", "success");
     
-    if (currentUser) {
-        if (authButtons) authButtons.classList.add('hidden');
-        if (userInfo) userInfo.classList.remove('hidden');
-        if (userEmail) userEmail.textContent = currentUser.email;
-        
-        // Load user data
-        loadUserData();
-    } else {
-        if (authButtons) authButtons.classList.remove('hidden');
-        if (userInfo) userInfo.classList.add('hidden');
-        
-        // Clear data when logged out
-        clearLocalData();
-    }
-}
-
-// =============================================================================
-// FIX: COMPREHENSIVE GLOBAL FUNCTION EXPORTS
-// =============================================================================
-
-// Auth and Password Functions
-window.openAuthModal = openAuthModal;
-window.closeAuthModal = closeAuthModal;
-window.handleAuth = handleAuth;
-window.handleLogout = handleLogout;
-window.toggleAuthMode = toggleAuthMode;
-window.openForgotPasswordModal = openForgotPasswordModal;
-window.closeForgotPasswordModal = closeForgotPasswordModal;
-window.sendPasswordReset = sendPasswordReset;
-window.showResetPasswordModal = showResetPasswordModal;
-window.closeResetPasswordModal = closeResetPasswordModal;
-window.togglePasswordVisibilityGeneric = togglePasswordVisibilityGeneric;
-window.handlePasswordReset = handlePasswordReset;
-window.showResetPasswordError = showResetPasswordError;
-window.closeAllModals = closeAllModals;
-
-// Raw Material Functions
-window.openRawMaterialModal = openRawMaterialModal;
-window.closeRawMaterialModal = closeRawMaterialModal;
-window.saveRawMaterial = saveRawMaterial;
-window.deleteRawMaterial = deleteRawMaterial;
-window.updateCostPerUnit = updateCostPerUnit;
-window.updateCostPerUnitValue = updateCostPerUnitValue;
-window.updateUnitOptions = updateUnitOptions;
-
-// Direct Labor Functions
-window.openDirectLaborModal = openDirectLaborModal;
-window.closeDirectLaborModal = closeDirectLaborModal;
-window.saveDirectLabor = saveDirectLabor;
-window.deleteDirectLabor = deleteDirectLabor;
-window.updateLaborCostPerUnit = updateLaborCostPerUnit;
-
-// Recipe Calculator Functions
-window.addItemToRecipe = addItemToRecipe;
-window.addDirectLaborToRecipe = addDirectLaborToRecipe;
-window.editRecipeRow = editRecipeRow;
-window.editDirectLaborRow = editDirectLaborRow;
-window.updateRecipeRow = updateRecipeRow;
-window.updateDirectLaborRow = updateDirectLaborRow;
-
-// Recipe Management Functions
-window.saveRecipe = saveRecipe;
-window.deleteRecipe = deleteRecipe;
-window.editRecipe = editRecipe;
-window.editSubRecipe = editSubRecipe;
-window.loadRecipe = loadRecipe;
-window.loadSubRecipe = loadSubRecipe;
-
-// Sub-Recipe Functions
-window.openSubRecipeSaveModal = openSubRecipeSaveModal;
-window.closeSubRecipeSaveModal = closeSubRecipeSaveModal;
-window.saveSubRecipe = saveSubRecipe;
-window.updateSubRecipeUnitOptions = updateSubRecipeUnitOptions;
-window.updateSubRecipeCostDisplay = updateSubRecipeCostDisplay;
-
-// Summary and Analysis Functions
-window.loadRecipeForSummary = loadRecipeForSummary;
-window.switchTab = switchTab;
-window.recalc = recalc;
-
-// Print and Export Functions
-window.printCostingReport = printCostingReport;
-window.closePrintPreview = closePrintPreview;
-window.generatePrintPreview = generatePrintPreview;
-
-// Help System Functions
-window.showFieldHelp = showFieldHelp;
-window.closeHelpModal = closeHelpModal;
-
-// Edit Prompt Functions
-window.handleEditPromptChoice = handleEditPromptChoice;
-window.handleRawMaterialEditChoice = handleRawMaterialEditChoice;
-window.handleDirectLaborEditChoice = handleDirectLaborEditChoice;
-
-// Utility Functions
-window.renderRawMaterials = renderRawMaterials;
-window.renderDirectLabor = renderDirectLabor;
-window.filterRawMaterials = filterRawMaterials;
-window.filterDirectLabor = filterDirectLabor;
-
-// ADD MISSING GLOBAL EXPORTS
-window.closeRawMaterialModal = closeRawMaterialModal;
-window.closeDirectLaborModal = closeDirectLaborModal;
-window.closeSubRecipeSaveModal = closeSubRecipeSaveModal;
-window.closeEditPromptModal = closeEditPromptModal;
-window.closeHelpModal = closeHelpModal;
-window.closeRawMaterialEditPromptModal = closeRawMaterialEditPromptModal;
-window.closeDirectLaborEditPromptModal = closeDirectLaborEditPromptModal;
-window.onUnifiedItemSelectChange = onUnifiedItemSelectChange;
-
-// COMPREHENSIVE EXPORT BLOCK FOR HTML ONCLICK HANDLERS
-window.ProfitPerPlate = {
-    // Core Functions
-    initApp,
-    recalc,
-    switchTab,
-    
-    // Modal Functions
-    openRawMaterialModal,
-    closeRawMaterialModal,
-    openDirectLaborModal,
-    closeDirectLaborModal,
-    openSubRecipeSaveModal,
-    closeSubRecipeSaveModal,
-    
-    // Data Management
-    saveRawMaterial,
-    saveDirectLabor,
-    deleteRawMaterial,
-    deleteDirectLabor,
-    
-    // Recipe Functions
-    addItemToRecipe,
-    addDirectLaborToRecipe,
-    resetRecipe,
-    saveRecipe,
-    saveSubRecipe,
-    
-    // Auth Functions
-    openAuthModal,
-    closeAuthModal,
-    handleAuth,
-    handleLogout
-};
-
-console.log("Global functions exported successfully");
+  } catch (e) {
+    console.error("💥 Protected initialization failed:", e);
+    // Fall back to original initialization
+    await normalInitialization();
+    Wt("Initialization completed with enhanced data protection.", "info");
+  }
+});

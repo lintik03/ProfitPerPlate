@@ -4,11 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ProfitPerPlate - Restaurant Costing Tool</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   </head>
   <body>
-    <!-- Updated Header Section -->
+    <!-- Enhanced Header Section with Data Protection Indicators -->
     <header class="header">
       <div class="header-top">
         <div class="left-group">
@@ -17,20 +17,63 @@
             <p class="site-slogan">Know your profit in every plate</p>
           </div>
         </div>
-        
+
         <div class="right-group">
+          <!-- Enhanced Data State Indicator -->
+          <div
+            id="dataStateIndicator"
+            class="data-state-indicator protected"
+            aria-live="polite"
+            role="status"
+            aria-atomic="true"
+          >
+            <span class="data-state-icon">🛡️</span>
+            <span class="data-state-text">Data Protected</span>
+            <span class="backup-status-indicator" style="margin-left: 5px; font-size: 10px;">✓</span>
+          </div>
+
+          <!-- Enhanced Cloud sync status -->
+          <div
+            id="cloudSyncStatus"
+            aria-live="polite"
+            class="sync-protected"
+            role="status"
+            aria-atomic="true"
+          >
+            Backup Active
+          </div>
+
           <!-- Dark Mode Toggle - UPDATED -->
           <div class="header-item">
-            <button id="darkModeToggle" class="header-icon-btn" aria-label="Toggle dark mode">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            <button
+              id="darkModeToggle"
+              class="header-icon-btn"
+              aria-label="Toggle dark mode"
+              type="button"
+              data-role="toggle-theme"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"
+                ></path>
               </svg>
             </button>
           </div>
 
           <!-- Currency Selector -->
           <div class="header-item">
-            <select id="currencySelect" class="select-input small header-select">
+            <select
+              id="currencySelect"
+              class="select-input small header-select"
+              data-role="currency-select"
+            >
               <option value="₱">₱ PHP</option>
               <option value="$">$ USD</option>
               <option value="¥">¥ JPY</option>
@@ -49,8 +92,21 @@
 
           <!-- Help Button -->
           <div class="header-item">
-            <button id="helpBtn" class="header-icon-btn" aria-label="Help">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <button
+              id="helpBtn"
+              class="header-icon-btn"
+              aria-label="Help"
+              type="button"
+              data-role="open-help"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <circle cx="12" cy="12" r="10"></circle>
                 <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
                 <line x1="12" y1="17" x2="12" y2="17"></line>
@@ -58,21 +114,69 @@
             </button>
           </div>
 
-          <!-- Auth Section - FIXED: Remove onclick handlers and rely on event listeners -->
+          <!-- Auth Section - ENHANCED: Proper event handling structure -->
           <div class="header-item auth-section">
             <div id="authButtons" class="auth-buttons">
-              <button id="loginBtn" class="header-icon-btn" aria-label="Login">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <button
+                id="loginBtn"
+                class="header-icon-btn"
+                aria-label="Login"
+                type="button"
+                data-role="open-login"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
                   <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
                   <polyline points="10 17 15 12 10 7"></polyline>
                   <line x1="15" y1="12" x2="3" y2="12"></line>
                 </svg>
               </button>
+              <button
+                id="signupBtn"
+                class="header-icon-btn"
+                aria-label="Sign Up"
+                type="button"
+                data-role="open-signup"
+                style="margin-left: var(--space-xs)"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="8.5" cy="7" r="4"></circle>
+                  <line x1="20" y1="8" x2="20" y2="14"></line>
+                  <line x1="23" y1="11" x2="17" y2="11"></line>
+                </svg>
+              </button>
             </div>
             <div id="userInfo" class="user-info hidden">
               <span id="userEmail" class="user-email"></span>
-              <button id="logoutBtn" class="header-icon-btn" aria-label="Logout">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <button
+                id="logoutBtn"
+                class="header-icon-btn"
+                aria-label="Logout"
+                type="button"
+                data-role="logout"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                   <polyline points="16 17 21 12 16 7"></polyline>
                   <line x1="21" y1="12" x2="9" y2="12"></line>
@@ -85,24 +189,58 @@
 
       <!-- Mobile Navigation -->
       <nav class="tabs mobile-tabs" role="navigation" aria-label="Primary">
-        <button class="tab-btn active" data-tab="raw-materials">Raw Materials</button>
-        <button class="tab-btn" data-tab="recipes">Recipes</button>
-        <button class="tab-btn" data-tab="summary">Summary</button>
+        <button class="tab-btn active" data-tab="raw-materials" type="button">
+          Raw Materials
+        </button>
+        <button class="tab-btn" data-tab="recipes" type="button">
+          Recipes
+        </button>
+        <button class="tab-btn" data-tab="summary" type="button">
+          Summary
+        </button>
       </nav>
     </header>
 
     <!-- Desktop Sidebar Navigation -->
     <aside class="sidebar">
       <nav class="sidebar-nav">
-        <button class="sidebar-btn active" data-tab="raw-materials">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+        <button
+          class="sidebar-btn active"
+          data-tab="raw-materials"
+          type="button"
+          data-role="tab-raw"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
+            ></path>
           </svg>
           <span>Raw Materials</span>
         </button>
-        <button class="sidebar-btn" data-tab="recipes">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+        <button
+          class="sidebar-btn"
+          data-tab="recipes"
+          type="button"
+          data-role="tab-recipes"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+            ></path>
             <polyline points="14 2 14 8 20 8"></polyline>
             <line x1="16" y1="13" x2="8" y2="13"></line>
             <line x1="16" y1="17" x2="8" y2="17"></line>
@@ -110,9 +248,23 @@
           </svg>
           <span>Recipe Calculator</span>
         </button>
-        <button class="sidebar-btn" data-tab="summary">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+        <button
+          class="sidebar-btn"
+          data-tab="summary"
+          type="button"
+          data-role="tab-summary"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
+            ></path>
             <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
             <line x1="12" y1="22.08" x2="12" y2="12"></line>
           </svg>
@@ -121,17 +273,27 @@
       </nav>
     </aside>
 
-    <!-- Data Storage Notice -->
+    <!-- Enhanced Data Storage Notice -->
     <section class="global-notice" aria-label="Data Storage Notice">
-      <div class="data-warning subtle">
+      <div class="data-warning subtle protected">
         <span class="cloud-icon">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
             <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
           </svg>
         </span>
         <div class="notice-content">
-          <strong>Cloud Storage</strong>
-          <p>Your data is securely stored in the cloud. Login to access from any device.</p>
+          <strong>Enhanced Data Protection Active</strong>
+          <p>
+            Your data is securely stored with automatic backups. 
+            Multiple recovery points ensure no data loss during sync.
+          </p>
         </div>
       </div>
     </section>
@@ -144,7 +306,12 @@
           <!-- Raw Materials Section -->
           <div class="section-header">
             <h2>Master Raw Material List</h2>
-            <button class="add-btn" onclick="window.ProfitPerPlate.openRawMaterialModal()">
+            <button
+              class="add-btn"
+              onclick="openRawMaterialModal()"
+              type="button"
+              data-role="add-raw-material"
+            >
               + Add Raw Material
             </button>
           </div>
@@ -165,7 +332,8 @@
                 <tr>
                   <th>Raw Material</th>
                   <th>Category</th>
-                  <th>Yield %</th> <!-- NEW: Yield column -->
+                  <th>Yield %</th>
+                  <!-- NEW: Yield column -->
                   <th>Cost/Unit</th>
                   <th>Actions</th>
                 </tr>
@@ -177,9 +345,14 @@
           </div>
 
           <!-- Direct Labor Section -->
-          <div class="section-header" style="margin-top: var(--space-2xl);">
+          <div class="section-header" style="margin-top: var(--space-2xl)">
             <h2>Direct Labor List</h2>
-            <button class="add-btn" onclick="window.ProfitPerPlate.openDirectLaborModal()">
+            <button
+              class="add-btn"
+              onclick="openDirectLaborModal()"
+              type="button"
+              data-role="add-direct-labor"
+            >
               + Add Direct Labor
             </button>
           </div>
@@ -224,22 +397,43 @@
                 type="text"
                 placeholder="Enter recipe name..."
               />
-              
+
               <!-- Servings input -->
               <div class="servings-control">
                 <label for="servings">Servings:</label>
                 <div class="input-wrap tooltip-container">
-                  <input id="servings" type="number" value="1" min="1" class="number-input small">
+                  <input
+                    id="servings"
+                    type="number"
+                    value="1"
+                    min="1"
+                    class="number-input small"
+                  />
                   <div class="tooltip">
-                    Defines how many portions this recipe produces. This value is saved with Main Recipes 
-                    and used for cost-per-serving calculations. Different from "Serving Scale" in Summary tab.
+                    Defines how many portions this recipe produces. This value
+                    is saved with Main Recipes and used for cost-per-serving
+                    calculations. Different from "Serving Scale" in Summary tab.
                   </div>
                 </div>
               </div>
 
-              <button id="resetRecipe" class="reset-btn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+              <button
+                id="resetRecipe"
+                class="reset-btn"
+                type="button"
+                data-role="reset-recipe"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"
+                  ></path>
                   <path d="M3 3v5h5"></path>
                 </svg>
                 Reset Recipe
@@ -251,10 +445,21 @@
               <h4>Add Item to Recipe</h4>
 
               <div class="input-group">
-                <label for="unifiedItemSelect">Select Item
-                  <button type="button" class="help-icon" onclick="showFieldHelp('selectItem', event)">?</button>
+                <label for="unifiedItemSelect"
+                  >Select Item
+                  <button
+                    type="button"
+                    class="help-icon"
+                    onclick="showFieldHelp('selectItem', event)"
+                  >
+                    ?
+                  </button>
                 </label>
-                <select id="unifiedItemSelect" class="select-input" onchange="window.onUnifiedItemSelectChange()">
+                <select
+                  id="unifiedItemSelect"
+                  class="select-input"
+                  data-role="unified-item-select"
+                >
                   <option value="">Select an item...</option>
                   <optgroup label="Raw Materials">
                     <!-- Raw materials will be populated here -->
@@ -266,8 +471,15 @@
               </div>
 
               <div class="input-group">
-                <label for="addIngredientQty">Quantity
-                  <button type="button" class="help-icon" onclick="showFieldHelp('quantity', event)">?</button>
+                <label for="addIngredientQty"
+                  >Quantity
+                  <button
+                    type="button"
+                    class="help-icon"
+                    onclick="showFieldHelp('quantity', event)"
+                  >
+                    ?
+                  </button>
                 </label>
                 <div class="input-with-unit">
                   <input
@@ -278,13 +490,20 @@
                     min="0"
                     step="0.01"
                   />
-                  <span id="addIngredientUnit" class="unit-display-small">g</span>
+                  <span id="addIngredientUnit" class="unit-display-small"
+                    >g</span
+                  >
                 </div>
               </div>
 
               <div class="input-group">
                 <label>&nbsp;</label>
-                <button class="btn-primary" onclick="window.ProfitPerPlate.addItemToRecipe()">
+                <button
+                  class="btn-primary"
+                  onclick="addItemToRecipe()"
+                  type="button"
+                  data-role="add-to-recipe"
+                >
                   Add to Recipe
                 </button>
               </div>
@@ -296,11 +515,9 @@
                 <thead>
                   <tr>
                     <th>Item</th>
-                    <th style="width: 140px">Qty</th>
-                    <!-- NEW: Yield % Column -->
-                    <th style="width: 100px">Yield %</th>
-                    <th style="width: 150px">Unit Cost</th>
-                    <th style="width: 150px">Total Cost</th>
+                    <th style="width: 160px">Qty</th>
+                    <th style="width: 160px">Unit Cost</th>
+                    <th style="width: 160px">Total Cost</th>
                     <th style="width: 120px">Actions</th>
                   </tr>
                 </thead>
@@ -317,26 +534,73 @@
               </div>
             </div>
 
-            <!-- Direct Labor Cost Section -->
+            <!-- ENHANCED: Direct Labor Cost Section with Rate Display -->
             <div class="labor-section">
               <h3>Direct Labor Cost</h3>
-              
+
               <div class="add-labor-section">
                 <h4>Add Direct Labor Item</h4>
 
                 <div class="input-group">
-                  <label for="directLaborSelect">Direct Labor Item
-                    <button type="button" class="help-icon" onclick="showFieldHelp('laborName', event)">?</button>
+                  <label for="directLaborSelect"
+                    >Direct Labor Item
+                    <button
+                      type="button"
+                      class="help-icon"
+                      onclick="showFieldHelp('laborName', event)"
+                    >
+                      ?
+                    </button>
                   </label>
-                  <select id="directLaborSelect" class="select-input">
+                  <select
+                    id="directLaborSelect"
+                    class="select-input"
+                    data-role="direct-labor-select"
+                  >
                     <option value="">Select direct labor...</option>
                     <!-- Direct labor items will be populated here -->
                   </select>
                 </div>
 
+                <!-- FIXED: Enhanced Rate Display with proper data binding -->
                 <div class="input-group">
-                  <label for="timeRequirement">Time Requirement
-                    <button type="button" class="help-icon" onclick="showFieldHelp('quantity', event)">?</button>
+                  <label for="selectedLaborRate"
+                    >Labor Rate
+                    <button
+                      type="button"
+                      class="help-icon"
+                      onclick="showFieldHelp('selectedLaborRate', event)"
+                      aria-label="Labor rate help"
+                    >
+                      ?
+                    </button>
+                  </label>
+                  <div class="input-with-unit">
+                    <input
+                      type="number"
+                      id="selectedLaborRate"
+                      class="number-input small readonly-input"
+                      readonly
+                      placeholder="Select labor item..."
+                      data-bind="laborRate"
+                      aria-label="Calculated labor rate (read-only)"
+                    />
+                    <span id="selectedLaborRateUnit" class="unit-display-small"
+                      >/hour</span
+                    >
+                  </div>
+                </div>
+
+                <div class="input-group">
+                  <label for="timeRequirement"
+                    >Time Requirement
+                    <button
+                      type="button"
+                      class="help-icon"
+                      onclick="showFieldHelp('quantity', event)"
+                    >
+                      ?
+                    </button>
                   </label>
                   <div class="input-with-unit">
                     <input
@@ -347,13 +611,21 @@
                       min="0"
                       step="0.01"
                     />
-                    <span id="timeRequirementUnit" class="unit-display-small">hours</span>
+                    <span id="timeRequirementUnit" class="unit-display-small"
+                      >hours</span
+                    >
                   </div>
                 </div>
 
                 <div class="input-group">
                   <label>&nbsp;</label>
-                  <button class="btn-primary" onclick="window.ProfitPerPlate.addDirectLaborToRecipe()">
+                  <button
+                    class="btn-primary"
+                    onclick="addDirectLaborToRecipe()"
+                    id="addLaborButton"
+                    type="button"
+                    data-role="add-direct-labor-button"
+                  >
                     Add Direct Labor
                   </button>
                 </div>
@@ -361,7 +633,10 @@
 
               <!-- Direct Labor table -->
               <div class="table-container">
-                <table id="directLaborRecipeTable" aria-label="Direct Labor Cost Table">
+                <table
+                  id="directLaborRecipeTable"
+                  aria-label="Direct Labor Cost Table"
+                >
                   <thead>
                     <tr>
                       <th>Labor Item</th>
@@ -386,7 +661,7 @@
             </div>
 
             <!-- Grand Total Display -->
-            <div class="table-footer" style="margin-top: var(--space-lg);">
+            <div class="table-footer" style="margin-top: var(--space-lg)">
               <div class="total-cost accent-total">
                 <strong>TOTAL RECIPE COST:</strong>
                 <span id="grandTotal">₱0.00</span>
@@ -396,17 +671,27 @@
 
           <div class="recipe-list" id="recipeListSection">
             <h3>Saved Recipes</h3>
-            
+
             <!-- Save buttons -->
             <div class="save-recipe-buttons">
-              <button id="saveMainRecipeBtn" class="add-btn">
+              <button
+                id="saveMainRecipeBtn"
+                class="add-btn"
+                type="button"
+                data-role="save-main-recipe"
+              >
                 Save to Main Recipe
               </button>
-              <button id="saveSubRecipeBtn" class="btn-secondary">
+              <button
+                id="saveSubRecipeBtn"
+                class="btn-secondary"
+                type="button"
+                data-role="open-save-subrecipe"
+              >
                 Save to Sub-Recipe
               </button>
             </div>
-            
+
             <!-- Recipe columns for main and sub-recipes -->
             <div class="recipe-columns">
               <div class="recipe-column">
@@ -430,11 +715,24 @@
           <h2>Summary</h2>
 
           <!-- Information Panel about Serving Scale -->
-          <div class="info-panel" style="background: var(--primary-light); border: 1px solid var(--primary); border-radius: var(--radius-md); padding: var(--space-md); margin-bottom: var(--space-lg);">
-            <h4 style="margin: 0 0 var(--space-sm) 0; color: var(--primary);">About Serving Scale</h4>
-            <p style="margin: 0; font-size: 13px; color: var(--text-primary);">
-              <strong>Serving Scale</strong> lets you analyze different batch sizes in this tab without affecting your saved recipes. 
-              When you save recipes, only the <strong>base costs and servings</strong> are stored.
+          <div
+            class="info-panel"
+            style="
+              background: var(--primary-light);
+              border: 1px solid var(--primary);
+              border-radius: var(--radius-md);
+              padding: var(--space-md);
+              margin-bottom: var(--space-lg);
+            "
+          >
+            <h4 style="margin: 0 0 var(--space-sm) 0; color: var(--primary)">
+              About Serving Scale
+            </h4>
+            <p style="margin: 0; font-size: 13px; color: var(--text-primary)">
+              <strong>Serving Scale</strong> lets you analyze different batch
+              sizes in this tab without affecting your saved recipes. When you
+              save recipes, only the
+              <strong>base costs and servings</strong> are stored.
             </p>
           </div>
 
@@ -445,14 +743,32 @@
               <select id="summaryRecipeSelect" class="select-input">
                 <option value="">Select a recipe to analyze...</option>
               </select>
-              <button class="btn-primary" onclick="loadRecipeForSummary()">Load Recipe</button>
+              <button
+                onclick="loadRecipeForSummary()"
+                class="btn-primary"
+                type="button"
+                data-role="load-recipe-summary"
+              >
+                Load Recipe
+              </button>
             </div>
             <div id="loadedRecipeDisplay" class="loaded-recipe-info hidden">
-              <h4>Currently Analyzing: <span id="currentRecipeNameDisplay"></span></h4>
+              <h4>
+                Currently Analyzing: <span id="currentRecipeNameDisplay"></span>
+              </h4>
               <div class="recipe-meta">
-                <p><strong>Total Cost:</strong> <span id="loadedRecipeTotalCost"></span></p>
-                <p><strong>Servings:</strong> <span id="loadedRecipeServings"></span></p>
-                <p><strong>Items:</strong> <span id="loadedRecipeItemCount"></span></p>
+                <p>
+                  <strong>Total Cost:</strong>
+                  <span id="loadedRecipeTotalCost"></span>
+                </p>
+                <p>
+                  <strong>Servings:</strong>
+                  <span id="loadedRecipeServings"></span>
+                </p>
+                <p>
+                  <strong>Items:</strong>
+                  <span id="loadedRecipeItemCount"></span>
+                </p>
               </div>
             </div>
           </div>
@@ -463,9 +779,14 @@
               <div class="breakdown-header" data-section="rawMaterials">
                 <h3>
                   <span>▾</span>
-                  Raw Materials <span class="breakdown-count" id="rawMaterialsCount">0 items</span>
+                  Raw Materials
+                  <span class="breakdown-count" id="rawMaterialsCount"
+                    >0 items</span
+                  >
                 </h3>
-                <span class="breakdown-total" id="rawMaterialsPreviewTotal">₱0.00</span>
+                <span class="breakdown-total" id="rawMaterialsPreviewTotal"
+                  >₱0.00</span
+                >
               </div>
               <div class="breakdown-content" id="rawMaterialsPreview">
                 <div class="table-container">
@@ -492,14 +813,19 @@
                 </div>
               </div>
             </div>
-            
+
             <div class="breakdown-section">
               <div class="breakdown-header" data-section="directLabor">
                 <h3>
                   <span>▾</span>
-                  Direct Labor <span class="breakdown-count" id="directLaborCount">0 items</span>
+                  Direct Labor
+                  <span class="breakdown-count" id="directLaborCount"
+                    >0 items</span
+                  >
                 </h3>
-                <span class="breakdown-total" id="directLaborPreviewTotal">₱0.00</span>
+                <span class="breakdown-total" id="directLaborPreviewTotal"
+                  >₱0.00</span
+                >
               </div>
               <div class="breakdown-content" id="directLaborPreview">
                 <div class="table-container">
@@ -532,22 +858,44 @@
             <!-- Serving Scale Section - Now using same structure as others -->
             <div class="summary-control-item serving-scale-highlight">
               <label class="control-label">
-                <span class="label-text">Serving Scale (Summary Analysis Only)</span>
-                <button type="button" class="field-help" onclick="showFieldHelp('servingScale', event)">?</button>
+                <span class="label-text"
+                  >Serving Scale (Summary Analysis Only)</span
+                >
+                <button
+                  type="button"
+                  class="field-help"
+                  onclick="showFieldHelp('servingScale', event)"
+                >
+                  ?
+                </button>
               </label>
               <div class="input-with-suffix">
-                <input id="servingScale" type="number" value="1" min="1" step="1" 
-                       title="Scales costs for analysis in Summary tab only - Does not affect saved recipes" />
+                <input
+                  id="servingScale"
+                  type="number"
+                  value="1"
+                  min="1"
+                  step="1"
+                  title="Scales costs for analysis in Summary tab only - Does not affect saved recipes"
+                />
                 <span class="suffix">servings</span>
               </div>
-              <small class="helper-text">ⓘ Affects this tab only - Recipe saves use base costs</small>
+              <small class="helper-text"
+                >ⓘ Affects this tab only - Recipe saves use base costs</small
+              >
             </div>
 
             <!-- Markup Control - Consistent structure -->
             <div class="summary-control-item">
               <label class="control-label">
                 <span class="label-text">Mark-up %</span>
-                <button type="button" class="field-help" onclick="showFieldHelp('markup', event)">?</button>
+                <button
+                  type="button"
+                  class="field-help"
+                  onclick="showFieldHelp('markup', event)"
+                >
+                  ?
+                </button>
               </label>
               <div class="input-with-suffix">
                 <input id="markup" type="number" value="40" />
@@ -559,7 +907,13 @@
             <div class="summary-control-item">
               <label class="control-label">
                 <span class="label-text">Regular Tax %</span>
-                <button type="button" class="field-help" onclick="showFieldHelp('tax', event)">?</button>
+                <button
+                  type="button"
+                  class="field-help"
+                  onclick="showFieldHelp('tax', event)"
+                >
+                  ?
+                </button>
               </label>
               <div class="input-with-suffix">
                 <input id="tax" type="number" value="0" />
@@ -571,7 +925,13 @@
             <div class="summary-control-item">
               <label class="control-label">
                 <span class="label-text">VAT %</span>
-                <button type="button" class="field-help" onclick="showFieldHelp('vat', event)">?</button>
+                <button
+                  type="button"
+                  class="field-help"
+                  onclick="showFieldHelp('vat', event)"
+                >
+                  ?
+                </button>
               </label>
               <div class="input-with-suffix">
                 <input id="vat" type="number" value="0" />
@@ -582,55 +942,77 @@
 
           <div class="summary-grid">
             <div class="summary-item">
-              <label>Raw Materials Cost:</label><span id="summaryRawMaterialsCost">₱0.00</span>
+              <label>Raw Materials Cost:</label
+              ><span id="summaryRawMaterialsCost">₱0.00</span>
             </div>
             <div class="summary-item">
-              <label>Direct Labor Cost:</label><span id="summaryDirectLaborCost">₱0.00</span>
+              <label>Direct Labor Cost:</label
+              ><span id="summaryDirectLaborCost">₱0.00</span>
             </div>
-            <div class="summary-item" style="border-bottom: 2px solid var(--primary); font-weight: bold;">
+            <div
+              class="summary-item"
+              style="border-bottom: 2px solid var(--primary); font-weight: bold"
+            >
               <label>Total Cost:</label><span id="summaryTotalCost">₱0.00</span>
             </div>
-            
+
             <!-- Servings Display -->
-            <div class="summary-item" style="font-weight: 600; border-bottom: 1px solid var(--primary);" title="Base servings × Serving scale">
-              <label>Total Servings:</label><span id="summaryServingsDisplay">1</span>
+            <div
+              class="summary-item"
+              style="font-weight: 600; border-bottom: 1px solid var(--primary)"
+              title="Base servings × Serving scale"
+            >
+              <label>Total Servings:</label
+              ><span id="summaryServingsDisplay">1</span>
             </div>
-            
+
             <div class="summary-item">
               <label>Cost/Serving (Before Tax):</label
               ><span id="summaryCostServing">₱0.00</span>
             </div>
             <div class="summary-item">
-              <label>Selling Price (After Tax):</label
+              <label>Selling Price/Serving (After Tax):</label
               ><span id="summarySellingPrice">₱0.00</span>
             </div>
             <div class="summary-item">
               <label>Food Cost %:</label><span id="summaryFoodCost">0%</span>
             </div>
             <div class="summary-item">
-              <label>Labor Cost %:</label><span id="summaryLaborCostPercent">0%</span>
+              <label>Labor Cost %:</label
+              ><span id="summaryLaborCostPercent">0%</span>
             </div>
             <div class="summary-item">
-              <label>Total Cost %:</label><span id="summaryTotalCostPercent">0%</span>
+              <label>Total Cost %:</label
+              ><span id="summaryTotalCostPercent">0%</span>
             </div>
             <div class="summary-item">
               <label>Gross Profit Margin %:</label
               ><span id="summaryGrossProfit">0%</span>
             </div>
-            
+
             <!-- FIXED: Updated Total Revenue and Profit Analysis -->
             <div class="summary-item total-profit-analysis">
-              <label>Total Revenue:</label><span id="summaryBatchRevenue">₱0.00</span>
+              <label>Total Revenue:</label
+              ><span id="summaryBatchRevenue">₱0.00</span>
             </div>
             <div class="summary-item total-profit-analysis">
-              <label>Total Profit:</label><span id="summaryBatchProfit">₱0.00</span>
+              <label>Total Profit:</label
+              ><span id="summaryBatchProfit">₱0.00</span>
             </div>
             <!-- REMOVED: Batch Profit Margin row -->
           </div>
 
           <div class="summary-actions">
             <!-- Print button -->
-            <button id="printBtn" class="print-btn">🖨️ Print Costing</button>
+            <button
+              id="printBtn"
+              class="print-btn"
+              onclick="generatePrintPreview()"
+              type="button"
+              data-role="print"
+            >
+              🖨️ Print Costing
+            </button>
           </div>
         </section>
 
@@ -639,7 +1021,13 @@
           <h3>Advertisement</h3>
           <div class="ad-content">
             <p>Your ad could be here</p>
-            <div style="margin-top: var(--space-md); font-size: 13px; color: var(--text-secondary);">
+            <div
+              style="
+                margin-top: var(--space-md);
+                font-size: 13px;
+                color: var(--text-secondary);
+              "
+            >
               Advertisement Space - Bottom
             </div>
           </div>
@@ -652,37 +1040,72 @@
       <div class="modal-content print-preview">
         <div class="modal-header">
           <h3>Print Preview - Recipe Costing</h3>
-          <button class="close-btn" onclick="closePrintPreview()">×</button>
+          <button class="close-btn" onclick="closePrintPreview()" type="button">
+            ×
+          </button>
         </div>
         <div class="print-preview-content" id="printPreviewContent">
           <!-- Print preview content will be inserted here -->
         </div>
         <div class="print-actions">
-          <button class="btn-secondary" onclick="closePrintPreview()">Cancel</button>
-          <button class="btn-primary" onclick="printCostingReport()">Print</button>
+          <button
+            class="btn-secondary"
+            onclick="closePrintPreview()"
+            type="button"
+          >
+            Cancel
+          </button>
+          <button
+            class="btn-primary"
+            onclick="printCostingReport()"
+            type="button"
+          >
+            Print
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- ============================================================================= -->
-    <!-- ENHANCED: RECIPE EDIT PROMPT MODAL -->
-    <!-- PURPOSE: Automatically show when duplicate recipe names are detected -->
-    <!-- ============================================================================= -->
+    <!-- Edit Prompt Modal -->
     <div id="editPromptModal" class="modal hidden edit-prompt-modal">
       <div class="modal-content">
         <div class="modal-header">
           <h3 id="editPromptTitle">Save Changes</h3>
-          <button class="close-btn" onclick="closeEditPromptModal()">×</button>
+          <button
+            class="close-btn"
+            onclick="closeEditPromptModal()"
+            type="button"
+          >
+            ×
+          </button>
         </div>
-        <div id="editPromptMessage">
+        <div id="editPromptMessage" aria-live="polite">
           <!-- Message will be inserted here -->
         </div>
         <div class="edit-prompt-options">
-          <button class="btn-secondary" onclick="handleEditPromptChoice('replace')">Replace Existing</button>
-          <button class="btn-primary" onclick="handleEditPromptChoice('new')">Save as New</button>
+          <button
+            class="btn-secondary"
+            onclick="handleEditPromptChoice('replace')"
+            type="button"
+          >
+            Replace Existing
+          </button>
+          <button
+            class="btn-primary"
+            onclick="handleEditPromptChoice('new')"
+            type="button"
+          >
+            Save as New
+          </button>
         </div>
-        <div style="margin-top: var(--space-md); text-align: center;">
-          <button class="btn-secondary" onclick="closeEditPromptModal()">Cancel</button>
+        <div style="margin-top: var(--space-md); text-align: center">
+          <button
+            class="btn-secondary"
+            onclick="closeEditPromptModal()"
+            type="button"
+          >
+            Cancel
+          </button>
         </div>
       </div>
     </div>
@@ -692,13 +1115,26 @@
       <div class="modal-content">
         <div class="modal-header">
           <h3>Save as Sub-Recipe</h3>
-          <button class="close-btn" onclick="closeSubRecipeSaveModal()">×</button>
+          <button
+            class="close-btn"
+            onclick="closeSubRecipeSaveModal()"
+            type="button"
+          >
+            ×
+          </button>
         </div>
-        
+
         <!-- Layer 1: Sub-Recipe Name (uneditable) -->
         <div class="form-group">
-          <label for="subRecipeNameDisplay">Sub-Recipe Name
-            <button type="button" class="field-help" onclick="showFieldHelp('subRecipeName', event)">?</button>
+          <label for="subRecipeNameDisplay"
+            >Sub-Recipe Name
+            <button
+              type="button"
+              class="field-help"
+              onclick="showFieldHelp('subRecipeName', event)"
+            >
+              ?
+            </button>
           </label>
           <input
             type="text"
@@ -710,10 +1146,21 @@
 
         <!-- Layer 2: Category of Measurement -->
         <div class="form-group">
-          <label for="subRecipeCategory">Category of Measurement
-            <button type="button" class="field-help" onclick="showFieldHelp('subRecipeCategory', event)">?</button>
+          <label for="subRecipeCategory"
+            >Category of Measurement
+            <button
+              type="button"
+              class="field-help"
+              onclick="showFieldHelp('subRecipeCategory', event)"
+            >
+              ?
+            </button>
           </label>
-          <select id="subRecipeCategory" class="select-input" onchange="updateSubRecipeUnitOptions()">
+          <select
+            id="subRecipeCategory"
+            class="select-input"
+            onchange="updateSubRecipeUnitOptions()"
+          >
             <option value="weight">Weight</option>
             <option value="volume">Volume</option>
             <option value="count">Count</option>
@@ -722,8 +1169,15 @@
 
         <!-- Layer 3: Total Yield per Batch -->
         <div class="form-group">
-          <label for="subRecipeYieldQuantity">Total Yield per Batch
-            <button type="button" class="field-help" onclick="showFieldHelp('subRecipeYieldQuantity', event)">?</button>
+          <label for="subRecipeYieldQuantity"
+            >Total Yield per Batch
+            <button
+              type="button"
+              class="field-help"
+              onclick="showFieldHelp('subRecipeYieldQuantity', event)"
+            >
+              ?
+            </button>
           </label>
           <div style="display: flex; gap: var(--space-sm)">
             <input
@@ -749,8 +1203,15 @@
 
         <!-- Layer 4: Cost Per Unit (uneditable) -->
         <div class="form-group">
-          <label for="subRecipeCostPerUnit">Cost Per Unit
-            <button type="button" class="field-help" onclick="showFieldHelp('costPerUnit', event)">?</button>
+          <label for="subRecipeCostPerUnit"
+            >Cost Per Unit
+            <button
+              type="button"
+              class="field-help"
+              onclick="showFieldHelp('costPerUnit', event)"
+            >
+              ?
+            </button>
           </label>
           <div style="display: flex; gap: var(--space-sm)">
             <input
@@ -772,21 +1233,57 @@
           </div>
         </div>
 
+        <!-- Hidden canonical fields (ensures values exist even if UI nodes replaced) -->
+        <input
+          type="hidden"
+          id="subRecipeCostPerUnitField"
+          data-canonical="subRecipeCostPerUnitField"
+        />
+        <input
+          type="hidden"
+          id="subRecipeCostUnitField"
+          data-canonical="subRecipeCostUnitField"
+        />
+
+        <!-- Validation message area for sub-recipe modal -->
+        <div
+          id="subRecipeValidationMessage"
+          class="error-message hidden"
+          aria-live="polite"
+          role="status"
+        ></div>
+
         <!-- Cost Calculation Display -->
         <div class="cost-calculation">
           <h4>Sub-Recipe Cost Calculation</h4>
           <div class="calculation-formula">
-            Cost Per Unit = (Total Recipe Cost ÷ Total Yield per Batch) × Conversion Factor
+            Cost Per Unit = (Total Recipe Cost ÷ Total Yield per Batch) ×
+            Conversion Factor
           </div>
           <div id="subRecipeCostDetails">
-            Total recipe cost: <span id="currentRecipeCostDisplay">₱0.00</span><br>
+            Total recipe cost: <span id="currentRecipeCostDisplay">₱0.00</span
+            ><br />
             Cost per unit: <span id="costPerOutputUnit">₱0.00</span>
           </div>
         </div>
 
         <div class="modal-actions">
-          <button class="btn-secondary" onclick="closeSubRecipeSaveModal()">Cancel</button>
-          <button class="btn-primary" onclick="saveSubRecipe()">Save Sub-Recipe</button>
+          <button
+            class="btn-secondary"
+            onclick="closeSubRecipeSaveModal()"
+            type="button"
+          >
+            Cancel
+          </button>
+          <button
+            id="saveSubRecipeConfirmBtn"
+            class="btn-primary"
+            onclick="saveSubRecipeWithDuplicateCheck()"
+            type="button"
+            data-role="save-subrecipe"
+          >
+            Save Sub-Recipe
+          </button>
         </div>
       </div>
     </div>
@@ -796,12 +1293,25 @@
       <div class="modal-content">
         <div class="modal-header">
           <h3 id="rawMaterialModalTitle">Add New Raw Material</h3>
-          <button class="close-btn" onclick="closeRawMaterialModal()">×</button>
+          <button
+            class="close-btn"
+            onclick="closeRawMaterialModal()"
+            type="button"
+          >
+            ×
+          </button>
         </div>
         <form id="rawMaterialForm">
           <div class="form-group">
-            <label>Raw Material Name:
-              <button type="button" class="field-help" onclick="showFieldHelp('ingredientName', event)">?</button>
+            <label
+              >Raw Material Name:
+              <button
+                type="button"
+                class="field-help"
+                onclick="showFieldHelp('ingredientName', event)"
+              >
+                ?
+              </button>
             </label>
             <input
               type="text"
@@ -812,8 +1322,15 @@
           </div>
 
           <div class="form-group">
-            <label>Category:
-              <button type="button" class="field-help" onclick="showFieldHelp('ingredientCategory', event)">?</button>
+            <label
+              >Category:
+              <button
+                type="button"
+                class="field-help"
+                onclick="showFieldHelp('ingredientCategory', event)"
+              >
+                ?
+              </button>
             </label>
             <select
               id="modalRawMaterialCategory"
@@ -829,8 +1346,15 @@
 
           <div class="form-row">
             <div class="form-group">
-              <label>Purchase Price:
-                <button type="button" class="field-help" onclick="showFieldHelp('purchasePrice', event)">?</button>
+              <label
+                >Purchase Price:
+                <button
+                  type="button"
+                  class="field-help"
+                  onclick="showFieldHelp('purchasePrice', event)"
+                >
+                  ?
+                </button>
               </label>
               <input
                 type="number"
@@ -842,8 +1366,15 @@
               />
             </div>
             <div class="form-group">
-              <label>Purchase Quantity:
-                <button type="button" class="field-help" onclick="showFieldHelp('purchaseQuantity', event)">?</button>
+              <label
+                >Purchase Quantity:
+                <button
+                  type="button"
+                  class="field-help"
+                  onclick="showFieldHelp('purchaseQuantity', event)"
+                >
+                  ?
+                </button>
               </label>
               <input
                 type="number"
@@ -859,8 +1390,15 @@
 
           <div class="form-row">
             <div class="form-group">
-              <label>Purchase Unit:
-                <button type="button" class="field-help" onclick="showFieldHelp('purchaseUnit', event)">?</button>
+              <label
+                >Purchase Unit:
+                <button
+                  type="button"
+                  class="field-help"
+                  onclick="showFieldHelp('purchaseUnit', event)"
+                >
+                  ?
+                </button>
               </label>
               <select
                 id="modalRawMaterialUnit"
@@ -872,8 +1410,15 @@
               </select>
             </div>
             <div class="form-group">
-              <label>Cost Per Unit:
-                <button type="button" class="field-help" onclick="showFieldHelp('costPerUnit', event)">?</button>
+              <label
+                >Cost Per Unit:
+                <button
+                  type="button"
+                  class="field-help"
+                  onclick="showFieldHelp('costPerUnit', event)"
+                >
+                  ?
+                </button>
               </label>
               <div style="display: flex; gap: var(--space-sm)">
                 <input
@@ -899,8 +1444,15 @@
 
           <!-- NEW: Yield Percentage Field -->
           <div class="form-group">
-            <label>Yield Percentage:
-              <button type="button" class="field-help" onclick="showFieldHelp('yieldPercentage', event)">?</button>
+            <label
+              >Yield Percentage:
+              <button
+                type="button"
+                class="field-help"
+                onclick="showFieldHelp('yieldPercentage', event)"
+              >
+                ?
+              </button>
             </label>
             <div class="input-with-unit">
               <input
@@ -921,7 +1473,8 @@
           <div class="cost-calculation">
             <h4>Cost Calculation</h4>
             <div class="calculation-formula">
-              Cost Per Unit = (Purchase Price ÷ Purchase Quantity) × Conversion Factor
+              Cost Per Unit = (Purchase Price ÷ Purchase Quantity) × Conversion
+              Factor
             </div>
             <div id="costCalculationDetails">
               Enter purchase details to see calculation
@@ -936,7 +1489,12 @@
             >
               Cancel
             </button>
-            <button type="button" class="btn-primary" id="saveRawMaterialBtn">
+            <button
+              type="button"
+              class="btn-primary"
+              id="saveRawMaterialBtn"
+              data-role="save-raw-material"
+            >
               Save Raw Material
             </button>
           </div>
@@ -949,12 +1507,25 @@
       <div class="modal-content">
         <div class="modal-header">
           <h3 id="directLaborModalTitle">Add New Direct Labor</h3>
-          <button class="close-btn" onclick="closeDirectLaborModal()">×</button>
+          <button
+            class="close-btn"
+            onclick="closeDirectLaborModal()"
+            type="button"
+          >
+            ×
+          </button>
         </div>
         <form id="directLaborForm">
           <div class="form-group">
-            <label>Labor Name:
-              <button type="button" class="field-help" onclick="showFieldHelp('laborName', event)">?</button>
+            <label
+              >Labor Name:
+              <button
+                type="button"
+                class="field-help"
+                onclick="showFieldHelp('laborName', event)"
+              >
+                ?
+              </button>
             </label>
             <input
               type="text"
@@ -967,8 +1538,15 @@
 
           <div class="form-row">
             <div class="form-group">
-              <label>Shift Rate:
-                <button type="button" class="field-help" onclick="showFieldHelp('shiftRate', event)">?</button>
+              <label
+                >Shift Rate:
+                <button
+                  type="button"
+                  class="field-help"
+                  onclick="showFieldHelp('shiftRate', event)"
+                >
+                  ?
+                </button>
               </label>
               <input
                 type="number"
@@ -981,8 +1559,15 @@
               />
             </div>
             <div class="form-group">
-              <label>Shift Duration:
-                <button type="button" class="field-help" onclick="showFieldHelp('shiftDuration', event)">?</button>
+              <label
+                >Shift Duration:
+                <button
+                  type="button"
+                  class="field-help"
+                  onclick="showFieldHelp('shiftDuration', event)"
+                >
+                  ?
+                </button>
               </label>
               <input
                 type="number"
@@ -999,8 +1584,15 @@
 
           <div class="form-row">
             <div class="form-group">
-              <label>Time Unit:
-                <button type="button" class="field-help" onclick="showFieldHelp('timeUnit', event)">?</button>
+              <label
+                >Time Unit:
+                <button
+                  type="button"
+                  class="field-help"
+                  onclick="showFieldHelp('timeUnit', event)"
+                >
+                  ?
+                </button>
               </label>
               <select
                 id="modalTimeUnit"
@@ -1013,8 +1605,15 @@
               </select>
             </div>
             <div class="form-group">
-              <label>Cost Per Unit:
-                <button type="button" class="field-help" onclick="showFieldHelp('costPerUnit', event)">?</button>
+              <label
+                >Cost Per Unit:
+                <button
+                  type="button"
+                  class="field-help"
+                  onclick="showFieldHelp('costPerUnit', event)"
+                >
+                  ?
+                </button>
               </label>
               <div style="display: flex; gap: var(--space-sm)">
                 <input
@@ -1058,7 +1657,12 @@
             >
               Cancel
             </button>
-            <button type="button" class="btn-primary" id="saveDirectLaborBtn">
+            <button
+              type="button"
+              class="btn-primary"
+              id="saveDirectLaborBtn"
+              data-role="save-direct-labor"
+            >
               Save Direct Labor
             </button>
           </div>
@@ -1071,7 +1675,9 @@
       <div class="modal-content">
         <div class="modal-header">
           <h3 id="authModalTitle">Login to ProfitPerPlate</h3>
-          <button class="close-btn" onclick="closeAuthModal()">×</button>
+          <button class="close-btn" onclick="closeAuthModal()" type="button">
+            ×
+          </button>
         </div>
         <form id="authForm">
           <div class="form-group">
@@ -1095,8 +1701,20 @@
                 placeholder="Enter your password"
                 minlength="6"
               />
-              <button type="button" id="togglePassword" class="password-toggle">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <button
+                type="button"
+                id="togglePassword"
+                class="password-toggle"
+                aria-label="Toggle password visibility"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
                   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                   <circle cx="12" cy="12" r="3"></circle>
                 </svg>
@@ -1104,20 +1722,38 @@
             </div>
           </div>
           <div class="auth-options">
-            <button type="button" id="forgotPasswordBtn" class="link-btn small">Forgot Password?</button>
+            <button
+              type="button"
+              id="forgotPasswordBtn"
+              class="link-btn small"
+              data-role="forgot-password"
+            >
+              Forgot Password?
+            </button>
           </div>
           <div id="authError" class="error-message hidden"></div>
           <div class="modal-actions">
-            <button type="button" class="btn-secondary" onclick="closeAuthModal()">
+            <button
+              type="button"
+              class="btn-secondary"
+              onclick="closeAuthModal()"
+            >
               Cancel
             </button>
-            <button type="button" class="btn-primary" id="authSubmitBtn">
+            <button
+              type="submit"
+              class="btn-primary"
+              id="authSubmitBtn"
+              data-role="auth-submit"
+            >
               Login
             </button>
           </div>
           <div class="auth-switch">
             <span id="authSwitchText">Don't have an account? </span>
-            <button type="button" id="authSwitchBtn" class="link-btn">Sign up</button>
+            <button type="button" id="authSwitchBtn" class="link-btn">
+              Sign up
+            </button>
           </div>
         </form>
       </div>
@@ -1128,7 +1764,13 @@
       <div class="modal-content">
         <div class="modal-header">
           <h3>Reset Password</h3>
-          <button class="close-btn" onclick="closeForgotPasswordModal()">×</button>
+          <button
+            class="close-btn"
+            onclick="closeForgotPasswordModal()"
+            type="button"
+          >
+            ×
+          </button>
         </div>
         <form id="forgotPasswordForm">
           <div class="form-group">
@@ -1144,10 +1786,19 @@
           <div id="forgotPasswordError" class="error-message hidden"></div>
           <div id="forgotPasswordSuccess" class="success-message hidden"></div>
           <div class="modal-actions">
-            <button type="button" class="btn-secondary" onclick="closeForgotPasswordModal()">
+            <button
+              type="button"
+              class="btn-secondary"
+              onclick="closeForgotPasswordModal()"
+            >
               Cancel
             </button>
-            <button type="button" class="btn-primary" id="sendResetEmailBtn">
+            <button
+              type="button"
+              class="btn-primary"
+              id="sendResetEmailBtn"
+              data-role="send-reset-email"
+            >
               Send Reset Link
             </button>
           </div>
@@ -1160,7 +1811,13 @@
       <div class="modal-content">
         <div class="modal-header">
           <h3>Set New Password</h3>
-          <button class="close-btn" onclick="closeResetPasswordModal()">×</button>
+          <button
+            class="close-btn"
+            onclick="closeResetPasswordModal()"
+            type="button"
+          >
+            ×
+          </button>
         </div>
         <form id="resetPasswordForm">
           <div class="form-group">
@@ -1174,8 +1831,20 @@
                 placeholder="Enter new password"
                 minlength="6"
               />
-              <button type="button" class="password-toggle">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <button
+                type="button"
+                class="password-toggle"
+                onclick="togglePasswordVisibilityGeneric('newPassword', this)"
+                aria-label="Toggle password visibility"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
                   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                   <circle cx="12" cy="12" r="3"></circle>
                 </svg>
@@ -1193,8 +1862,20 @@
                 placeholder="Confirm new password"
                 minlength="6"
               />
-              <button type="button" class="password-toggle">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <button
+                type="button"
+                class="password-toggle"
+                onclick="togglePasswordVisibilityGeneric('confirmPassword', this)"
+                aria-label="Toggle password visibility"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
                   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                   <circle cx="12" cy="12" r="3"></circle>
                 </svg>
@@ -1204,10 +1885,19 @@
           <div id="resetPasswordError" class="error-message hidden"></div>
           <div id="resetPasswordSuccess" class="success-message hidden"></div>
           <div class="modal-actions">
-            <button type="button" class="btn-secondary" onclick="closeResetPasswordModal()">
+            <button
+              type="button"
+              class="btn-secondary"
+              onclick="closeResetPasswordModal()"
+            >
               Cancel
             </button>
-            <button type="button" class="btn-primary" id="submitResetPasswordBtn">
+            <button
+              type="button"
+              class="btn-primary"
+              id="submitResetPasswordBtn"
+              data-role="submit-reset-password"
+            >
               Reset Password
             </button>
           </div>
@@ -1223,88 +1913,52 @@
           <!-- Content will be populated by JavaScript -->
         </div>
         <div style="text-align: right; margin-top: var(--space-md)">
-          <button id="closeHelp" class="modal-close">Close</button>
+          <button id="closeHelp" class="modal-close" type="button">
+            Close
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- ============================================================================= -->
-    <!-- ENHANCED: RAW MATERIAL EDIT PROMPT MODAL -->
-    <!-- PURPOSE: Automatically show when duplicate raw material names are detected -->
-    <!-- ============================================================================= -->
-    <div id="rawMaterialEditPromptModal" class="modal hidden">
+    <!-- Unified Edit Prompt Modal -->
+    <div id="unifiedEditPromptModal" class="modal hidden">
       <div class="modal-content">
         <div class="modal-header">
-          <h3>Save Raw Material</h3>
-          <button class="close-btn" onclick="closeRawMaterialEditPromptModal()">×</button>
+          <h3 id="unifiedEditPromptTitle">Save Changes</h3>
+          <button class="close-btn" onclick="closeUnifiedEditPromptModal()">
+            ×
+          </button>
         </div>
-        <div class="edit-prompt-message">
-          <p>A raw material named "<strong id="rawMaterialEditName"></strong>" already exists.</p>
-          <p>Would you like to replace the existing raw material or save this as a new item?</p>
-          <div class="field-example" style="margin-top: var(--space-md);">
-            <strong>Note:</strong> Replacing will update all recipes using this raw material with the new cost.
-          </div>
+        <div id="unifiedEditPromptMessage" class="edit-prompt-message">
+          <!-- Dynamic content will be inserted here -->
         </div>
         <div class="edit-prompt-options">
-          <button class="btn-secondary" onclick="handleRawMaterialEditChoice('replace')">Replace Existing</button>
-          <button class="btn-primary" onclick="handleRawMaterialEditChoice('new')">Save as New</button>
+          <button
+            class="btn-secondary"
+            onclick="handleUnifiedEditPromptChoice('replace')"
+          >
+            <div class="option-content">
+              <strong>Replace Existing</strong>
+              <small>Overwrite the existing item with your changes</small>
+            </div>
+          </button>
+          <button
+            class="btn-primary"
+            onclick="handleUnifiedEditPromptChoice('new')"
+          >
+            <div class="option-content">
+              <strong>Save as New</strong>
+              <small>Create new item (auto-renames if name unchanged)</small>
+            </div>
+          </button>
         </div>
-        <div style="margin-top: var(--space-md); text-align: center;">
-          <button class="btn-secondary" onclick="closeRawMaterialEditPromptModal()">Cancel</button>
+        <div style="margin-top: var(--space-md); text-align: center">
+          <button class="btn-secondary" onclick="closeUnifiedEditPromptModal()">
+            Cancel
+          </button>
         </div>
       </div>
     </div>
-
-    <!-- ============================================================================= -->
-    <!-- ENHANCED: DIRECT LABOR EDIT PROMPT MODAL -->
-    <!-- PURPOSE: Automatically show when duplicate direct labor names are detected -->
-    <!-- ============================================================================= -->
-    <div id="directLaborEditPromptModal" class="modal hidden">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>Save Direct Labor</h3>
-          <button class="close-btn" onclick="closeDirectLaborEditPromptModal()">×</button>
-        </div>
-        <div class="edit-prompt-message">
-          <p>A direct labor item named "<strong id="directLaborEditName"></strong>" already exists.</p>
-          <p>Would you like to replace the existing item or save this as a new item?</p>
-          <div class="field-example" style="margin-top: var(--space-md);">
-            <strong>Note:</strong> Replacing will update all recipes using this labor item with the new rate.
-          </div>
-        </div>
-        <div class="edit-prompt-options">
-          <button class="btn-secondary" onclick="handleDirectLaborEditChoice('replace')">Replace Existing</button>
-          <button class="btn-primary" onclick="handleDirectLaborEditChoice('new')">Save as New</button>
-        </div>
-        <div style="margin-top: var(--space-md); text-align: center;">
-          <button class="btn-secondary" onclick="closeDirectLaborEditPromptModal()">Cancel</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Fallback script to ensure critical functions exist -->
-    <script>
-    // Ensure critical functions exist before main scripts load
-    if (typeof window.ProfitPerPlate === 'undefined') {
-        window.ProfitPerPlate = {};
-    }
-    
-    // Fallback functions to prevent errors
-    const fallbackFunctions = [
-        'closeRawMaterialModal', 'closeDirectLaborModal', 'closeSubRecipeSaveModal',
-        'closeEditPromptModal', 'closeHelpModal', 'closeAuthModal',
-        'closeRawMaterialEditPromptModal', 'closeDirectLaborEditPromptModal',
-        'onUnifiedItemSelectChange', 'loadRecipeForSummary'
-    ];
-    
-    fallbackFunctions.forEach(funcName => {
-        if (typeof window[funcName] === 'undefined') {
-            window[funcName] = function() {
-                console.warn(`Function ${funcName} not yet loaded - this is normal during initialization`);
-            };
-        }
-    });
-    </script>
 
     <script src="supabase.js"></script>
     <script src="script.js"></script>
