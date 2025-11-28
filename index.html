@@ -3,10 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Website Under Construction</title>
+    <title>ProfitPerPlate - Under Construction</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+      /* Define custom color using your specific brand variable */
+      :root {
+        --profit-green: #2D5A3D; /* Your brand primary color */
+      }
       /* Ensure the page takes full viewport height and uses a pleasant font */
       body {
         font-family: "Inter", sans-serif;
@@ -15,12 +19,23 @@
         align-items: center;
         min-height: 100vh;
         margin: 0;
-        background-color: #f7fafc; /* Light gray background */
+        /* Dark mode background: Tailwind gray-900 */
+        background-color: #111827; 
       }
-      /* Custom utility for the wrench icon */
+      /* Custom utility for the wrench icon, using the specific brand green */
       .wrench-icon {
         animation: spin 3s linear infinite;
-        color: #f59e0b; /* Amber 500 */
+        color: var(--profit-green); 
+      }
+      /* Apply the custom color to Tailwind utility classes where necessary */
+      .border-profit-green {
+        border-color: var(--profit-green);
+      }
+      .text-profit-green {
+        color: var(--profit-green);
+      }
+      .bg-profit-green-subtle {
+        background-color: rgba(45, 90, 61, 0.2); /* Semi-transparent background using brand color */
       }
       @keyframes spin {
         0% { transform: rotate(0deg); }
@@ -29,46 +44,46 @@
     </style>
   </head>
   <body>
-    <!-- Main Content Container -->
-    <div class="max-w-4xl w-full mx-4 p-8 bg-white shadow-xl rounded-xl text-center border-t-4 border-yellow-500 transition duration-500 ease-in-out transform hover:shadow-2xl hover:scale-[1.01]">
+    <!-- Main Content Container: Tailwind gray-800 -->
+    <div class="max-w-4xl w-full mx-4 p-8 bg-gray-800 shadow-xl rounded-xl text-center border-t-4 border-profit-green transition duration-500 ease-in-out transform hover:shadow-2xl hover:scale-[1.01]">
       
-      <!-- Logo Placeholder Section -->
-      <div class="mb-8">
-        <img 
-          src="https://placehold.co/150x50/1e3d29/ffffff?text=ProfitPerPlate" 
-          alt="Website Logo Placeholder" 
-          class="mx-auto rounded-md shadow-lg"
-          onerror="this.onerror=null; this.src='https://placehold.co/200x50/34c759/ffffff?text=Logo+Error';"
-        >
+      <!-- Logo/Brand Section - Tailored to "ProfitPerPlate" -->
+      <div class="mb-10 p-3">
+        <h2 class="text-4xl font-black text-profit-green leading-none">
+          ProfitPerPlate
+        </h2>
+        <p class="text-lg font-light text-gray-400 mt-1 italic">
+          Know your profit in every plate
+        </p>
       </div>
 
       <!-- Icon/Symbol -->
       <div class="mb-6">
-        <!-- Using inline SVG for a prominent, animated icon -->
+        <!-- Using inline SVG for a prominent, animated icon, now using brand color -->
         <svg class="w-20 h-20 mx-auto wrench-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
         </svg>
       </div>
 
-      <!-- Main Heading -->
-      <h1 class="text-5xl font-extrabold text-gray-800 mb-4 tracking-tight sm:text-6xl">
-        Pardon Our Dust!
+      <!-- Main Heading - Contextualized -->
+      <h1 class="text-5xl font-extrabold text-white mb-4 tracking-tight sm:text-6xl">
+        Remodeling in Progress
       </h1>
 
-      <!-- Core Message -->
-      <p class="text-2xl text-gray-600 mb-6">
-        This website is currently undergoing a major upgrade.
+      <!-- Core Message - Contextualized -->
+      <p class="text-lg text-gray-300 mb-6">
+        Thank you for visiting ProfitPerPlate. We're currently updating our costing tool to serve you better.
       </p>
 
-      <!-- Patience Message -->
-      <p class="text-3xl font-semibold text-yellow-600 mb-8 p-3 bg-yellow-50 rounded-lg shadow-inner">
+      <!-- Patience Message (Updated for Brand Color Accent) -->
+      <p class="text-3xl font-semibold text-white mb-8 p-3 bg-profit-green-subtle rounded-lg shadow-inner border border-profit-green">
         Thank you for your patience!
       </p>
 
-      <!-- Expected Availability (Optional but good practice) -->
-      <div class="text-gray-500 text-sm">
-        <p>We're working hard to launch a better experience. Please check back soon.</p>
-        <p class="mt-2 text-xs">                <a href="mailto:              " class="text-blue-500 hover:text-blue-700 font-medium">            </a>.</p>
+      <!-- Expected Availability -->
+      <div class="text-gray-400 text-sm">
+        <p>Our costing tool will be back online soon with enhanced features and reports.</p>
+        <p class="mt-2 text-xs">           <a href="mailto:support@profitperplate.com" class="text-blue-400 hover:text-blue-300 font-medium">                  </a></p>
       </div>
 
     </div>
