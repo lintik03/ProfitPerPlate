@@ -5,7 +5,7 @@
 // =============================================================================
 
 const PADDLE_CONFIG = {
-    VENDOR_ID: 43075, // Replace with your Paddle Vendor ID
+    SELLER_ID: 43075, // Replace with your Paddle Seller ID
     ENVIRONMENT: 'sandbox', // 'sandbox' or 'production'
     PRICE_IDS: {
         PREMIUM_MONTHLY: 'pri_01kc6gvcaep3y5q6d5g8e6ta7h', // Replace with your price IDs
@@ -31,7 +31,7 @@ async function initializePaddle() {
         // Initialize Paddle
         Paddle.Environment.set(PADDLE_CONFIG.ENVIRONMENT);
         paddleInstance = await Paddle.Initialize({
-            vendor: PADDLE_CONFIG.VENDOR_ID,
+            seller: PADDLE_CONFIG.SELLER_ID,
             eventCallback: handlePaddleEvent
         });
         

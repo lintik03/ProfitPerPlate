@@ -803,7 +803,7 @@ const a = {
 // =============================================================================
 
 function initiateTimedReload() {
-    console.log("🔄 Initiating timed reload in 2000ms...");
+    console.log("🔄 Initiating timed reload in 1000ms...");
     
     // Show loading state if available
     if (typeof Qt === 'function') {
@@ -2049,7 +2049,7 @@ function setupEnhancedAuthStateHandler() {
                 console.error("❌ Error clearing data after logout:", error);
                 window.location.reload();
               }
-            }, 100);
+            }, 200);
             break;
             
           case 'USER_UPDATED':
@@ -4337,6 +4337,11 @@ function Zt(id) {
     }
   }, 50);
 
+  // ➤ MANUAL SAVE TRIGGER: Raw Material deleted
+    console.log("💾 Manual save triggered: Raw Material deleted");
+    ct(); // Trigger cloud save
+    initiateTimedReload(); // Trigger the page reload
+
   Wt("Raw material deleted successfully!", "success");
 }
 
@@ -4804,7 +4809,7 @@ function dn(id) {
   Jt(Vt().filter(item => String(item.id) !== String(id)));
   un(); mn(); In(); // refresh labor cards and selects
   Rn(); // re-attach direct labor select handler if necessary
-
+  
   // Trigger cascade update and manual save
   setTimeout(() => {
     try {
@@ -4820,6 +4825,11 @@ function dn(id) {
       try { if (typeof ct === 'function') ct(); } catch (err) { console.warn("ct() failed:", err); }
     }
   }, 50);
+ 
+  // ➤ MANUAL SAVE TRIGGER: Direct Labor deleted
+    console.log("💾 Manual save triggered: Direct Labor deleted");
+    ct(); // Trigger cloud save
+    initiateTimedReload(); // Trigger the page reload
 
   Wt("Direct labor deleted successfully!", "success");
 }
@@ -6183,6 +6193,7 @@ function qn(e, o) {
   // ➤ MANUAL SAVE TRIGGER: Recipe deleted
   console.log("💾 Manual save triggered: Recipe deleted");
   ct(); // Trigger cloud save
+  initiateTimedReload();
     
   Wt("Recipe deleted successfully!", "success");
 }

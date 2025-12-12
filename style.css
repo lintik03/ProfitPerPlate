@@ -6905,3 +6905,189 @@ body.dark-mode {
         border: 1px solid var(--border) !important;
     }
 }
+
+/* ============================================================================= */
+/* LEGAL & SUPPORT FOOTER STYLES */
+/* ============================================================================= */
+
+.app-footer {
+    margin-top: var(--space-2xl);
+    padding: var(--space-xl) 0;
+    border-top: 1px solid var(--border-light);
+    color: var(--text-secondary);
+    width: 100%;
+}
+
+.footer-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-md);
+    text-align: center;
+}
+
+.footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.footer-links button {
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: var(--font-stack);
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.footer-links button:hover {
+    color: var(--primary);
+    text-decoration: underline;
+}
+
+.footer-links .separator {
+    color: var(--border);
+    font-size: 10px;
+}
+
+.footer-support {
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.support-email {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: color 0.2s ease;
+}
+
+.support-email:hover {
+    color: var(--primary-dark);
+}
+
+.footer-copyright {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    margin-top: var(--space-sm);
+}
+
+/* Legal Modal Specifics */
+.legal-modal-content {
+    max-width: 800px !important;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.legal-text-body {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: var(--space-sm);
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-primary);
+}
+
+.legal-text-body h4 {
+    color: var(--primary);
+    margin-top: var(--space-lg);
+    margin-bottom: var(--space-sm);
+    font-size: 16px;
+    border-bottom: 1px solid var(--border-light);
+    padding-bottom: 4px;
+}
+
+.legal-text-body p {
+    margin-bottom: var(--space-md);
+}
+
+.legal-text-body ul {
+    padding-left: 20px;
+    margin-bottom: var(--space-md);
+}
+
+/* Cookie Settings Styles */
+.cookie-settings-body {
+    padding: var(--space-md) 0;
+}
+
+.cookie-intro {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: var(--space-lg);
+}
+
+.cookie-option {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-md);
+    background: var(--surface-elevated);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-md);
+}
+
+.cookie-info strong {
+    display: block;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.cookie-info small {
+    color: var(--text-secondary);
+}
+
+.toggle-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.status-text {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--success);
+}
+
+/* Mobile Adjustments for Footer */
+@media (max-width: 768px) {
+    .footer-links {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .footer-links .separator {
+        display: none;
+    }
+    
+    .footer-support {
+        flex-direction: column;
+        gap: 4px;
+    }
+}
+
+/* Dark Mode Adjustments */
+body.dark-mode .app-footer {
+    border-top-color: var(--border);
+}
+
+body.dark-mode .footer-links button:hover {
+    color: #fff;
+}
+
+body.dark-mode .cookie-option {
+    background: var(--surface);
+    border-color: var(--border);
+}
