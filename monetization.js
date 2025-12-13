@@ -237,6 +237,30 @@ let subRecipeObserver = null;
 let originalButtonHandlers = new Map();
 
 // =============================================================================
+// DATABASE HELPER FUNCTIONS
+// =============================================================================
+
+async function supabaseRequestWithRetry(requestFn, maxRetries = 3, delay = 1000) {
+    let lastError;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const result = await requestFn();
+            return result;
+        } catch (error) {
+            lastError = error;
+            console.warn(`Attempt ${attempt}/${maxRetries} failed:`, error.message);
+            
+            if (attempt < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, delay * attempt));
+            }
+        }
+    }
+    
+    throw lastError;
+}
+
+// =============================================================================
 // CORE FUNCTIONS
 // =============================================================================
 
@@ -290,47 +314,50 @@ async function initializeMonetization() {
 async function loadUserSubscription(userId) {
     try {
         if (!window.supabaseClient?.supabase) {
-            throw new Error('Supabase not available');
+            console.warn('Supabase not available, using fallback');
+            return setFreeTier();
         }
         
-        const { data, error } = await window.supabaseClient.supabase
-            .from('user_subscriptions')
-            .select('*')
-            .eq('user_id', userId)
-            .single();
+        // Use retry logic
+        const { data, error } = await supabaseRequestWithRetry(async () => {
+            return await window.supabaseClient.supabase
+                .from('user_subscriptions')
+                .select('*')
+                .eq('user_id', userId)
+                .maybeSingle();
+        });
             
         if (error) {
-            if (error.code === 'PGRST116') {
-                // No subscription record found, create free tier entry
+            if (error.code === 'PGRST116' || error.code === '406') {
+                // No subscription or temporary error
+                console.log('📝 No subscription record found or temporary error');
                 await createFreeTierEntry(userId);
-                userSubscription = {
-                    isPremium: false,
-                    planType: 'free',
-                    status: 'active',
-                    currentPeriodEnd: null,
-                    remainingTime: null
-                };
+                setFreeTier();
                 return;
             }
             throw error;
         }
         
-        const isActive = data.status === 'active' && 
-            (!data.current_period_end || new Date(data.current_period_end) > new Date());
-        
-        userSubscription = {
-            isPremium: isActive && data.plan_type !== 'free',
-            planType: data.plan_type,
-            status: data.status,
-            currentPeriodEnd: data.current_period_end,
-            remainingTime: data.current_period_end ? 
-                calculateRemainingTime(data.current_period_end) : null
-        };
-        
-        console.log('📊 Loaded user subscription:', userSubscription);
+        if (data) {
+            const isActive = data.status === 'active' && 
+                (!data.current_period_end || new Date(data.current_period_end) > new Date());
+            
+            userSubscription = {
+                isPremium: isActive && data.plan_type !== 'free',
+                planType: data.plan_type || 'free',
+                status: data.status || 'inactive',
+                currentPeriodEnd: data.current_period_end,
+                remainingTime: data.current_period_end ? 
+                    calculateRemainingTime(data.current_period_end) : null
+            };
+            
+            console.log('📊 Loaded user subscription:', userSubscription);
+        } else {
+            setFreeTier();
+        }
     } catch (error) {
         console.error('❌ Error loading user subscription:', error);
-        throw error;
+        setFreeTier(); // Fallback to free tier on error
     }
 }
 
@@ -368,15 +395,18 @@ async function loadUserUsage(userId) {
             throw new Error('Supabase not available');
         }
         
-        const { data, error } = await window.supabaseClient.supabase
-            .from('user_usage')
-            .select('*')
-            .eq('user_id', userId)
-            .single();
+        const { data, error } = await supabaseRequestWithRetry(async () => {
+            return await window.supabaseClient.supabase
+                .from('user_usage')
+                .select('*')
+                .eq('user_id', userId)
+                .maybeSingle();
+        });
             
         if (error) {
-            if (error.code === 'PGRST116') {
-                // No usage record found, create one
+            if (error.code === 'PGRST116' || error.code === '406') {
+                // No usage record found or temporary error
+                console.log('📝 No usage record found or temporary error');
                 await createUserUsageEntry(userId);
                 userUsage = {
                     rawMaterials: 0,
@@ -389,17 +419,27 @@ async function loadUserUsage(userId) {
             throw error;
         }
         
-        userUsage = {
-            rawMaterials: data.raw_materials_count || 0,
-            directLabor: data.direct_labor_count || 0,
-            mainRecipes: data.main_recipes_count || 0,
-            subRecipes: 0
-        };
-        
-        console.log('📊 Loaded user usage:', userUsage);
+        if (data) {
+            userUsage = {
+                rawMaterials: data.raw_materials_count || 0,
+                directLabor: data.direct_labor_count || 0,
+                mainRecipes: data.main_recipes_count || 0,
+                subRecipes: 0
+            };
+            
+            console.log('📊 Loaded user usage:', userUsage);
+        } else {
+            await createUserUsageEntry(userId);
+        }
     } catch (error) {
         console.error('❌ Error loading user usage:', error);
-        throw error;
+        // Don't throw error, use default values
+        userUsage = {
+            rawMaterials: 0,
+            directLabor: 0,
+            mainRecipes: 0,
+            subRecipes: 0
+        };
     }
 }
 

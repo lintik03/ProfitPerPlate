@@ -3,13 +3,14 @@ const SUPABASE_URL = 'https://mrtvmoxhtmpbptkvklfj.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ydHZtb3hodG1wYnB0a3ZrbGZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM0NTY1MjUsImV4cCI6MjA3OTAzMjUyNX0.9cwIXYvQqYn-x0nR9RIh0N1xWvVxIPpXlJYZ-BsXU_E';
 
 // =============================================================================
-// SIMPLIFIED APPROACH: Clean reset with basic error handling
+// ENHANCED SUPABASE CONFIGURATION WITH OFFLINE SUPPORT
 // =============================================================================
 
 let supabase;
 let supabaseReady = false;
 let currentUser = null;
 let isPasswordResetFlow = false;
+let offlineSyncQueue = [];
 
 // Initialize data loading state
 window.dataLoadingState = {
@@ -19,8 +20,8 @@ window.dataLoadingState = {
     lastSaveTime: null
 };
 
-// Initialize Supabase
-(async function initializeSupabase() {
+// Enhanced initialization with proper headers
+const initializeSupabase = () => {
     try {
         if (!window.supabase) {
             console.warn("Supabase script not available");
@@ -29,19 +30,38 @@ window.dataLoadingState = {
             return;
         }
         
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Enhanced configuration with proper headers
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+                autoRefreshToken: true,
+                persistSession: true,
+                detectSessionInUrl: true
+            },
+            global: {
+                headers: {
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
+            }
+        });
+        
         supabaseReady = true;
+        console.log("✅ NEW Supabase client initialized successfully");
         
         // 🟢 FIX: Set up the listener immediately after Supabase is ready
         window.supabaseClient?.setupAuthStateListener();
         
-        console.log("✅ NEW Supabase client initialized successfully");
     } catch (error) {
         console.error("❌ Failed to initialize Supabase client:", error);
         supabase = createFallbackClient();
         supabaseReady = false;
     }
-})();
+}
+
+// Initialize Supabase
+initializeSupabase();
 
 function createFallbackClient() {
     return {
@@ -102,7 +122,7 @@ function attemptDataRecovery() {
 }
 
 // =============================================================================
-// DATA PERSISTENCE - SIMPLIFIED
+// DATA PERSISTENCE - ENHANCED WITH OFFLINE SYNC
 // =============================================================================
 
 function saveUserData(data) {
@@ -154,7 +174,30 @@ function saveUserData(data) {
     }
 }
 
-// Async cloud save with proper column names
+// Retry mechanism for Supabase requests
+async function supabaseRequestWithRetry(operation, maxRetries = 3) {
+    let lastError;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const result = await operation();
+            return result;
+        } catch (error) {
+            lastError = error;
+            console.warn(`⚠️ Attempt ${attempt}/${maxRetries} failed:`, error.message);
+            
+            if (attempt < maxRetries) {
+                // Exponential backoff
+                const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+    }
+    
+    throw lastError;
+}
+
+// Async cloud save with proper column names and retry logic
 async function saveToCloud(payload) {
     if (!currentUser || !supabaseReady) {
         return { success: false, error: "Not authenticated or Supabase not ready" };
@@ -162,39 +205,42 @@ async function saveToCloud(payload) {
     
     try {
         console.log("💾 MANUAL CLOUD SAVE: Starting cloud save operation...");
-        const { data, error } = await supabase
-            .from('user_data')
-            .upsert({
-                user_id: currentUser.id,
-                data: payload,
-                data_version: payload.dataVersion, // CHANGED: dataVersion → data_version
-                updated_at: new Date().toISOString()
-            }, { 
-                onConflict: 'user_id'
-            });
-            
-        if (error) {
-            console.error("❌ Database error:", error);
-            return { 
-                success: false, 
-                error: error.message,
-                code: error.code
-            };
-        }
+        
+        const result = await supabaseRequestWithRetry(async () => {
+            const { data, error } = await supabase
+                .from('user_data')
+                .upsert({
+                    user_id: currentUser.id,
+                    data: payload,
+                    data_version: payload.dataVersion || 2,
+                    updated_at: new Date().toISOString()
+                }, { 
+                    onConflict: 'user_id',
+                    returning: 'minimal'
+                });
+                
+            if (error) throw error;
+            return data;
+        });
         
         console.log("✅ MANUAL CLOUD SAVE: Cloud save successful");
-        return { success: true, data };
+        return { success: true, data: result };
     } catch (error) {
         console.error("❌ Cloud save exception:", error);
+        
+        // Store locally for later sync
+        storeOfflineForSync(payload);
+        
         return { 
             success: false, 
             error: error.message,
-            code: 'EXCEPTION'
+            code: error.code,
+            offlineSaved: true
         };
     }
 }
 
-// SIMPLIFIED: Load from cloud with proper column names
+// Enhanced syncFromCloud with proper column names
 async function syncFromCloud() {
     if (!currentUser || !supabaseReady) {
         return { success: false, error: "Not available" };
@@ -202,28 +248,37 @@ async function syncFromCloud() {
     
     try {
         console.log("🔄 MANUAL CLOUD SYNC: Triggering cloud sync...");
+        
+        // Use proper Supabase query syntax
         const { data, error } = await supabase
             .from('user_data')
-            .select('data, data_version, updated_at') // CHANGED: dataVersion → data_version
+            .select('data, data_version, updated_at')
             .eq('user_id', currentUser.id)
-            .single();
-            
+            .maybeSingle(); // Use maybeSingle instead of single
+        
         if (error) {
             if (error.code === 'PGRST116') {
                 console.log("📝 No cloud data found for user");
                 return { success: true, updated: false };
             } else {
-                throw error;
+                console.error("❌ Database error:", error);
+                return { 
+                    success: false, 
+                    error: error.message,
+                    code: error.code,
+                    details: error.details
+                };
             }
         }
         
         if (data) {
-            const cloudData = migrateDataToVersion(data.data, data.data_version || 1); // CHANGED: dataVersion → data_version
+            // Map database columns to client properties
+            const cloudData = migrateDataToVersion(data.data, data.data_version || 1);
             const localData = loadFromLocalStorage();
             
-            // Use cloud data if it exists
             const finalData = {
                 ...cloudData,
+                dataVersion: data.data_version || 1, // Ensure consistent naming
                 lastSaved: new Date().toISOString(),
                 savedBy: currentUser.email,
                 syncedFromCloud: true
@@ -238,7 +293,8 @@ async function syncFromCloud() {
         console.error("❌ Cloud sync failed:", error);
         return { 
             success: false, 
-            error: error.message
+            error: error.message,
+            stack: error.stack
         };
     }
 }
@@ -353,6 +409,77 @@ function migrateDataToVersion(data, targetVersion) {
     migratedData.dataVersion = targetVersion;
     return migratedData;
 }
+
+// =============================================================================
+// OFFLINE SYNC QUEUE MANAGEMENT
+// =============================================================================
+
+function storeOfflineForSync(payload) {
+    const queueItem = {
+        payload,
+        timestamp: new Date().toISOString(),
+        attempts: 0
+    };
+    
+    offlineSyncQueue.push(queueItem);
+    localStorage.setItem('profitPerPlate_offlineQueue', JSON.stringify(offlineSyncQueue));
+    
+    // Schedule retry
+    if (offlineSyncQueue.length === 1) {
+        setTimeout(processOfflineQueue, 5000);
+    }
+}
+
+async function processOfflineQueue() {
+    if (offlineSyncQueue.length === 0 || !supabaseReady || !currentUser) return;
+    
+    console.log(`📤 Processing offline queue (${offlineSyncQueue.length} items)...`);
+    
+    const queueCopy = [...offlineSyncQueue];
+    offlineSyncQueue = [];
+    
+    for (const item of queueCopy) {
+        try {
+            await saveToCloud(item.payload);
+            console.log(`✅ Synced offline item from ${item.timestamp}`);
+        } catch (error) {
+            // Requeue if failed
+            item.attempts++;
+            if (item.attempts < 5) {
+                offlineSyncQueue.push(item);
+            } else {
+                console.error(`❌ Failed to sync item after ${item.attempts} attempts`);
+            }
+        }
+    }
+    
+    // Update stored queue
+    if (offlineSyncQueue.length > 0) {
+        localStorage.setItem('profitPerPlate_offlineQueue', JSON.stringify(offlineSyncQueue));
+        setTimeout(processOfflineQueue, 30000); // Retry in 30 seconds
+    } else {
+        localStorage.removeItem('profitPerPlate_offlineQueue');
+    }
+}
+
+// Load offline queue from localStorage on startup
+(function loadOfflineQueue() {
+    try {
+        const storedQueue = localStorage.getItem('profitPerPlate_offlineQueue');
+        if (storedQueue) {
+            offlineSyncQueue = JSON.parse(storedQueue);
+            console.log(`📥 Loaded ${offlineSyncQueue.length} offline sync items`);
+            
+            // Start processing if there are items
+            if (offlineSyncQueue.length > 0) {
+                setTimeout(processOfflineQueue, 3000);
+            }
+        }
+    } catch (error) {
+        console.error("❌ Error loading offline queue:", error);
+        offlineSyncQueue = [];
+    }
+})();
 
 // =============================================================================
 // AUTH MANAGEMENT - SIMPLIFIED
@@ -674,48 +801,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // =============================================================================
-// EXPORT
-// =============================================================================
-
-window.supabaseClient = {
-    supabase,
-    signUp,
-    signIn,
-    signOut,
-    resetPassword,
-    checkAuthState,
-    handlePasswordReset: handlePasswordResetDirect,
-    setupAuthStateListener,
-    saveUserData,
-    loadUserData,
-    loadUserDataWithUISync,
-    getCurrentUser: () => currentUser,
-    isAuthenticated: () => currentUser !== null && !isPasswordResetFlow,
-    getUserId: () => currentUser?.id || null,
-    loadFromLocalStorage,
-    hasMeaningfulData,
-    attemptDataRecovery,
-    getDataState: () => window.dataLoadingState,
-    isPasswordResetFlow: () => isPasswordResetFlow,
-    updateUserSubscription,
-    getUserUsage,
-    // Debug functions
-    debugReset: () => {
-        console.log('=== DEBUG ===');
-        console.log('URL:', window.location.href);
-        console.log('Has Token in URL:', checkForResetTokenInURL());
-        console.log('Stored Token:', sessionStorage.getItem('reset_access_token'));
-        console.log('Current User:', currentUser?.email);
-        console.log('Is Reset Flow:', isPasswordResetFlow);
-        console.log('showResetPasswordModal exists:', typeof window.showResetPasswordModal === 'function');
-        console.log('Reset Modal Element:', document.getElementById('resetPasswordModal'));
-    }
-    
-};
-
-console.log("✅ NEW Supabase client exported - MANUAL SAVE SYSTEM ENABLED");
-
-// =============================================================================
 // SUBSCRIPTION MANAGEMENT
 // =============================================================================
 
@@ -782,3 +867,177 @@ async function getUserUsage() {
         return { success: false, error: error.message };
     }
 }
+
+// =============================================================================
+// DEBUG SUPABASE REQUEST FUNCTION
+// =============================================================================
+
+// Add this function to debug requests
+async function debugSupabaseRequest() {
+    if (!supabase || !currentUser) {
+        console.warn("Cannot debug: Supabase not ready or user not logged in");
+        return;
+    }
+
+    try {
+        // Test 1: Simple query to check connection
+        console.log("🔍 Test 1: Testing basic connection...");
+        const { data: testData, error: testError } = await supabase
+            .from('user_data')
+            .select('count')
+            .limit(1);
+            
+        if (testError) {
+            console.error("❌ Basic connection failed:", testError);
+        } else {
+            console.log("✅ Basic connection successful");
+        }
+
+        // Test 2: Check if user has existing data
+        console.log("🔍 Test 2: Checking user data access...");
+        const { data: userData, error: userError } = await supabase
+            .from('user_data')
+            .select('data_version')
+            .eq('user_id', currentUser.id)
+            .maybeSingle();
+            
+        if (userError) {
+            console.error("❌ User data access failed:", {
+                message: userError.message,
+                code: userError.code,
+                details: userError.details,
+                hint: userError.hint
+            });
+        } else if (userData) {
+            console.log("✅ User data access successful, version:", userData.data_version);
+        } else {
+            console.log("✅ No existing data for user (this is normal for new users)");
+        }
+
+        // Test 3: Try to insert dummy data
+        console.log("🔍 Test 3: Testing data insertion...");
+        const testPayload = {
+            user_id: currentUser.id,
+            data: { test: "data" },
+            data_version: 1
+        };
+        
+        const { data: insertData, error: insertError } = await supabase
+            .from('user_data')
+            .upsert(testPayload, { 
+                onConflict: 'user_id',
+                returning: 'minimal'
+            });
+            
+        if (insertError) {
+            console.error("❌ Data insertion failed:", {
+                message: insertError.message,
+                code: insertError.code,
+                details: insertError.details,
+                hint: insertError.hint
+            });
+        } else {
+            console.log("✅ Data insertion successful");
+            
+            // Clean up test data
+            await supabase
+                .from('user_data')
+                .delete()
+                .eq('user_id', currentUser.id);
+        }
+
+    } catch (error) {
+        console.error("💥 Debug test crashed:", error);
+    }
+}
+
+// =============================================================================
+// EXPORT
+// =============================================================================
+
+window.supabaseClient = {
+    supabase,
+    signUp,
+    signIn,
+    signOut,
+    resetPassword,
+    checkAuthState,
+    handlePasswordReset: handlePasswordResetDirect,
+    setupAuthStateListener,
+    saveUserData,
+    loadUserData,
+    loadUserDataWithUISync,
+    getCurrentUser: () => currentUser,
+    isAuthenticated: () => currentUser !== null && !isPasswordResetFlow,
+    getUserId: () => currentUser?.id || null,
+    loadFromLocalStorage,
+    hasMeaningfulData,
+    attemptDataRecovery,
+    getDataState: () => window.dataLoadingState,
+    isPasswordResetFlow: () => isPasswordResetFlow,
+    updateUserSubscription,
+    getUserUsage,
+    
+    // Offline sync functions
+    getOfflineQueueSize: () => offlineSyncQueue.length,
+    forceOfflineSync: () => processOfflineQueue(),
+    
+    // Debug functions
+    debugReset: () => {
+        console.log('=== DEBUG ===');
+        console.log('URL:', window.location.href);
+        console.log('Has Token in URL:', checkForResetTokenInURL());
+        console.log('Stored Token:', sessionStorage.getItem('reset_access_token'));
+        console.log('Current User:', currentUser?.email);
+        console.log('Is Reset Flow:', isPasswordResetFlow);
+        console.log('showResetPasswordModal exists:', typeof window.showResetPasswordModal === 'function');
+        console.log('Reset Modal Element:', document.getElementById('resetPasswordModal'));
+        console.log('Offline Queue Size:', offlineSyncQueue.length);
+    },
+    
+    debugCheckConnection: async () => {
+        try {
+            const { data, error } = await supabase
+                .from('user_data')
+                .select('count')
+                .limit(1);
+                
+            if (error) {
+                return {
+                    connected: false,
+                    error: error.message,
+                    code: error.code,
+                    details: error.details
+                };
+            }
+            
+            return {
+                connected: true,
+                message: "Connection successful",
+                headers: {
+                    url: SUPABASE_URL,
+                    hasAnonKey: !!SUPABASE_ANON_KEY
+                }
+            };
+        } catch (error) {
+            return {
+                connected: false,
+                error: error.message,
+                stack: error.stack
+            };
+        }
+    },
+    
+    debugResetConnection: () => {
+        supabaseReady = false;
+        setTimeout(() => initializeSupabase(), 1000);
+        return "Connection reset initiated";
+    },
+    
+    debugSupabaseRequest // Added the debug function to the export
+};
+
+// Add to window object for manual debugging
+window.debugSupabase = debugSupabaseRequest;
+
+console.log("✅ ENHANCED Supabase client exported - OFFLINE SYNC ENABLED");
