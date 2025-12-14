@@ -5,13 +5,28 @@
 // =============================================================================
 
 const PADDLE_CONFIG = {
-    SELLER_ID: 43075, // Replace with your Paddle Seller ID
-    ENVIRONMENT: 'sandbox', // 'sandbox' or 'production'
+    VENDOR_ID: 43075, // Your Seller ID
+    ENVIRONMENT: detectPaddleEnvironment(),
     PRICE_IDS: {
-        PREMIUM_MONTHLY: 'pri_01kc6gvcaep3y5q6d5g8e6ta7h', // Replace with your price IDs
+        PREMIUM_MONTHLY: 'pri_01kc6gvcaep3y5q6d5g8e6ta7h',
         PREMIUM_YEARLY: 'pri_01kc6h9766m9f0s0s50qg8rt1c'
     }
 };
+
+function detectPaddleEnvironment() {
+    const hostname = window.location.hostname;
+    
+    if (hostname === 'profitperplate.com') {
+        console.log('🚀 Paddle environment: PRODUCTION');
+        return 'production';
+    } else if (hostname === 'profitperplate.pages.dev' || hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
+        console.log('🧪 Paddle environment: SANDBOX');
+        return 'sandbox';
+    } else {
+        console.log('⚠️ Paddle environment: Defaulting to SANDBOX');
+        return 'sandbox';
+    }
+}
 
 // =============================================================================
 // PADDLE INITIALIZATION
@@ -22,7 +37,7 @@ let paddleInstance = null;
 async function initializePaddle() {
     if (paddleInstance) return paddleInstance;
     
-    console.log('🛶 Initializing Paddle...');
+    console.log('🛶 Initializing Paddle in', PADDLE_CONFIG.ENVIRONMENT, 'mode...');
     
     try {
         // Load Paddle.js SDK
@@ -31,14 +46,24 @@ async function initializePaddle() {
         // Initialize Paddle
         Paddle.Environment.set(PADDLE_CONFIG.ENVIRONMENT);
         paddleInstance = await Paddle.Initialize({
-            seller: PADDLE_CONFIG.SELLER_ID,
-            eventCallback: handlePaddleEvent
+            vendor: PADDLE_CONFIG.VENDOR_ID,
+            eventCallback: handlePaddleEvent,
+            checkout: {
+                settings: {
+                    displayMode: 'overlay',
+                    theme: 'light',
+                    frameTarget: 'checkout-container',
+                    frameInitialHeight: 450,
+                    frameStyle: 'width:100%; min-width:312px; background-color: transparent; border: none;'
+                }
+            }
         });
         
-        console.log('✅ Paddle initialized successfully');
+        console.log('✅ Paddle initialized successfully in', PADDLE_CONFIG.ENVIRONMENT, 'mode');
         return paddleInstance;
     } catch (error) {
         console.error('❌ Failed to initialize Paddle:', error);
+        showManualCheckoutOption();
         throw error;
     }
 }
@@ -69,7 +94,9 @@ async function startPaddleCheckout(planType) {
         const currentUser = window.supabaseClient?.getCurrentUser();
         
         if (!currentUser) {
-            throw new Error('User must be logged in to upgrade');
+            alert('Please login to upgrade to Premium');
+            window.showAuthModal?.();
+            return;
         }
         
         const priceId = planType === 'monthly' 
@@ -84,7 +111,6 @@ async function startPaddleCheckout(planType) {
             }],
             customer: {
                 email: currentUser.email,
-                // You can add more customer info here
             },
             customData: {
                 userId: currentUser.id,
@@ -104,8 +130,61 @@ async function startPaddleCheckout(planType) {
         return checkout;
     } catch (error) {
         console.error('❌ Paddle checkout failed:', error);
-        showErrorModal('Checkout failed. Please try again.');
+        showErrorModal('Checkout failed. Please try again or use manual checkout option.');
         throw error;
+    }
+}
+
+// =============================================================================
+// SUBSCRIPTION MANAGEMENT
+// =============================================================================
+
+async function cancelSubscription() {
+    try {
+        const paddle = await initializePaddle();
+        const currentUser = window.supabaseClient?.getCurrentUser();
+        
+        if (!currentUser) {
+            throw new Error('User must be logged in');
+        }
+        
+        // Get user's subscription ID from database
+        const { data: subscription } = await window.supabaseClient.supabase
+            .from('user_subscriptions')
+            .select('paddle_subscription_id')
+            .eq('user_id', currentUser.id)
+            .single();
+        
+        if (!subscription?.paddle_subscription_id) {
+            throw new Error('No active subscription found');
+        }
+        
+        // Open customer portal for cancellation
+        await Paddle.Settings.open({
+            displayMode: 'overlay',
+            frameTarget: 'checkout-container',
+            frameInitialHeight: 600
+        });
+        
+        return { success: true };
+    } catch (error) {
+        console.error('❌ Cancel subscription failed:', error);
+        showErrorModal('Unable to cancel subscription. Please contact support.');
+        throw error;
+    }
+}
+
+async function openCustomerPortal() {
+    try {
+        const paddle = await initializePaddle();
+        await Paddle.Settings.open({
+            displayMode: 'overlay',
+            frameTarget: 'checkout-container',
+            frameInitialHeight: 600
+        });
+    } catch (error) {
+        console.error('❌ Open customer portal failed:', error);
+        showErrorModal('Unable to open customer portal. Please try again later.');
     }
 }
 
@@ -148,6 +227,10 @@ function handlePaddleEvent(event) {
         case 'subscription.canceled':
             handleSubscriptionCanceled(event.data);
             break;
+            
+        case 'customer.updated':
+            console.log('Customer updated:', event.data);
+            break;
     }
 }
 
@@ -171,6 +254,11 @@ async function handleCheckoutCompleted(checkoutData) {
             const periodEnd = calculatePeriodEnd(custom_data?.planType);
             window.monetization.setPremiumTier(custom_data?.planType, periodEnd);
             window.monetization.updateUIForTier();
+            
+            // Trigger premium activated event
+            document.dispatchEvent(new CustomEvent('premiumActivated', {
+                detail: { planType: custom_data?.planType, periodEnd }
+            }));
         }
         
         // Show success message
@@ -187,7 +275,6 @@ async function handleCheckoutCompleted(checkoutData) {
 
 async function handlePaymentCompleted(paymentData) {
     console.log('💳 Payment completed:', paymentData);
-    // You might want to update UI or send notifications here
 }
 
 async function handleSubscriptionCreated(subscriptionData) {
@@ -208,12 +295,15 @@ async function handleSubscriptionCanceled(subscriptionData) {
     if (window.monetization) {
         window.monetization.setFreeTier();
         window.monetization.updateUIForTier();
+        
+        // Show cancellation confirmation
+        showSuccessModal('Your subscription has been canceled. Premium features will remain active until the end of your billing period.');
     }
 }
 
 function handleCheckoutError(errorData) {
     console.error('❌ Checkout error:', errorData);
-    showErrorModal('Checkout failed. Please try again or contact support.');
+    showErrorModal('Checkout failed. Please try again or use manual checkout option.');
 }
 
 // =============================================================================
@@ -255,8 +345,6 @@ async function updateSubscriptionInDatabase(subscriptionData) {
 
 async function updateSubscriptionFromWebhook(webhookData) {
     try {
-        // This would be called from a webhook handler
-        // For now, we'll update directly if user is logged in
         const currentUser = window.supabaseClient?.getCurrentUser();
         if (!currentUser) return;
         
@@ -286,9 +374,9 @@ function calculatePeriodEnd(planType) {
     const now = new Date();
     const periodEnd = new Date(now);
     
-    if (planType === 'premium_monthly') {
+    if (planType === 'monthly') {
         periodEnd.setMonth(periodEnd.getMonth() + 1);
-    } else if (planType === 'premium_yearly') {
+    } else if (planType === 'yearly') {
         periodEnd.setFullYear(periodEnd.getFullYear() + 1);
     }
     
@@ -296,9 +384,8 @@ function calculatePeriodEnd(planType) {
 }
 
 function showSuccessModal(message) {
-    // Create or show success modal
     const modalHTML = `
-        <div class="modal" style="display: flex;">
+        <div class="modal" style="display: flex; z-index: 100000;">
             <div class="modal-content" style="max-width: 400px;">
                 <div class="modal-header">
                     <h3>Success!</h3>
@@ -320,9 +407,8 @@ function showSuccessModal(message) {
 }
 
 function showErrorModal(message) {
-    // Create or show error modal
     const modalHTML = `
-        <div class="modal" style="display: flex;">
+        <div class="modal" style="display: flex; z-index: 100000;">
             <div class="modal-content" style="max-width: 400px;">
                 <div class="modal-header">
                     <h3 style="color: var(--danger);">Error</h3>
@@ -343,56 +429,38 @@ function showErrorModal(message) {
     document.body.insertAdjacentHTML('beforeend', modalHTML);
 }
 
-// =============================================================================
-// WEBHOOK HANDLING (SERVER-SIDE)
-// =============================================================================
-
-// This would typically be in a serverless function or backend endpoint
-// Here's an example of what the webhook handler might look like:
-
-/*
-// Example webhook endpoint (would be in a Supabase Edge Function or similar)
-app.post('/api/webhooks/paddle', async (req, res) => {
-    const paddlePublicKey = 'YOUR_PADDLE_PUBLIC_KEY';
-    const signature = req.headers['paddle-signature'];
+function showManualCheckoutOption() {
+    const upgradeModal = document.getElementById('upgradeModal');
+    if (!upgradeModal) return;
     
-    try {
-        // Verify webhook signature
-        const isValid = Paddle.Webhook.verify(signature, req.body, paddlePublicKey);
-        
-        if (!isValid) {
-            return res.status(400).json({ error: 'Invalid signature' });
-        }
-        
-        const event = req.body;
-        
-        // Handle different event types
-        switch (event.alert_name) {
-            case 'subscription_created':
-            case 'subscription_updated':
-                await handleSubscriptionWebhook(event);
-                break;
-                
-            case 'subscription_cancelled':
-                await handleSubscriptionCancellation(event);
-                break;
-                
-            case 'payment_succeeded':
-                await handlePaymentSuccess(event);
-                break;
-                
-            case 'payment_failed':
-                await handlePaymentFailure(event);
-                break;
-        }
-        
-        res.status(200).json({ received: true });
-    } catch (error) {
-        console.error('Webhook error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+    const manualCheckoutHTML = `
+        <div style="margin-top: var(--space-lg); padding: var(--space-md); background: var(--bg-secondary); border-radius: var(--radius-md);">
+            <h4 style="margin-bottom: var(--space-sm);">Manual Checkout</h4>
+            <p style="margin-bottom: var(--space-sm); font-size: 14px; color: var(--text-secondary);">
+                If the checkout doesn't load, you can upgrade directly through Paddle:
+            </p>
+            <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+                <a href="https://buy.paddle.com/checkout/custom/${PADDLE_CONFIG.PRICE_IDS.PREMIUM_MONTHLY}" 
+                   target="_blank" 
+                   class="btn-secondary" 
+                   style="text-align: center; text-decoration: none;">
+                    Monthly ($2.49)
+                </a>
+                <a href="https://buy.paddle.com/checkout/custom/${PADDLE_CONFIG.PRICE_IDS.PREMIUM_YEARLY}" 
+                   target="_blank" 
+                   class="btn-primary" 
+                   style="text-align: center; text-decoration: none;">
+                    Yearly ($24.99) - Save 2 Months
+                </a>
+            </div>
+        </div>
+    `;
+    
+    const modalBody = upgradeModal.querySelector('.modal-body');
+    if (modalBody) {
+        modalBody.insertAdjacentHTML('beforeend', manualCheckoutHTML);
     }
-});
-*/
+}
 
 // =============================================================================
 // PUBLIC API
@@ -405,30 +473,46 @@ window.paddleIntegration = {
     // Checkout
     startCheckout: startPaddleCheckout,
     
+    // Subscription Management
+    cancelSubscription,
+    openCustomerPortal,
+    
     // Events
     handlePaddleEvent,
     
     // Utility
     showSuccessModal,
-    showErrorModal
+    showErrorModal,
+    showManualCheckoutOption,
+    
+    // Configuration
+    getConfig: () => ({ ...PADDLE_CONFIG }),
+    
+    // Manual checkout URLs
+    getCheckoutUrls: () => ({
+        monthly: `https://buy.paddle.com/checkout/custom/${PADDLE_CONFIG.PRICE_IDS.PREMIUM_MONTHLY}`,
+        yearly: `https://buy.paddle.com/checkout/custom/${PADDLE_CONFIG.PRICE_IDS.PREMIUM_YEARLY}`
+    })
 };
 
 // Make the checkout function globally accessible
 window.startPaddleCheckout = startPaddleCheckout;
+window.cancelPaddleSubscription = cancelSubscription;
 
 // =============================================================================
 // AUTO-INITIALIZATION
 // =============================================================================
 
-// Initialize Paddle when monetization is ready
 document.addEventListener('DOMContentLoaded', async () => {
-    // Wait for monetization to initialize
+    console.log('🛶 Paddle integration loading...');
+    
+    // Initialize Paddle when monetization is ready
     setTimeout(async () => {
         try {
             await initializePaddle();
             console.log('🛶 Paddle ready for checkout');
         } catch (error) {
-            console.warn('⚠️ Paddle initialization failed, checkout will not work:', error);
+            console.warn('⚠️ Paddle initialization failed, checkout may not work:', error);
         }
     }, 2000);
 });

@@ -9,25 +9,25 @@
   "orientation": "any",
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='10' stroke='%232E5A35' stroke-width='2.5'/><path d='M6 16L10 11L13.5 14L17.5 8' stroke='%232E5A35' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/><circle cx='17.5' cy='8' r='2' fill='%232E5A35'/></svg>",
+      "src": "data:image/svg+xml,<svg width='30' height='30' viewBox='0 0 512 512' fill='none' xmlns='http://www.w3.org/2000/svg'><circle cx='256' cy='256' r='256' fill='%232E5A3E'/><circle cx='256' cy='256' r='195' stroke='white' stroke-width='48' fill='none'/><path d='M165 330 L255 230 L305 275 L375 180' stroke='white' stroke-width='48' stroke-linecap='round' stroke-linejoin='round'/><circle cx='375' cy='180' r='32' fill='white'/></svg>",
       "sizes": "30x30",
       "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='192' height='192'><circle cx='12' cy='12' r='10' stroke='%232E5A35' stroke-width='2.5'/><path d='M6 16L10 11L13.5 14L17.5 8' stroke='%232E5A35' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/><circle cx='17.5' cy='8' r='2' fill='%232E5A35'/></svg>",
+      "src": "data:image/svg+xml,<svg width='192' height='192' viewBox='0 0 512 512' fill='none' xmlns='http://www.w3.org/2000/svg'><circle cx='256' cy='256' r='256' fill='%232E5A3E'/><circle cx='256' cy='256' r='195' stroke='white' stroke-width='48' fill='none'/><path d='M165 330 L255 230 L305 275 L375 180' stroke='white' stroke-width='48' stroke-linecap='round' stroke-linejoin='round'/><circle cx='375' cy='180' r='32' fill='white'/></svg>",
       "sizes": "192x192",
       "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='512' height='512'><circle cx='12' cy='12' r='10' stroke='%232E5A35' stroke-width='2.5'/><path d='M6 16L10 11L13.5 14L17.5 8' stroke='%232E5A35' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/><circle cx='17.5' cy='8' r='2' fill='%232E5A35'/></svg>",
+      "src": "data:image/svg+xml,<svg width='512' height='512' viewBox='0 0 512 512' fill='none' xmlns='http://www.w3.org/2000/svg'><circle cx='256' cy='256' r='256' fill='%232E5A3E'/><circle cx='256' cy='256' r='195' stroke='white' stroke-width='48' fill='none'/><path d='M165 330 L255 230 L305 275 L375 180' stroke='white' stroke-width='48' stroke-linecap='round' stroke-linejoin='round'/><circle cx='375' cy='180' r='32' fill='white'/></svg>",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='512' height='512'><circle cx='12' cy='12' r='10' stroke='%232E5A35' stroke-width='2.5'/><path d='M6 16L10 11L13.5 14L17.5 8' stroke='%232E5A35' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/><circle cx='17.5' cy='8' r='2' fill='%232E5A35'/></svg>",
+      "src": "data:image/svg+xml,<svg width='512' height='512' viewBox='0 0 512 512' fill='none' xmlns='http://www.w3.org/2000/svg'><circle cx='256' cy='256' r='256' fill='%232E5A3E'/><circle cx='256' cy='256' r='195' stroke='white' stroke-width='48' fill='none'/><path d='M165 330 L255 230 L305 275 L375 180' stroke='white' stroke-width='48' stroke-linecap='round' stroke-linejoin='round'/><circle cx='375' cy='180' r='32' fill='white'/></svg>",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "maskable"

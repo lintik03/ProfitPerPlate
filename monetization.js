@@ -237,30 +237,6 @@ let subRecipeObserver = null;
 let originalButtonHandlers = new Map();
 
 // =============================================================================
-// DATABASE HELPER FUNCTIONS
-// =============================================================================
-
-async function supabaseRequestWithRetry(requestFn, maxRetries = 3, delay = 1000) {
-    let lastError;
-    
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-            const result = await requestFn();
-            return result;
-        } catch (error) {
-            lastError = error;
-            console.warn(`Attempt ${attempt}/${maxRetries} failed:`, error.message);
-            
-            if (attempt < maxRetries) {
-                await new Promise(resolve => setTimeout(resolve, delay * attempt));
-            }
-        }
-    }
-    
-    throw lastError;
-}
-
-// =============================================================================
 // CORE FUNCTIONS
 // =============================================================================
 
@@ -314,50 +290,47 @@ async function initializeMonetization() {
 async function loadUserSubscription(userId) {
     try {
         if (!window.supabaseClient?.supabase) {
-            console.warn('Supabase not available, using fallback');
-            return setFreeTier();
+            throw new Error('Supabase not available');
         }
         
-        // Use retry logic
-        const { data, error } = await supabaseRequestWithRetry(async () => {
-            return await window.supabaseClient.supabase
-                .from('user_subscriptions')
-                .select('*')
-                .eq('user_id', userId)
-                .maybeSingle();
-        });
+        const { data, error } = await window.supabaseClient.supabase
+            .from('user_subscriptions')
+            .select('*')
+            .eq('user_id', userId)
+            .single();
             
         if (error) {
-            if (error.code === 'PGRST116' || error.code === '406') {
-                // No subscription or temporary error
-                console.log('📝 No subscription record found or temporary error');
+            if (error.code === 'PGRST116') {
+                // No subscription record found, create free tier entry
                 await createFreeTierEntry(userId);
-                setFreeTier();
+                userSubscription = {
+                    isPremium: false,
+                    planType: 'free',
+                    status: 'active',
+                    currentPeriodEnd: null,
+                    remainingTime: null
+                };
                 return;
             }
             throw error;
         }
         
-        if (data) {
-            const isActive = data.status === 'active' && 
-                (!data.current_period_end || new Date(data.current_period_end) > new Date());
-            
-            userSubscription = {
-                isPremium: isActive && data.plan_type !== 'free',
-                planType: data.plan_type || 'free',
-                status: data.status || 'inactive',
-                currentPeriodEnd: data.current_period_end,
-                remainingTime: data.current_period_end ? 
-                    calculateRemainingTime(data.current_period_end) : null
-            };
-            
-            console.log('📊 Loaded user subscription:', userSubscription);
-        } else {
-            setFreeTier();
-        }
+        const isActive = data.status === 'active' && 
+            (!data.current_period_end || new Date(data.current_period_end) > new Date());
+        
+        userSubscription = {
+            isPremium: isActive && data.plan_type !== 'free',
+            planType: data.plan_type,
+            status: data.status,
+            currentPeriodEnd: data.current_period_end,
+            remainingTime: data.current_period_end ? 
+                calculateRemainingTime(data.current_period_end) : null
+        };
+        
+        console.log('📊 Loaded user subscription:', userSubscription);
     } catch (error) {
         console.error('❌ Error loading user subscription:', error);
-        setFreeTier(); // Fallback to free tier on error
+        throw error;
     }
 }
 
@@ -395,18 +368,15 @@ async function loadUserUsage(userId) {
             throw new Error('Supabase not available');
         }
         
-        const { data, error } = await supabaseRequestWithRetry(async () => {
-            return await window.supabaseClient.supabase
-                .from('user_usage')
-                .select('*')
-                .eq('user_id', userId)
-                .maybeSingle();
-        });
+        const { data, error } = await window.supabaseClient.supabase
+            .from('user_usage')
+            .select('*')
+            .eq('user_id', userId)
+            .single();
             
         if (error) {
-            if (error.code === 'PGRST116' || error.code === '406') {
-                // No usage record found or temporary error
-                console.log('📝 No usage record found or temporary error');
+            if (error.code === 'PGRST116') {
+                // No usage record found, create one
                 await createUserUsageEntry(userId);
                 userUsage = {
                     rawMaterials: 0,
@@ -419,27 +389,17 @@ async function loadUserUsage(userId) {
             throw error;
         }
         
-        if (data) {
-            userUsage = {
-                rawMaterials: data.raw_materials_count || 0,
-                directLabor: data.direct_labor_count || 0,
-                mainRecipes: data.main_recipes_count || 0,
-                subRecipes: 0
-            };
-            
-            console.log('📊 Loaded user usage:', userUsage);
-        } else {
-            await createUserUsageEntry(userId);
-        }
-    } catch (error) {
-        console.error('❌ Error loading user usage:', error);
-        // Don't throw error, use default values
         userUsage = {
-            rawMaterials: 0,
-            directLabor: 0,
-            mainRecipes: 0,
+            rawMaterials: data.raw_materials_count || 0,
+            directLabor: data.direct_labor_count || 0,
+            mainRecipes: data.main_recipes_count || 0,
             subRecipes: 0
         };
+        
+        console.log('📊 Loaded user usage:', userUsage);
+    } catch (error) {
+        console.error('❌ Error loading user usage:', error);
+        throw error;
     }
 }
 
@@ -2342,4 +2302,309 @@ document.addEventListener('DOMContentLoaded', () => {
             text: 'Create New Recipe'
         }
     );
+});
+
+// =============================================================================
+// PREMIUM UI MANAGEMENT
+// =============================================================================
+
+function updatePremiumUI() {
+    // Update upgrade button in menu
+    const upgradeBtn = document.getElementById('upgradeToPremiumBtn');
+    if (upgradeBtn) {
+        if (userSubscription.isPremium) {
+            upgradeBtn.style.display = 'none';
+            upgradeBtn.disabled = true;
+        } else {
+            upgradeBtn.style.display = 'block';
+            upgradeBtn.disabled = false;
+        }
+    }
+    
+    // Add or update cancel subscription button
+    const menuBody = document.querySelector('#menuModal .menu-body');
+    if (menuBody) {
+        let cancelBtn = menuBody.querySelector('#cancelPremiumBtn');
+        
+        if (userSubscription.isPremium) {
+            // Create cancel button if it doesn't exist
+            if (!cancelBtn) {
+                cancelBtn = document.createElement('button');
+                cancelBtn.id = 'cancelPremiumBtn';
+                cancelBtn.className = 'btn-secondary menu-btn';
+                cancelBtn.style.marginTop = 'var(--space-sm)';
+                cancelBtn.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18"></path>
+                        <path d="M6 6l12 12"></path>
+                    </svg>
+                    <span>Cancel Premium</span>
+                `;
+                cancelBtn.onclick = async () => {
+                    if (confirm('Are you sure you want to cancel your premium subscription? You will lose access to premium features at the end of your billing period.')) {
+                        try {
+                            await window.paddleIntegration.cancelSubscription();
+                        } catch (error) {
+                            console.error('Cancel failed:', error);
+                        }
+                    }
+                };
+                
+                // Insert after premium status display
+                const premiumStatus = menuBody.querySelector('#premiumStatusDisplay');
+                if (premiumStatus) {
+                    premiumStatus.parentNode.insertBefore(cancelBtn, premiumStatus.nextSibling);
+                } else {
+                    menuBody.insertBefore(cancelBtn, menuBody.firstChild);
+                }
+            }
+            cancelBtn.style.display = 'block';
+        } else if (cancelBtn) {
+            cancelBtn.style.display = 'none';
+        }
+        
+        // Update premium status display
+        const premiumStatus = document.getElementById('premiumStatusDisplay');
+        if (premiumStatus) {
+            if (userSubscription.isPremium) {
+                premiumStatus.classList.remove('hidden');
+                
+                // Update expiry date
+                const expiryElement = document.getElementById('premiumExpiryDate');
+                if (expiryElement && userSubscription.currentPeriodEnd) {
+                    const date = new Date(userSubscription.currentPeriodEnd);
+                    expiryElement.textContent = `Expires: ${date.toLocaleDateString()}`;
+                }
+            } else {
+                premiumStatus.classList.add('hidden');
+            }
+        }
+    }
+}
+
+// =============================================================================
+// ENHANCED TIER MANAGEMENT
+// =============================================================================
+
+function setPremiumTier(planType, periodEnd) {
+    userSubscription = {
+        isPremium: true,
+        planType: planType,
+        status: 'active',
+        currentPeriodEnd: periodEnd,
+        remainingTime: calculateRemainingTime(periodEnd)
+    };
+    
+    // Restore all premium functionality
+    restorePremiumFunctionality();
+    updateCountDisplays();
+    updateFeatureAvailability();
+    updatePremiumUI();
+    
+    // Trigger premium activated event
+    document.dispatchEvent(new CustomEvent('premiumActivated', {
+        detail: { planType: planType, periodEnd: periodEnd }
+    }));
+    
+    console.log('🎉 User upgraded to Premium:', planType);
+}
+
+function setFreeTier() {
+    userSubscription = {
+        isPremium: false,
+        planType: 'free',
+        status: 'active',
+        currentPeriodEnd: null,
+        remainingTime: null
+    };
+    
+    // Apply restrictions for free tier
+    blockAllSubRecipeAccess();
+    updateCountDisplays();
+    updateFeatureAvailability();
+    updatePremiumUI();
+    
+    console.log('⬇️ User downgraded to Free tier');
+}
+
+// =============================================================================
+// COMPLETE BUTTON STATE SYNC
+// =============================================================================
+
+function syncAllButtonStates() {
+    // Update all feature buttons
+    updateFeatureAvailability();
+    updateCountDisplays();
+    updatePremiumUI();
+    
+    // Enable all locked features if premium
+    if (userSubscription.isPremium) {
+        // Enable serving scale
+        const servingScale = document.getElementById('servingScale');
+        if (servingScale) {
+            servingScale.disabled = false;
+            servingScale.style.opacity = '1';
+            servingScale.style.cursor = 'auto';
+            servingScale.parentElement?.classList.remove('feature-disabled');
+            servingScale.title = 'Scale servings for analysis';
+        }
+        
+        // Enable print
+        const printBtn = document.getElementById('printBtn');
+        if (printBtn) {
+            printBtn.disabled = false;
+            printBtn.style.opacity = '1';
+            printBtn.style.cursor = 'pointer';
+            printBtn.classList.remove('feature-disabled');
+            printBtn.onclick = function() {
+                if (window.generatePrintPreview) {
+                    window.generatePrintPreview();
+                }
+            };
+        }
+        
+        // Enable CSV export
+        const exportCsvBtn = document.getElementById('exportCsvBtn');
+        if (exportCsvBtn) {
+            exportCsvBtn.disabled = false;
+            exportCsvBtn.style.opacity = '1';
+            exportCsvBtn.style.cursor = 'pointer';
+            exportCsvBtn.classList.remove('feature-disabled');
+            exportCsvBtn.onclick = function() {
+                if (window.exportToCSV) {
+                    window.exportToCSV();
+                }
+            };
+        }
+        
+        // Enable all sub-recipe functionality
+        restorePremiumFunctionality();
+    }
+    
+    console.log('🔄 All button states synced');
+}
+
+// =============================================================================
+// ENHANCED EVENT LISTENERS
+// =============================================================================
+
+function setupEventListeners() {
+    // Listen for premium subscription activation
+    document.addEventListener('premiumActivated', function(e) {
+        console.log('🎉 Premium activated! Syncing all features...');
+        syncAllButtonStates();
+        
+        // Show success notification
+        if (window.showNotification) {
+            window.showNotification('Premium features unlocked!', 'success');
+        }
+    });
+    
+    // Listen for tier changes
+    document.addEventListener('userTierChanged', function(e) {
+        console.log('🔄 User tier changed, updating UI...');
+        syncAllButtonStates();
+    });
+    
+    // Update menu button click handler
+    const menuBtn = document.getElementById('settingsMenuButton');
+    if (menuBtn) {
+        menuBtn.addEventListener('click', function() {
+            // Ensure UI is synced before showing menu
+            setTimeout(syncAllButtonStates, 100);
+        });
+    }
+    
+    // Intercept sub-recipe button clicks globally
+    document.addEventListener('click', function(e) {
+        const subRecipeBtn = e.target.closest('#saveSubRecipeBtn, [data-role="open-save-subrecipe"], #saveSubRecipeConfirmBtn');
+        if (subRecipeBtn && !userSubscription.isPremium) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            showUpgradeModal('sub_recipes');
+            return false;
+        }
+        
+        // Intercept add button clicks for free tier users
+        if (!userSubscription.isPremium) {
+            const rawMaterialBtn = e.target.closest('[data-role="add-raw-material"]');
+            if (rawMaterialBtn) {
+                if (!canAddRawMaterial()) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showUpgradeModal('raw_materials');
+                    return false;
+                }
+            }
+            
+            const directLaborBtn = e.target.closest('[data-role="add-direct-labor"]');
+            if (directLaborBtn) {
+                if (!canAddDirectLabor()) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showUpgradeModal('direct_labor');
+                    return false;
+                }
+            }
+            
+            const createRecipeBtn = e.target.closest('#createNewRecipeBtn');
+            if (createRecipeBtn) {
+                if (!canAddMainRecipe()) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showUpgradeModal('main_recipes');
+                    return false;
+                }
+            }
+        }
+    }, true);
+}
+
+// =============================================================================
+// ENHANCED UPDATE FUNCTION FOR PUBLIC API
+// =============================================================================
+
+// Add to the existing window.monetization object
+window.monetization = {
+    ...window.monetization, // Keep existing functions
+    
+    // Enhanced functions
+    syncAllButtonStates,
+    updatePremiumUI,
+    
+    // Enhanced tier change functions
+    setPremiumTier: function(planType, periodEnd) {
+        setPremiumTier(planType, periodEnd);
+        document.dispatchEvent(new CustomEvent('userTierChanged', {
+            detail: { isPremium: true }
+        }));
+    },
+    
+    setFreeTier: function() {
+        setFreeTier();
+        document.dispatchEvent(new CustomEvent('userTierChanged', {
+            detail: { isPremium: false }
+        }));
+    },
+    
+    // Initialize premium UI
+    initializePremiumUI: function() {
+        addUpgradeButtonToMenu();
+        updatePremiumUI();
+        syncAllButtonStates();
+    }
+};
+
+// Call this during initialization
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize monetization
+    initializeMonetization();
+    
+    // Initialize premium UI after a delay
+    setTimeout(() => {
+        if (window.monetization && window.monetization.initializePremiumUI) {
+            window.monetization.initializePremiumUI();
+        }
+    }, 1500);
 });
