@@ -803,7 +803,7 @@ const a = {
 // =============================================================================
 
 function initiateTimedReload() {
-    console.log("🔄 Initiating timed reload in 1000ms...");
+    console.log("🔄 Initiating timed reload in 2000ms...");
     
     // Show loading state if available
     if (typeof Qt === 'function') {
@@ -2049,7 +2049,7 @@ function setupEnhancedAuthStateHandler() {
                 console.error("❌ Error clearing data after logout:", error);
                 window.location.reload();
               }
-            }, 200);
+            }, 100);
             break;
             
           case 'USER_UPDATED':
@@ -4337,11 +4337,6 @@ function Zt(id) {
     }
   }, 50);
 
-  // ➤ MANUAL SAVE TRIGGER: Raw Material deleted
-    console.log("💾 Manual save triggered: Raw Material deleted");
-    ct(); // Trigger cloud save
-    initiateTimedReload(); // Trigger the page reload
-
   Wt("Raw material deleted successfully!", "success");
 }
 
@@ -4809,7 +4804,7 @@ function dn(id) {
   Jt(Vt().filter(item => String(item.id) !== String(id)));
   un(); mn(); In(); // refresh labor cards and selects
   Rn(); // re-attach direct labor select handler if necessary
-  
+
   // Trigger cascade update and manual save
   setTimeout(() => {
     try {
@@ -4825,11 +4820,6 @@ function dn(id) {
       try { if (typeof ct === 'function') ct(); } catch (err) { console.warn("ct() failed:", err); }
     }
   }, 50);
- 
-  // ➤ MANUAL SAVE TRIGGER: Direct Labor deleted
-    console.log("💾 Manual save triggered: Direct Labor deleted");
-    ct(); // Trigger cloud save
-    initiateTimedReload(); // Trigger the page reload
 
   Wt("Direct labor deleted successfully!", "success");
 }
@@ -6193,7 +6183,6 @@ function qn(e, o) {
   // ➤ MANUAL SAVE TRIGGER: Recipe deleted
   console.log("💾 Manual save triggered: Recipe deleted");
   ct(); // Trigger cloud save
-  initiateTimedReload();
     
   Wt("Recipe deleted successfully!", "success");
 }
@@ -7317,21 +7306,6 @@ function openRecipeBuilderModal(reset = true) {
 
   console.log("✅ Recipe builder modal opened with dynamic save buttons");
 }
-
-// Check monetization status
-    if (window.monetization && !window.monetization.isPremium()) {
-        // If user tries to access via other means, ensure sub-recipe is blocked
-        setTimeout(() => {
-            if (window.monetization.blockAllSubRecipeAccess) {
-                window.monetization.blockAllSubRecipeAccess();
-            }
-        }, 100);
-    }
-    
-    // Dispatch event for monetization system
-    document.dispatchEvent(new CustomEvent('modalOpened', {
-        detail: { modalId: 'recipeBuilderModal' }
-    }));
 
 // --- New: silent reset used when there is nothing to lose (no confirm) ---
 function NtSilent() {
@@ -8698,201 +8672,3 @@ function initializeApp() {
   initializeCSVExport();
   
 }
-
-// =============================================================================
-// MONETIZATION INTEGRATION - COMPLETE FIX
-// =============================================================================
-
-// Track when items are actually saved to the database
-function setupMonetizationTracking() {
-    console.log("🔧 Setting up monetization tracking...");
-    
-    // Override save functions to track usage
-    overrideSaveFunctions();
-    
-    // Update counts from existing data
-    updateCountsFromExistingData();
-    
-    // Set up event listeners for real-time tracking
-    setupMonetizationEventListeners();
-}
-
-function overrideSaveFunctions() {
-    // Store original save functions
-    const originalFunctions = {
-        saveRawMaterial: window.saveRawMaterial,
-        saveDirectLabor: window.saveDirectLabor,
-        saveMainRecipe: window.saveMainRecipe,
-        saveSubRecipe: window.saveSubRecipe
-    };
-    
-    // Override saveRawMaterial
-    if (originalFunctions.saveRawMaterial) {
-        window.saveRawMaterial = async function(...args) {
-            const result = await originalFunctions.saveRawMaterial.apply(this, args);
-            
-            // Track usage if successful
-            if (result && result.success && !window.monetization?.isPremium()) {
-                window.monetization?.trackRawMaterialAdded();
-            }
-            
-            return result;
-        };
-    }
-    
-    // Override saveDirectLabor
-    if (originalFunctions.saveDirectLabor) {
-        window.saveDirectLabor = async function(...args) {
-            const result = await originalFunctions.saveDirectLabor.apply(this, args);
-            
-            if (result && result.success && !window.monetization?.isPremium()) {
-                window.monetization?.trackDirectLaborAdded();
-            }
-            
-            return result;
-        };
-    }
-    
-    // Override saveMainRecipe
-    if (originalFunctions.saveMainRecipe) {
-        window.saveMainRecipe = async function(...args) {
-            const result = await originalFunctions.saveMainRecipe.apply(this, args);
-            
-            if (result && result.success && !window.monetization?.isPremium()) {
-                window.monetization?.trackMainRecipeAdded();
-            }
-            
-            return result;
-        };
-    }
-    
-    // Override saveSubRecipe - only track for premium
-    if (originalFunctions.saveSubRecipe) {
-        window.saveSubRecipe = async function(...args) {
-            const result = await originalFunctions.saveSubRecipe.apply(this, args);
-            
-            if (result && result.success && window.monetization?.isPremium()) {
-                window.monetization?.trackSubRecipeAdded();
-            }
-            
-            return result;
-        };
-    }
-}
-
-function updateCountsFromExistingData() {
-    // Get current data from localStorage
-    const userData = window.supabaseClient?.loadFromLocalStorage();
-    
-    if (!userData) return;
-    
-    const counts = {
-        rawMaterials: userData.rawMaterials?.length || 0,
-        directLabor: userData.directLabor?.length || 0,
-        mainRecipes: userData.recipes?.filter(r => r.type !== 'sub-recipe')?.length || 0,
-        subRecipes: userData.recipes?.filter(r => r.type === 'sub-recipe')?.length || 0
-    };
-    
-    // Update monetization system
-    if (window.monetization) {
-        window.monetization.updateUsageCounts(counts);
-    }
-}
-
-function setupMonetizationEventListeners() {
-    // Listen for modal opens to check limits
-    document.addEventListener('modalOpened', function(event) {
-        const modalId = event.detail?.modalId;
-        
-        switch(modalId) {
-            case 'rawMaterialModal':
-                if (!window.monetization?.canAddRawMaterial()) {
-                    window.monetization?.showUpgradeModal('raw_materials');
-                    event.preventDefault();
-                }
-                break;
-                
-            case 'directLaborModal':
-                if (!window.monetization?.canAddDirectLabor()) {
-                    window.monetization?.showUpgradeModal('direct_labor');
-                    event.preventDefault();
-                }
-                break;
-                
-            case 'recipeBuilderModal':
-                if (!window.monetization?.canAddMainRecipe()) {
-                    window.monetization?.showUpgradeModal('main_recipes');
-                    event.preventDefault();
-                }
-                break;
-        }
-    });
-    
-    // Listen for save events
-    document.addEventListener('itemSaved', function(event) {
-        const itemType = event.detail?.itemType;
-        
-        switch(itemType) {
-            case 'rawMaterial':
-                window.monetization?.trackRawMaterialAdded();
-                break;
-                
-            case 'directLabor':
-                window.monetization?.trackDirectLaborAdded();
-                break;
-                
-            case 'mainRecipe':
-                window.monetization?.trackMainRecipeAdded();
-                break;
-                
-            case 'subRecipe':
-                window.monetization?.trackSubRecipeAdded();
-                break;
-        }
-    });
-}
-
-// Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(setupMonetizationTracking, 2000);
-});
-
-// Also initialize when user logs in
-if (window.supabaseClient) {
-    const originalCheckAuthState = window.supabaseClient.checkAuthState;
-    window.supabaseClient.checkAuthState = async function() {
-        const result = await originalCheckAuthState.apply(this, arguments);
-        setTimeout(setupMonetizationTracking, 1000);
-        return result;
-    };
-}
-
-// In script.js (or wherever these functions are defined)
-// We'll need to override or modify the existing functions
-
-// Override openRawMaterialModal
-const originalOpenRawMaterialModal = window.openRawMaterialModal || function() {};
-window.openRawMaterialModal = function() {
-    if (!validateBeforeAddingRawMaterial()) {
-        return false;
-    }
-    return originalOpenRawMaterialModal.apply(this, arguments);
-};
-
-// Override openDirectLaborModal
-const originalOpenDirectLaborModal = window.openDirectLaborModal || function() {};
-window.openDirectLaborModal = function() {
-    if (!validateBeforeAddingDirectLabor()) {
-        return false;
-    }
-    return originalOpenDirectLaborModal.apply(this, arguments);
-};
-
-// Override openRecipeBuilderModal
-const originalOpenRecipeBuilderModal = window.openRecipeBuilderModal || function() {};
-window.openRecipeBuilderModal = function() {
-    if (!validateBeforeAddingMainRecipe()) {
-        return false;
-    }
-    return originalOpenRecipeBuilderModal.apply(this, arguments);
-};

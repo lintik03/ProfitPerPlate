@@ -697,8 +697,6 @@ window.supabaseClient = {
     attemptDataRecovery,
     getDataState: () => window.dataLoadingState,
     isPasswordResetFlow: () => isPasswordResetFlow,
-    updateUserSubscription,
-    getUserUsage,
     // Debug functions
     debugReset: () => {
         console.log('=== DEBUG ===');
@@ -710,75 +708,6 @@ window.supabaseClient = {
         console.log('showResetPasswordModal exists:', typeof window.showResetPasswordModal === 'function');
         console.log('Reset Modal Element:', document.getElementById('resetPasswordModal'));
     }
-    
 };
 
 console.log("✅ NEW Supabase client exported - MANUAL SAVE SYSTEM ENABLED");
-
-// =============================================================================
-// SUBSCRIPTION MANAGEMENT
-// =============================================================================
-
-async function updateUserSubscription(subscriptionData) {
-    if (!supabaseReady || !currentUser) {
-        return { success: false, error: "Not authenticated" };
-    }
-    
-    try {
-        const { data, error } = await supabase
-            .from('user_subscriptions')
-            .upsert({
-                user_id: currentUser.id,
-                ...subscriptionData,
-                updated_at: new Date().toISOString()
-            }, {
-                onConflict: 'user_id'
-            });
-            
-        if (error) throw error;
-        
-        console.log("✅ User subscription updated");
-        return { success: true, data };
-    } catch (error) {
-        console.error("❌ Error updating subscription:", error);
-        return { success: false, error: error.message };
-    }
-}
-
-async function getUserUsage() {
-    if (!supabaseReady || !currentUser) {
-        return { success: false, error: "Not authenticated" };
-    }
-    
-    try {
-        const { data, error } = await supabase
-            .from('user_usage')
-            .select('*')
-            .eq('user_id', currentUser.id)
-            .single();
-            
-        if (error) {
-            if (error.code === 'PGRST116') {
-                // Create default usage record
-                const { data: newData } = await supabase
-                    .from('user_usage')
-                    .insert({
-                        user_id: currentUser.id,
-                        raw_materials_count: 0,
-                        direct_labor_count: 0,
-                        main_recipes_count: 0
-                    })
-                    .select()
-                    .single();
-                    
-                return { success: true, data: newData };
-            }
-            throw error;
-        }
-        
-        return { success: true, data };
-    } catch (error) {
-        console.error("❌ Error getting user usage:", error);
-        return { success: false, error: error.message };
-    }
-}
