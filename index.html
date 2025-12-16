@@ -2105,19 +2105,22 @@
     </div>
 
     <!-- Help modal -->
-    <div id="helpModal" class="modal hidden" role="dialog" aria-modal="true">
-      <div class="modal-content">
-        <h3 id="helpModalTitle">Complete Field Guide — ProfitPerPlate</h3>
-        <div id="helpModalContent">
-          <!-- Content will be populated by JavaScript -->
-        </div>
-        <div style="text-align: right; margin-top: var(--space-md)">
-          <button id="closeHelp" class="modal-close" type="button">
-            Close
-          </button>
-        </div>
-      </div>
+    <div id="helpModal" class="modal hidden">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="helpModalTitle">Complete Field Guide — ProfitPerPlate</h3>
+      <button class="close-btn" onclick="closeHelpModal()">×</button>
     </div>
+    <div id="helpModalContent"></div>
+    <div class="modal-actions">
+      <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px;">
+        <input type="checkbox" id="dontShowAgainCheckbox">
+        <span>Do not show this again</span>
+      </label>
+      <button class="btn-primary" onclick="closeHelpModal()">Close</button>
+    </div>
+  </div>
+</div>
 
     <!-- Unified Edit Prompt Modal -->
     <div id="unifiedEditPromptModal" class="modal hidden">

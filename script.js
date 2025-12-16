@@ -904,6 +904,104 @@ function c() {
 }
 
 // =============================================================================
+// HELP MODAL AUTO-SHOW FUNCTIONALITY
+// =============================================================================
+
+function shouldShowHelpModalOnVisit() {
+    // Check if user opted out
+    const dontShowAgain = localStorage.getItem('profitPerPlate_helpModalDontShowAgain');
+    if (dontShowAgain === 'true') {
+        return false;
+    }
+    
+    // Check if this is a fresh visit (not a reload)
+    const lastVisit = localStorage.getItem('profitPerPlate_helpModalLastVisit');
+    const now = Date.now();
+    const VISIT_INTERVAL = 4 * 60 * 60 * 1000; // 4 hours between "visits"
+    
+    if (!lastVisit || (now - parseInt(lastVisit) > VISIT_INTERVAL)) {
+        // This is considered a new visit
+        localStorage.setItem('profitPerPlate_helpModalLastVisit', now.toString());
+        return true;
+    }
+    
+    return false;
+}
+
+function openHelpModal() {
+    const modal = document.getElementById('helpModal');
+    const title = document.getElementById('helpModalTitle');
+    const content = document.getElementById('helpModalContent');
+    
+    if (!modal || !title || !content) return;
+    
+    // Set title
+    title.textContent = "Complete Field Guide — ProfitPerPlate";
+    
+    // Populate content using existing Xn() function
+    if (typeof Xn === 'function') {
+        content.innerHTML = Xn();
+    }
+    
+    // Set checkbox state from localStorage
+    const checkbox = document.getElementById('dontShowAgainCheckbox');
+    if (checkbox) {
+        checkbox.checked = localStorage.getItem('profitPerPlate_helpModalDontShowAgain') === 'true';
+    }
+    
+    // Show modal
+    modal.classList.remove('hidden');
+}
+
+function closeHelpModal() {
+    const modal = document.getElementById('helpModal');
+    if (!modal) return;
+    
+    // Save checkbox state
+    const checkbox = document.getElementById('dontShowAgainCheckbox');
+    if (checkbox) {
+        localStorage.setItem('profitPerPlate_helpModalDontShowAgain', checkbox.checked.toString());
+    }
+    
+    // Close modal
+    modal.classList.add('hidden');
+}
+
+function setupHelpModalAutoShow() {
+    // Don't show on timed reloads
+    if (window.location.search.includes('timedReload=true')) {
+        return;
+    }
+    
+    // Check if we should show on this visit
+    if (shouldShowHelpModalOnVisit()) {
+        // Delay slightly to let page load
+        setTimeout(() => {
+            openHelpModal();
+        }, 1500);
+    }
+}
+
+// =============================================================================
+// ENHANCED HELP BUTTON CLICK HANDLER
+// =============================================================================
+
+function setupEnhancedHelpButton() {
+    const helpBtn = document.getElementById('helpBtn');
+    if (!helpBtn) return;
+    
+    // Remove any existing listeners and re-add
+    helpBtn.replaceWith(helpBtn.cloneNode(true));
+    const freshHelpBtn = document.getElementById('helpBtn');
+    
+    freshHelpBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        openHelpModal();
+    });
+}
+
+// =============================================================================
 // HELP SYSTEM AND FIELD DEFINITIONS
 // =============================================================================
 
@@ -1998,8 +2096,6 @@ function setupEnhancedAuthStateHandler() {
         switch (event) {
           case 'SIGNED_IN':
             console.log('✅ User signed in:', window.supabaseClient.currentUser?.email);
-            // Unblur UI and allow menu to close
-            unblurUI();
             allowMenuModalClose();
             window.updateAuthUI && window.updateAuthUI();
             
@@ -2021,9 +2117,6 @@ function setupEnhancedAuthStateHandler() {
 
           case 'SIGNED_OUT':
             console.log('🚪 User signed out');
-            // Blur UI and force menu open
-            blurUI();
-            forceMenuModalOpen();
             window.updateAuthUI && window.updateAuthUI();
             
             setTimeout(() => {
@@ -6200,7 +6293,16 @@ function Dn(e) {
 }
 
 function An() {
-  O && O.classList.add("hidden");
+    const modal = document.getElementById('helpModal');
+    if (!modal) return;
+    
+    // Save checkbox state if exists
+    const checkbox = document.getElementById('dontShowAgainCheckbox');
+    if (checkbox) {
+        localStorage.setItem('profitPerPlate_helpModalDontShowAgain', checkbox.checked.toString());
+    }
+    
+    modal.classList.add('hidden');
 }
 
 function Nn() {
@@ -7558,6 +7660,9 @@ async function normalInitialization() {
   try {
 
     initializeEnhancedPWA();
+    // In normalInitialization function, add:
+    setupEnhancedHelpButton();
+    setupHelpModalAutoShow();
 
     !(function () {
       console.log(
@@ -8570,12 +8675,9 @@ function checkInitialAuthState() {
         if (window.supabaseClient && window.supabaseClient.getCurrentUser) {
             const user = window.supabaseClient.getCurrentUser();
             if (!user) {
-                console.log("👤 No user logged in - blurring UI");
-                blurUI();
-                forceMenuModalOpen();
+    console.log("👤 No user logged in - App is open for public/bots");
             } else {
                 console.log("👤 User already logged in:", user.email);
-                unblurUI();
             }
         } else {
             console.warn("⚠️ Supabase not ready yet - will check again");
