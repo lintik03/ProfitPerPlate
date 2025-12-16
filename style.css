@@ -7091,3 +7091,56 @@ body.dark-mode .cookie-option {
     background: var(--surface);
     border-color: var(--border);
 }
+
+/* Ad Space Styles */
+.ad-space {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-md);
+    margin-top: var(--space-xl);
+    margin-bottom: var(--space-xl);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.ad-space h3 {
+    margin-top: 0;
+    margin-bottom: var(--space-md);
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-align: center;
+}
+
+/* Mobile responsive ad adjustments */
+@media (max-width: 768px) {
+    .ad-space {
+        margin: var(--space-lg) var(--space-sm);
+        padding: var(--space-sm);
+    }
+    
+    .adsbygoogle {
+        min-height: 100px !important;
+        max-height: 250px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .ad-space {
+        margin: var(--space-md) 0;
+        border-radius: var(--radius-md);
+    }
+    
+    .adsbygoogle {
+        min-height: 90px !important;
+        max-height: 200px !important;
+    }
+}
+
+/* Print styles - hide ads when printing */
+@media print {
+    .ad-space {
+        display: none !important;
+    }
+}

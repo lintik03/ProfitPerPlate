@@ -2,26 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ProfitPerPlate - Restaurant Costing Tool</title>
-    <link rel="stylesheet" href="style.css" />
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  
-    <!-- Add this inside the <head> section of index.html -->
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#2D5A3D">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="ProfitPerPlate">
-    
-    <!-- Updated SVG icons for iOS -->
-    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='10' stroke='%232E5A35' stroke-width='2.5'/><path d='M6 16L10 11L13.5 14L17.5 8' stroke='%232E5A35' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/><circle cx='17.5' cy='8' r='2' fill='%232E5A35'/></svg>">
-  
-    <!-- Inside <head> section of index.html -->
-    <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" />
     <title>ProfitPerPlate - Restaurant Costing Tool</title>
+    
+    <!-- Google AdSense Verification -->
+    <meta name="google-adsense-account" content="ca-pub-3249174906059582">
+    
+    <!-- Stylesheets -->
     <link rel="stylesheet" href="style.css" />
+    
+    <!-- AdSense Script (Async for performance) -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3249174906059582" crossorigin="anonymous"></script>
+    
+    <!-- Other existing scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <!-- Progressive Web App Configuration -->
@@ -66,6 +59,49 @@
         width: 28px;
         height: 28px;
         margin-right: -2px;
+      }
+
+      /* Ad container styling */
+      .ad-content {
+        min-height: 100px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* Ensure ads don't overflow on mobile */
+      .adsbygoogle {
+        max-width: 100%;
+        overflow: hidden;
+        min-height: 100px;
+      }
+
+      /* Fallback styling */
+      .ad-fallback {
+        text-align: center;
+        padding: var(--space-md);
+        background: var(--bg-secondary);
+        border-radius: var(--radius-md);
+        border: 1px dashed var(--border);
+      }
+
+      /* Hide fallback when ads load successfully */
+      .ad-fallback.hidden {
+        display: none;
+      }
+
+      /* Responsive adjustments for ads */
+      @media (max-width: 768px) {
+        .ad-space {
+          margin-top: var(--space-lg);
+          margin-bottom: var(--space-lg);
+        }
+        
+        .adsbygoogle {
+          min-height: 100px;
+          max-height: 250px;
+        }
       }
     </style>
 
@@ -129,7 +165,6 @@
     transform: translate(-50%, -50%) !important;
 }
 </style>
-
   </head>
 <body>
 
@@ -911,20 +946,28 @@
 
         <!-- FIXED: Ad Space moved inside content-area to prevent sidebar overlap -->
         <aside class="ad-space panel">
-          <h3>Advertisement</h3>
-          <div class="ad-content">
-            <p>Your ad could be here</p>
-            <div
-              style="
-                margin-top: var(--space-md);
-                font-size: 13px;
-                color: var(--text-secondary);
-              "
-            >
-              Advertisement Space - Bottom
-            </div>
-          </div>
-        </aside>
+  <h3>Advertisement</h3>
+  <div class="ad-content">
+    <!-- AdSense Responsive Ad Unit -->
+    <ins class="adsbygoogle"
+         style="display:block"
+         data-ad-client="ca-pub-3249174906059582"
+         data-ad-slot="YOUR_AD_SLOT_ID"
+         data-ad-format="auto"
+         data-full-width-responsive="true"></ins>
+    <script>
+         (adsbygoogle = window.adsbygoogle || []).push({});
+    </script>
+    
+    <!-- Fallback for ad blockers or when ads don't load -->
+    <div class="ad-fallback hidden">
+      <p>Your ad could be here</p>
+      <div style="margin-top: var(--space-md); font-size: 13px; color: var(--text-secondary);">
+        Advertisement Space - Bottom
+      </div>
+    </div>
+  </div>
+</aside>
       </div>
     </div>
 
@@ -2119,7 +2162,8 @@
     <script src="supabase.js"></script>
     <script src="script.js"></script>
     <script src="csvExport.js"></script>
-    <script src="legal-support.js"></script>  
+    <script src="legal-support.js"></script>
+    <script src="ads.js"></script>  
 
   </body>
 </html>
