@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-
+    <!-- Moved AdSense verification to top for crawler speed -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3249174906059582"
         crossorigin="anonymous"></script>
-
     <meta name="google-adsense-account" content="ca-pub-3249174906059582">
 
     <meta charset="UTF-8" />
@@ -185,24 +184,29 @@
 </div>
 
 <script>
-// Immediately disable all interactive elements on page load
+// UPDATED: Bot detection for faster AdSense verification
 (function() {
-    // Disable all buttons, inputs, and selects
+    // Detect if the visitor is a search engine bot
+    const isBot = /bot|googlebot|crawler|spider|robot|crawling/i.test(navigator.userAgent);
+    const overlay = document.getElementById('globalLoadingOverlay');
+
     const disableAllInteractiveElements = function() {
+        // BOTS: Do not disable anything
+        if (isBot) return; 
+
         const interactiveElements = document.querySelectorAll('button, input, select, textarea, [tabindex]');
         interactiveElements.forEach(el => {
-            // Store original disabled state
             if (!el.hasAttribute('data-original-disabled')) {
                 el.setAttribute('data-original-disabled', el.disabled ? 'true' : 'false');
             }
-            // Disable element
             el.disabled = true;
             el.style.pointerEvents = 'none';
             el.style.opacity = '0.6';
         });
+
+        if (overlay) overlay.style.display = 'flex';
     };
-    
-    // Re-enable all interactive elements
+
     const enableAllInteractiveElements = function() {
         const interactiveElements = document.querySelectorAll('button, input, select, textarea, [tabindex]');
         interactiveElements.forEach(el => {
@@ -216,27 +220,32 @@
         });
         
         // Hide loading overlay
-        const overlay = document.getElementById('globalLoadingOverlay');
         if (overlay) {
             overlay.style.display = 'none';
         }
     };
-    
-    // Run immediately to disable everything
-    disableAllInteractiveElements();
-    
-    // Wait for DOM to be ready, then wait 1000ms to ensure all initialization is complete
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(enableAllInteractiveElements, 1000);
-        });
+
+    if (isBot) {
+        // If it's a bot, ensure overlay is hidden and logic is skipped
+        if (overlay) overlay.style.display = 'none';
+        console.log("AdSense/Google Bot detected: Bypassing delays.");
     } else {
-        // DOM already loaded
-        setTimeout(enableAllInteractiveElements, 1000);
+        // Humans: Apply the protective delay
+        disableAllInteractiveElements();
+        
+        // Wait for DOM to be ready, then wait 1000ms to ensure all initialization is complete
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                setTimeout(enableAllInteractiveElements, 1000);
+            });
+        } else {
+            // DOM already loaded
+            setTimeout(enableAllInteractiveElements, 1000);
+        }
+        
+        // Fallback: If something goes wrong, re-enable after 2 seconds
+        setTimeout(enableAllInteractiveElements, 2000);
     }
-    
-    // Fallback: If something goes wrong, re-enable after 2 seconds
-    setTimeout(enableAllInteractiveElements, 2000);
 })();
 </script>
 

@@ -582,96 +582,6 @@ document.addEventListener('DOMContentLoaded', function() {
 // Enable cascade debug logging during development
 window.CASCADE_DEBUG = true;
 
-
-
-// =============================================================================
-// CONTENT GATING - BLUR UI WHEN LOGGED OUT
-// =============================================================================
-
-// Add blur CSS styles
-function addBlurStyles() {
-    if (!document.getElementById('blur-ui-styles')) {
-        const style = document.createElement('style');
-        style.id = 'blur-ui-styles';
-        style.textContent = `
-            .ui-blurred {
-                filter: blur(10px);
-                opacity: 0.4;
-                pointer-events: none;
-                user-select: none;
-            }
-            
-            /* Keep menu modal fully functional */
-            #menuModal {
-                filter: none !important;
-                opacity: 1 !important;
-                pointer-events: auto !important;
-                user-select: auto !important;
-                z-index: 1000 !important;
-            }
-            
-            /* When forced open, prevent any closing */
-            #menuModal.force-open {
-                display: block !important;
-                z-index: 1000 !important;
-            }
-            
-            #menuModal.force-open::before {
-                content: '';
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: rgba(0, 0, 0, 0.5);
-                z-index: -1;
-            }
-            
-            /* Auth modal should always be on top */
-            #authModal {
-                z-index: 10000 !important;
-            }
-            
-            /* Overlay for auth modal - ensures it's above everything */
-            #authModal.modal {
-                z-index: 10000 !important;
-            }
-            
-            /* Make sure auth modal content is above menu modal */
-            #authModal .modal-content {
-                z-index: 10001 !important;
-            }
-        `;
-        document.head.appendChild(style);
-    }
-}
-
-// Allow menu modal to close normally
-function allowMenuModalClose() {
-    const menuModal = document.getElementById('menuModal');
-    if (menuModal) {
-        menuModal.classList.remove('force-open');
-        
-        const closeBtn = menuModal.querySelector('.close-btn');
-        if (closeBtn) {
-            closeBtn.style.display = '';
-        }
-        
-        // Re-enable the menu toggle button
-        const menuToggleBtn = document.getElementById('settingsMenuButton');
-        if (menuToggleBtn) {
-            menuToggleBtn.style.pointerEvents = '';
-            menuToggleBtn.style.opacity = '';
-        }
-        
-        // Remove login required note
-        const note = menuModal.querySelector('.login-required-note');
-        if (note) {
-            note.remove();
-        }
-    }
-}
-
 window.e = {  // Changed 'let e' to 'window.e'
     rawMaterials: [],
     directLabor: [],
@@ -8649,7 +8559,6 @@ function setupMobileNavToggle() {
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
   console.log("🏁 DOM loaded - initializing blur system and mobile nav toggle");
-  addBlurStyles();
   checkInitialAuthState();
   try { setupMobileNavToggle(); } catch (err) { console.warn('Mobile nav toggle init failed:', err); }
 });
