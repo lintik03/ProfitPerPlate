@@ -6,7 +6,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // SIMPLIFIED APPROACH: Clean reset with basic error handling
 // =============================================================================
 
-let supabase;
+// CHANGED: Renamed from 'supabase' to 'pppClient' to avoid conflict
+let pppClient;
 let supabaseReady = false;
 let currentUser = null;
 let isPasswordResetFlow = false;
@@ -24,12 +25,12 @@ window.dataLoadingState = {
     try {
         if (!window.supabase) {
             console.warn("Supabase script not available");
-            supabase = createFallbackClient();
+            pppClient = createFallbackClient();
             supabaseReady = false;
             return;
         }
         
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        pppClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         supabaseReady = true;
         
         // 🟢 FIX: Set up the listener immediately after Supabase is ready
@@ -38,7 +39,7 @@ window.dataLoadingState = {
         console.log("✅ NEW Supabase client initialized successfully");
     } catch (error) {
         console.error("❌ Failed to initialize Supabase client:", error);
-        supabase = createFallbackClient();
+        pppClient = createFallbackClient();
         supabaseReady = false;
     }
 })();
@@ -162,7 +163,7 @@ async function saveToCloud(payload) {
     
     try {
         console.log("💾 MANUAL CLOUD SAVE: Starting cloud save operation...");
-        const { data, error } = await supabase
+        const { data, error } = await pppClient
             .from('user_data')
             .upsert({
                 user_id: currentUser.id,
@@ -202,7 +203,7 @@ async function syncFromCloud() {
     
     try {
         console.log("🔄 MANUAL CLOUD SYNC: Triggering cloud sync...");
-        const { data, error } = await supabase
+        const { data, error } = await pppClient
             .from('user_data')
             .select('data, data_version, updated_at') // CHANGED: dataVersion → data_version
             .eq('user_id', currentUser.id)
@@ -364,7 +365,7 @@ async function signUp(email, password) {
     }
     
     try {
-        const { data, error } = await supabase.auth.signUp({
+        const { data, error } = await pppClient.auth.signUp({
             email: email,
             password: password,
             options: { emailRedirectTo: window.location.origin }
@@ -383,7 +384,7 @@ async function signIn(email, password) {
     }
     
     try {
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await pppClient.auth.signInWithPassword({
             email: email,
             password: password,
         });
@@ -402,7 +403,7 @@ async function signOut() {
     
     try {
         console.log("🚪 Logging out...");
-        const { error } = await supabase.auth.signOut();
+        const { error } = await pppClient.auth.signOut();
         if (error) throw error;
         return { success: true };
     } catch (error) {
@@ -416,7 +417,7 @@ async function resetPassword(email) {
     }
     
     try {
-        const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+        const { data, error } = await pppClient.auth.resetPasswordForEmail(email, {
             redirectTo: window.location.origin,
         });
         
@@ -442,7 +443,7 @@ async function checkAuthState() {
     }
     
     try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await pppClient.auth.getSession();
         currentUser = session?.user || null;
         
         console.log("✅ Auth state:", currentUser ? `Logged in as ${currentUser.email}` : "Not logged in");
@@ -481,7 +482,7 @@ function setupAuthStateListener() {
     
     console.log("🎧 Setting up auth state listener...");
     
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = pppClient.auth.onAuthStateChange(async (event, session) => {
         console.log("🔄 Auth state changed:", event, session);
         
         currentUser = session?.user || null;
@@ -674,11 +675,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // =============================================================================
-// EXPORT
+// EXPORT - FIXED: Keep export key as 'supabase' for compatibility
 // =============================================================================
 
 window.supabaseClient = {
-    supabase,
+    // FIX: Export renamed variable but keep key name for compatibility
+    supabase: pppClient,
     signUp,
     signIn,
     signOut,

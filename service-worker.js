@@ -34,8 +34,11 @@ self.addEventListener('install', event => {
 
 // Enhanced fetch event with network-first strategy for API calls
 self.addEventListener('fetch', event => {
-  // Skip non-GET requests
+  // FIX: Skip non-GET requests AND non-HTTP/HTTPS protocols
   if (event.request.method !== 'GET') return;
+  
+  // FIX: Add protocol check to prevent caching extension URLs
+  if (!(event.request.url.indexOf('http') === 0)) return;
 
   // For API calls, use network-first strategy
   if (event.request.url.includes('/api/') || 
