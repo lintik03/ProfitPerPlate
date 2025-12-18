@@ -1,4 +1,36 @@
 // =============================================================================
+// DOMAIN REDIRECT - Add at the VERY TOP of supabase.js
+// =============================================================================
+
+(function redirectNonCanonicalDomain() {
+  // Current domain
+  const currentDomain = window.location.hostname;
+  const canonicalDomain = 'profitperplate.com';
+  
+  // Skip if already on canonical domain
+  if (currentDomain === canonicalDomain || currentDomain === 'www.' + canonicalDomain) {
+    return;
+  }
+  
+  // Redirect .pages.dev and any other variants
+  if (currentDomain.includes('profitperplate')) {
+    console.log(`🔄 Redirecting from ${currentDomain} to ${canonicalDomain}`);
+    
+    // Build new URL
+    const url = new URL(window.location.href);
+    url.hostname = canonicalDomain;
+    
+    // Don't redirect if we're in a password reset flow (check URL for tokens)
+    const hasResetToken = url.search.includes('access_token') || 
+                         url.hash.includes('access_token');
+    
+    if (!hasResetToken) {
+      window.location.replace(url.toString());
+    }
+  }
+})();
+
+// =============================================================================
 // ENVIRONMENT-AWARE SUPABASE CONFIGURATION
 // =============================================================================
 
@@ -976,3 +1008,32 @@ window.supabaseClient = {
 
 console.log("✅ Enhanced Supabase client loaded for:", CURRENT_HOSTNAME);
 console.log("🔧 Debug available: window.supabaseClient.debugCORS()");
+
+// Add domain migration helper at the top
+(function migrateDomainData() {
+    const currentDomain = window.location.hostname;
+    const lastDomain = localStorage.getItem('ppp_last_domain');
+    
+    // If user switched from .pages.dev to .com
+    if (lastDomain === 'profitperplate.pages.dev' && currentDomain === 'profitperplate.com') {
+        console.log('🔄 Migrating Supabase data from .pages.dev to .com');
+        
+        // Copy Supabase auth data
+        const keys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key.includes('supabase') || key.includes('auth')) {
+                keys.push(key);
+            }
+        }
+        
+        keys.forEach(oldKey => {
+            const newKey = oldKey.replace('profitperplate-pages-dev', 'profitperplate-com');
+            const value = localStorage.getItem(oldKey);
+            localStorage.setItem(newKey, value);
+            console.log(`📋 Copied: ${oldKey} → ${newKey}`);
+        });
+    }
+    
+    localStorage.setItem('ppp_last_domain', currentDomain);
+})();

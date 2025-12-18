@@ -166,6 +166,17 @@
 }
 </style>
 
+<script>
+// Redirect profitperplate.pages.dev to profitperplate.com
+if (window.location.hostname === 'profitperplate.pages.dev') {
+  const newUrl = 'https://profitperplate.com' + 
+                window.location.pathname + 
+                window.location.search + 
+                window.location.hash;
+  window.location.replace(newUrl);
+}
+</script>
+
   </head>
 <body>
 
