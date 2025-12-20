@@ -1,91 +1,2219 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <!-- Moved AdSense verification to top for crawler speed -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3249174906059582"
+        crossorigin="anonymous"></script>
+    <meta name="google-adsense-account" content="ca-pub-3249174906059582">
+
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ProfitPerPlate - Under Construction</title>
-    <!-- Load Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" />
+    <title>ProfitPerPlate - Restaurant Costing Tool</title>
+    <meta name="description" content="ProfitPerPlate is a free, web-based restaurant costing tool that helps food businesses calculate recipe costs, manage raw materials, and optimize pricing for profitability." />
+    
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="style.css" />
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <!-- Progressive Web App Configuration -->
+    <link rel="manifest" href="/manifest.json" crossorigin="use-credentials">
+    <meta name="theme-color" content="#2D5A3D">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <!-- iOS Specific Configuration -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ProfitPerPlate">
+    
+    <!-- Updated SVG icons for various iOS sizes -->
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='192' height='192'><circle cx='12' cy='12' r='10' stroke='%232E5A35' stroke-width='2.5'/><path d='M6 16L10 11L13.5 14L17.5 8' stroke='%232E5A35' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/><circle cx='17.5' cy='8' r='2' fill='%232E5A35'/></svg>">
+    <link rel="apple-touch-icon" sizes="152x152" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='152' height='152'><circle cx='12' cy='12' r='10' stroke='%232E5A35' stroke-width='2.5'/><path d='M6 16L10 11L13.5 14L17.5 8' stroke='%232E5A35' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/><circle cx='17.5' cy='8' r='2' fill='%232E5A35'/></svg>">
+    <link rel="apple-touch-icon" sizes="180x180" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='180' height='180'><circle cx='12' cy='12' r='10' stroke='%232E5A35' stroke-width='2.5'/><path d='M6 16L10 11L13.5 14L17.5 8' stroke='%232E5A35' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/><circle cx='17.5' cy='8' r='2' fill='%232E5A35'/></svg>">
+    <link rel="apple-touch-icon" sizes="167x167" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='167' height='167'><circle cx='12' cy='12' r='10' stroke='%232E5A35' stroke-width='2.5'/><path d='M6 16L10 11L13.5 14L17.5 8' stroke='%232E5A35' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/><circle cx='17.5' cy='8' r='2' fill='%232E5A35'/></svg>">
+
+    <!-- iOS Splash Screen (simplified) -->
+    <link rel="apple-touch-startup-image" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='512' height='512'><circle cx='12' cy='12' r='10' stroke='%232E5A35' stroke-width='2.5'/><path d='M6 16L10 11L13.5 14L17.5 8' stroke='%232E5A35' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/><circle cx='17.5' cy='8' r='2' fill='%232E5A35'/></svg>">
+
+    <!-- Windows/Edge Configuration -->
+    <meta name="msapplication-TileColor" content="#2D5A3D">
+    <meta name="msapplication-TileImage" content="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='192' height='192'><circle cx='12' cy='12' r='10' stroke='%232E5A35' stroke-width='2.5'/><path d='M6 16L10 11L13.5 14L17.5 8' stroke='%232E5A35' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/><circle cx='17.5' cy='8' r='2' fill='%232E5A35'/></svg>">
+    <meta name="msapplication-config" content="none">
+
+    <!-- Android Orientation Fix -->
+    <meta name="screen-orientation" content="any">
+
+    <!-- Prevents phone number detection on mobile -->
+    <meta name="format-detection" content="telephone=no">
+  
+    <!-- Add CSS for SVG logo sizing -->
     <style>
-      /* Define custom color using your specific brand variable */
-      :root {
-        --profit-green: #2D5A3D; /* Your brand primary color */
+      .logo {
+        width: 30px;
+        height: 30px;
+        flex-shrink: 0;
       }
-      /* Ensure the page takes full viewport height and uses a pleasant font */
-      body {
-        font-family: "Inter", sans-serif;
+      
+      .brand-row .logo {
+        width: 28px;
+        height: 28px;
+        margin-right: -2px;
+      }
+
+      /* Ad container styling */
+      .ad-content {
+        min-height: 100px;
         display: flex;
-        justify-content: center;
+        flex-direction: column;
         align-items: center;
-        min-height: 100vh;
-        margin: 0;
-        /* Dark mode background: Tailwind gray-900 */
-        background-color: #111827; 
+        justify-content: center;
       }
-      /* Custom utility for the wrench icon, using the specific brand green */
-      .wrench-icon {
-        animation: spin 3s linear infinite;
-        color: var(--profit-green); 
+
+      /* Ensure ads don't overflow on mobile */
+      .adsbygoogle {
+        max-width: 100%;
+        overflow: hidden;
+        min-height: 100px;
       }
-      /* Apply the custom color to Tailwind utility classes where necessary */
-      .border-profit-green {
-        border-color: var(--profit-green);
+
+      /* Fallback styling */
+      .ad-fallback {
+        text-align: center;
+        padding: var(--space-md);
+        background: var(--bg-secondary);
+        border-radius: var(--radius-md);
+        border: 1px dashed var(--border);
       }
-      .text-profit-green {
-        color: var(--profit-green);
+
+      /* Hide fallback when ads load successfully */
+      .ad-fallback.hidden {
+        display: none;
       }
-      .bg-profit-green-subtle {
-        background-color: rgba(45, 90, 61, 0.2); /* Semi-transparent background using brand color */
-      }
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+
+      /* Responsive adjustments for ads */
+      @media (max-width: 768px) {
+        .ad-space {
+          margin-top: var(--space-lg);
+          margin-bottom: var(--space-lg);
+        }
+        
+        .adsbygoogle {
+          min-height: 100px;
+          max-height: 250px;
+        }
       }
     </style>
+
+    <style>
+/* Enhanced button structure for consistent styling */
+.add-btn,
+.btn-primary,
+.btn-secondary,
+.print-btn,
+.csv-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+.add-btn .button-content,
+.btn-primary .button-content,
+.btn-secondary .button-content {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+
+/* Standard button icon size */
+.button-icon {
+    width: 18px !important;
+    height: 18px !important;
+    flex-shrink: 0 !important;
+}
+
+/* Ensure consistent button heights */
+#createNewRecipeBtn,
+[data-role="add-raw-material"],
+[data-role="add-direct-labor"],
+#printBtn,
+#exportCsvBtn {
+    height: 44px !important;
+    min-height: 44px !important;
+    line-height: 1 !important;
+}
+
+/* Premium feature indicators */
+.feature-disabled .button-icon {
+    opacity: 0.6 !important;
+    filter: grayscale(1) !important;
+}
+
+/* Loading state for all buttons */
+.button-loading .button-icon,
+.button-loading .button-text {
+    visibility: hidden !important;
+}
+
+.button-loading::after {
+    position: absolute !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
+}
+</style>
+
+<script>
+// Redirect profitperplate.pages.dev to profitperplate.com
+if (window.location.hostname === 'profitperplate.pages.dev') {
+  const newUrl = 'https://profitperplate.com' + 
+                window.location.pathname + 
+                window.location.search + 
+                window.location.hash;
+  window.location.replace(newUrl);
+}
+</script>
+
   </head>
-  <body>
-    <!-- Main Content Container: Tailwind gray-800 -->
-    <div class="max-w-4xl w-full mx-4 p-8 bg-gray-800 shadow-xl rounded-xl text-center border-t-4 border-profit-green transition duration-500 ease-in-out transform hover:shadow-2xl hover:scale-[1.01]">
-      
-      <!-- Logo/Brand Section - Tailored to "ProfitPerPlate" -->
-      <div class="mb-10 p-3">
-        <h2 class="text-4xl font-black text-profit-green leading-none">
-          ProfitPerPlate
-        </h2>
-        <p class="text-lg font-light text-gray-400 mt-1 italic">
-          Know your profit in every plate
-        </p>
-      </div>
+<body>
 
-      <!-- Icon/Symbol -->
-      <div class="mb-6">
-        <!-- Using inline SVG for a prominent, animated icon, now using brand color -->
-        <svg class="w-20 h-20 mx-auto wrench-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-        </svg>
-      </div>
-
-      <!-- Main Heading - Contextualized -->
-      <h1 class="text-5xl font-extrabold text-white mb-4 tracking-tight sm:text-6xl">
-        Remodeling in Progress
-      </h1>
-
-      <!-- Core Message - Contextualized -->
-      <p class="text-lg text-gray-300 mb-6">
-        Thank you for visiting ProfitPerPlate. We're currently updating our costing tool to serve you better.
-      </p>
-
-      <!-- Patience Message (Updated for Brand Color Accent) -->
-      <p class="text-3xl font-semibold text-white mb-8 p-3 bg-profit-green-subtle rounded-lg shadow-inner border border-profit-green">
-        Thank you for your patience!
-      </p>
-
-      <!-- Expected Availability -->
-      <div class="text-gray-400 text-sm">
-        <p>Our costing tool will be back online soon with enhanced features and reports.</p>
-        <p class="mt-2 text-xs">           <a href="mailto:support@profitperplate.com" class="text-blue-400 hover:text-blue-300 font-medium">                  </a></p>
-      </div>
-
+    <!-- Global Loading Overlay -->
+<div id="globalLoadingOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-primary); z-index: 999999; display: flex; justify-content: center; align-items: center; flex-direction: column;">
+    <div style="margin-bottom: 20px; font-size: 1.5rem; color: var(--text-primary);">
+        Loading ProfitPerPlate...
     </div>
+    <div class="spinner" style="width: 40px; height: 40px; border: 4px solid var(--border); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+    <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</div>
+
+<script>
+// UPDATED: Bot detection for faster AdSense verification
+(function() {
+    // Detect if the visitor is a search engine bot
+    const isBot = /bot|googlebot|crawler|spider|robot|crawling/i.test(navigator.userAgent);
+    const overlay = document.getElementById('globalLoadingOverlay');
+
+    const disableAllInteractiveElements = function() {
+        // BOTS: Do not disable anything
+        if (isBot) return; 
+
+        const interactiveElements = document.querySelectorAll('button, input, select, textarea, [tabindex]');
+        interactiveElements.forEach(el => {
+            if (!el.hasAttribute('data-original-disabled')) {
+                el.setAttribute('data-original-disabled', el.disabled ? 'true' : 'false');
+            }
+            el.disabled = true;
+            el.style.pointerEvents = 'none';
+            el.style.opacity = '0.6';
+        });
+
+        if (overlay) overlay.style.display = 'flex';
+    };
+
+    const enableAllInteractiveElements = function() {
+        const interactiveElements = document.querySelectorAll('button, input, select, textarea, [tabindex]');
+        interactiveElements.forEach(el => {
+            const wasOriginallyDisabled = el.getAttribute('data-original-disabled') === 'true';
+            if (!wasOriginallyDisabled) {
+                el.disabled = false;
+                el.style.pointerEvents = '';
+                el.style.opacity = '';
+            }
+            el.removeAttribute('data-original-disabled');
+        });
+        
+        // Hide loading overlay
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+    };
+
+    if (isBot) {
+        // If it's a bot, ensure overlay is hidden and logic is skipped
+        if (overlay) overlay.style.display = 'none';
+        console.log("AdSense/Google Bot detected: Bypassing delays.");
+    } else {
+        // Humans: Apply the protective delay
+        disableAllInteractiveElements();
+        
+        // Wait for DOM to be ready, then wait 1000ms to ensure all initialization is complete
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                setTimeout(enableAllInteractiveElements, 1000);
+            });
+        } else {
+            // DOM already loaded
+            setTimeout(enableAllInteractiveElements, 1000);
+        }
+        
+        // Fallback: If something goes wrong, re-enable after 2 seconds
+        setTimeout(enableAllInteractiveElements, 2000);
+    }
+})();
+</script>
+
+    <header class="header">
+      <div class="header-top">
+        <div class="left-group">
+  <div class="brand-container">
+    <div class="brand-row">
+      <svg class="logo" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="ProfitPerPlate Logo">
+        <circle cx="12" cy="12" r="10" stroke="#2E5A35" stroke-width="2.5" />
+        <path d="M6 16L10 11L13.5 14L17.5 8" stroke="#2E5A35" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="17.5" cy="8" r="2" fill="#2E5A35"/>
+      </svg>
+      <span class="name">ProfitPerPlate</span>
+    </div>
+  </div>
+</div>
+
+        <div class="right-group">
+          <!-- Dark Mode Toggle -->
+          <div class="header-item">
+            <button
+              id="darkModeToggle"
+              class="header-icon-btn"
+              aria-label="Toggle dark mode"
+              type="button"
+              data-role="toggle-theme"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"
+                ></path>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Currency Selector -->
+          <div class="header-item">
+            <select
+              id="currencySelect"
+              class="select-input small header-select"
+              data-role="currency-select"
+            >
+              <option value="₱">₱ PHP</option>
+              <option value="$">$ USD</option>
+              <option value="¥">¥ JPY</option>
+              <option value="₩">₩ KRW</option>
+              <option value="元">元 CNY</option>
+              <option value="HK$">HK$ HKD</option>
+              <option value="B$">B$ BND</option>
+              <option value="៛">៛ KHR</option>
+              <option value="฿">฿ THB</option>
+              <option value="S$">S$ SGD</option>
+              <option value="₭">₭ LAK</option>
+              <option value="RM">RM MYR</option>
+              <option value="₫">₫ VND</option>
+              <option value="NT$">NT$ TWD</option>
+              <option value="€">€ EUR</option>
+              <option value="£">£ GBP</option>
+              <option value="₹">₹ INR</option>
+              <option value="MX$">MX$	MXN</option>
+              <option value="₽">₽ RUB</option>
+              <option value="₴">₴ UAH</option>
+              <option value="R$">R$ BRL</option>
+              <option value="₮">₮ MNT</option>
+              <option value="₵">₵ GHS</option>
+              <option value="zł">zł PLN</option>
+              <option value="₫">₫ VND</option>
+            </select>
+          </div>
+
+          <!-- Help Button -->
+          <div class="header-item">
+            <button
+              id="helpBtn"
+              class="header-icon-btn"
+              aria-label="Help"
+              type="button"
+              data-role="open-help"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                <line x1="12" y1="17" x2="12" y2="17"></line>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Auth Section -->
+          <div class="header-item auth-section">
+            <div id="authButtons" class="auth-buttons">
+              <button
+                id="loginBtn"
+                class="header-icon-btn"
+                aria-label="Login"
+                type="button"
+                data-role="open-login"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                  <polyline points="10 17 15 12 10 7"></polyline>
+                  <line x1="15" y1="12" x2="3" y2="12"></line>
+                </svg>
+              </button>
+              <button
+                id="signupBtn"
+                class="header-icon-btn"
+                aria-label="Sign Up"
+                type="button"
+                data-role="open-signup"
+                style="margin-left: var(--space-xs)"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="8.5" cy="7" r="4"></circle>
+                  <line x1="20" y1="8" x2="20" y2="14"></line>
+                  <line x1="23" y1="11" x2="17" y2="11"></line>
+                </svg>
+              </button>
+            </div>
+            <div id="userInfo" class="user-info hidden">
+              <span id="userEmail" class="user-email"></span>
+              <button
+                id="logoutBtn"
+                class="header-icon-btn"
+                aria-label="Logout"
+                type="button"
+                data-role="logout"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                  <polyline points="16 17 21 12 16 7"></polyline>
+                  <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <!-- Navigation Toggle Button for Mobile -->
+          <div class="header-item">
+            <button
+              id="mobileNavToggle"
+              class="header-icon-btn"
+              aria-label="Toggle navigation tabs"
+              type="button"
+              aria-expanded="false"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" id="navToggleIcon">
+                <path d="M6 9l6 6 6-6"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- MENU BUTTON (single canonical instance) -->
+          <div class="header-item settings-menu">
+            <button
+              id="settingsMenuButton"
+              class="header-icon-btn menu-toggle"
+              aria-label="Menu"
+              type="button"
+              title="Menu"
+            >
+              <!-- Minimalist burger icon -->
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile Navigation -->
+      <nav class="tabs mobile-tabs" role="navigation" aria-label="Primary">
+        <button class="tab-btn active" data-tab="raw-materials" type="button">
+          Raw Materials
+        </button>
+        <button class="tab-btn" data-tab="recipes" type="button">
+          Recipes
+        </button>
+        <button class="tab-btn" data-tab="summary" type="button">
+          Summary
+        </button>
+      </nav>
+    </header>
+
+    <!-- Desktop Sidebar Navigation -->
+    <aside class="sidebar">
+      <nav class="sidebar-nav">
+        <button
+          class="sidebar-btn active"
+          data-tab="raw-materials"
+          type="button"
+          data-role="tab-raw"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
+            ></path>
+          </svg>
+          <span>Raw Materials</span>
+        </button>
+        <button
+          class="sidebar-btn"
+          data-tab="recipes"
+          type="button"
+          data-role="tab-recipes"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+            ></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+          <span>Recipe Calculator</span>
+        </button>
+        <button
+          class="sidebar-btn"
+          data-tab="summary"
+          type="button"
+          data-role="tab-summary"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
+            ></path>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+          </svg>
+          <span>Summary</span>
+        </button>
+      </nav>
+    </aside>
+
+    <div class="app-layout">
+      <!-- Main content area -->
+      <div class="content-area">
+        <!-- RAW MATERIALS AND DIRECT LABOR TAB - UPDATED TO TWO-COLUMN LAYOUT -->
+        <section id="raw-materials-tab" class="tab-content active panel">
+          <div class="two-column-layout">
+            <!-- Column 1: Master Raw Materials List -->
+            <div class="column">
+              <div class="section-header">
+                <h2>Master Raw Material List</h2>
+                <button class="add-btn" onclick="openRawMaterialModal()" type="button" data-role="add-raw-material">
+    <span class="button-content">
+        <span class="button-text">Add Raw Material</span>
+        <span class="button-count"></span>
+    </span>
+</button>
+              </div>
+
+              <div class="search-container">
+                <input
+                  type="text"
+                  id="rawMaterialSearch"
+                  placeholder="🔍 Search raw materials..."
+                  class="search-input"
+                  oninput="renderRawMaterials()"
+                />
+              </div>
+
+              <div class="cards-container" id="rawMaterialsCards" role="list" aria-label="Master raw material list">
+                <!-- Raw materials cards will be populated here -->
+              </div>
+
+              <div class="tip-message">
+                💡 TIP: Don't forget to list packaging needs, like boxes or cups, if your recipe requires them.
+              </div>
+            </div>
+            
+            <!-- Column 2: Direct Labor List -->
+            <div class="column">
+              <div class="section-header">
+                <h2>Direct Labor List</h2>
+              <button class="add-btn" onclick="openDirectLaborModal()" type="button" data-role="add-direct-labor">
+                <span class="button-content">
+                    <span class="button-text">Add Direct Labor</span>
+                    <span class="button-count"></span>
+                </span>
+              </button>
+              </div>
+
+              <div class="search-container">
+                <input
+                  type="text"
+                  id="directLaborSearch"
+                  placeholder="🔍 Search direct labor..."
+                  class="search-input"
+                  oninput="renderDirectLabor()"
+                />
+              </div>
+
+              <div class="cards-container" id="directLaborCards" role="list" aria-label="Direct labor list">
+                <!-- Direct labor cards will be populated here -->
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- RECIPES TAB - UPDATED TO MODAL-BASED INTERFACE -->
+        <section id="recipes-tab" class="tab-content panel">
+          <div class="recipe-list" id="recipeListSection">
+            <!-- Create New Recipe Button -->
+            <div class="create-recipe-section">
+              <button id="createNewRecipeBtn" class="add-btn large" type="button">
+    <span class="button-content">
+        <span class="button-icon">🍳</span>
+        <span class="button-text">Create New Recipe</span>
+        <span class="button-count"></span>
+    </span>
+</button>
+              <p class="helper-text">Build and calculate costs for new recipes</p>
+            </div>
+
+            <!-- "Saved Recipes" Label -->
+            <h3 class="saved-recipes-heading">Saved Recipes</h3>
+
+            <!-- Recipe columns for main and sub-recipes -->
+            <div class="recipe-columns">
+              <div class="recipe-column">
+                <h4>Main Recipes</h4>
+                <div id="mainRecipesList">
+                  <!-- Main recipes will be populated here -->
+                </div>
+              </div>
+              <div class="recipe-column">
+                <h4>Sub-Recipes</h4>
+                <div id="subRecipesList">
+                  <!-- Sub-recipes will be populated here -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SUMMARY TAB -->
+        <section id="summary-tab" class="tab-content panel">
+          <h2>Summary</h2>
+
+          <!-- Information Panel about Serving Scale -->
+          <div
+            class="info-panel"
+            style="
+              background: var(--primary-light);
+              border: 1px solid var(--primary);
+              border-radius: var(--radius-md);
+              padding: var(--space-md);
+              margin-bottom: var(--space-lg);
+            "
+          >
+            <h4 style="margin: 0 0 var(--space-sm) 0; color: var(--primary)">
+              About Summary
+            </h4>
+            <p style="margin: 0; font-size: 13px; color: var(--text-primary)">
+              <strong>The Summary tab</strong>  lets you load any saved recipe
+              and instantly see a scaled breakdown of raw materials and direct labor costs. 
+              Adjust Serving Scale, markup, and tax to preview cost/serving, selling price, 
+              and gross profit — changes here won't modify your saved recipes.
+            </p>
+          </div>
+
+          <!-- Recipe Loader Section -->
+          <div class="summary-recipe-selector">
+            <h3>Recipe Analysis</h3>
+            <div class="load-recipe-controls">
+              <select id="summaryRecipeSelect" class="select-input">
+                <option value="">Select a recipe to analyze...</option>
+              </select>
+              <button
+                onclick="loadRecipeForSummary()"
+                class="btn-primary"
+                type="button"
+                data-role="load-recipe-summary"
+              >
+                Load Recipe
+              </button>
+            </div>
+            <div id="loadedRecipeDisplay" class="loaded-recipe-info hidden">
+              <h4>
+                Currently Analyzing: <span id="currentRecipeNameDisplay"></span>
+              </h4>
+              <div class="recipe-meta">
+                <p>
+                  <strong>Total Cost:</strong>
+                  <span id="loadedRecipeTotalCost"></span>
+                </p>
+                <p>
+                  <strong>Servings:</strong>
+                  <span id="loadedRecipeServings"></span>
+                </p>
+                <p>
+                  <strong>Items:</strong>
+                  <span id="loadedRecipeItemCount"></span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cost Breakdown Preview -->
+          <div class="cost-breakdown-preview">
+            <div class="breakdown-section">
+              <div class="breakdown-header" data-section="rawMaterials">
+                <h3>
+                  <span>▾</span>
+                  Raw Materials
+                  <span class="breakdown-count" id="rawMaterialsCount"
+                    >0 items</span
+                  >
+                </h3>
+                <span class="breakdown-total" id="rawMaterialsPreviewTotal"
+                  >₱0.00</span
+                >
+              </div>
+              <div class="breakdown-content" id="rawMaterialsPreview">
+                <div class="table-container">
+                  <table class="breakdown-table">
+                    <thead>
+                      <tr>
+                        <th>Raw Material</th>
+                        <th>          </th>
+                        <th>Qty</th>
+                        <th>Unit Cost</th>
+                        <th>Total Cost</th>
+                      </tr>
+                    </thead>
+                    <tbody id="rawMaterialsPreviewBody">
+                      <!-- Raw materials will be populated here -->
+                    </tbody>
+                    <tfoot>
+                      <tr class="breakdown-subtotal">
+                        <td colspan="4">Raw Materials Subtotal</td>
+                        <td id="rawMaterialsPreviewSubtotal">₱0.00</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div class="breakdown-section">
+              <div class="breakdown-header" data-section="directLabor">
+                <h3>
+                  <span>▾</span>
+                  Direct Labor
+                  <span class="breakdown-count" id="directLaborCount"
+                    >0 items</span
+                  >
+                </h3>
+                <span class="breakdown-total" id="directLaborPreviewTotal"
+                  >₱0.00</span
+                >
+              </div>
+              <div class="breakdown-content" id="directLaborPreview">
+                <div class="table-container">
+                  <table class="breakdown-table">
+                    <thead>
+                      <tr>
+                        <th>Labor Item</th>
+                        <th>Time Required</th>
+                        <th>Rate</th>
+                        <th>Total Cost</th>
+                      </tr>
+                    </thead>
+                    <tbody id="directLaborPreviewBody">
+                      <!-- Direct labor items will be populated here -->
+                    </tbody>
+                    <tfoot>
+                      <tr class="breakdown-subtotal">
+                        <td colspan="3">Direct Labor Subtotal</td>
+                        <td id="directLaborPreviewSubtotal">₱0.00</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- FIXED: Updated Summary Controls with Grid Layout -->
+          <div class="summary-controls-grid">
+            <!-- Serving Scale Section - Now using same structure as others -->
+            <div class="summary-control-item serving-scale-highlight">
+              <label class="control-label">
+                <span class="label-text"
+                  >Serving Scale (Summary Analysis Only)</span
+                >
+                <button
+                  type="button"
+                  class="field-help"
+                  onclick="showFieldHelp('servingScale', event)"
+                >
+                  ?
+                </button>
+              </label>
+              <div class="input-with-suffix">
+                <input
+                  id="servingScale"
+                  type="number"
+                  value="1"
+                  min="1"
+                  step="1"
+                  title="Scales costs for analysis in Summary tab only - Does not affect saved recipes"
+                />
+                <span class="suffix">servings</span>
+              </div>
+              <small class="helper-text"
+                >ⓘ Affects this tab only - Recipe saves use base costs</small
+              >
+            </div>
+
+            <!-- Markup Control - Consistent structure -->
+            <div class="summary-control-item">
+              <label class="control-label">
+                <span class="label-text">Mark-up %</span>
+                <button
+                  type="button"
+                  class="field-help"
+                  onclick="showFieldHelp('markup', event)"
+                >
+                  ?
+                </button>
+              </label>
+              <div class="input-with-suffix">
+                <input id="markup" type="number" value="40" />
+                <span class="suffix">%</span>
+              </div>
+            </div>
+
+            <!-- Regular Tax Control - Consistent structure -->
+            <div class="summary-control-item">
+              <label class="control-label">
+                <span class="label-text">Regular Tax %</span>
+                <button
+                  type="button"
+                  class="field-help"
+                  onclick="showFieldHelp('tax', event)"
+                >
+                  ?
+                </button>
+              </label>
+              <div class="input-with-suffix">
+                <input id="tax" type="number" value="0" />
+                <span class="suffix">%</span>
+              </div>
+            </div>
+
+            <!-- VAT Control - Consistent structure -->
+            <div class="summary-control-item">
+              <label class="control-label">
+                <span class="label-text">VAT %</span>
+                <button
+                  type="button"
+                  class="field-help"
+                  onclick="showFieldHelp('vat', event)"
+                >
+                  ?
+                </button>
+              </label>
+              <div class="input-with-suffix">
+                <input id="vat" type="number" value="0" />
+                <span class="suffix">%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="summary-grid">
+            <div class="summary-item">
+              <label>Raw Materials Cost:</label
+              ><span id="summaryRawMaterialsCost">₱0.00</span>
+            </div>
+            <div class="summary-item">
+              <label>Direct Labor Cost:</label
+              ><span id="summaryDirectLaborCost">₱0.00</span>
+            </div>
+            <div
+              class="summary-item"
+            >
+              <label>Total Cost:</label><span id="summaryTotalCost">₱0.00</span>
+            </div>
+
+            <!-- Servings Display -->
+            <div
+              class="summary-item"
+              title="Base servings × Serving scale"
+            >
+              <label>Total Servings:</label
+              ><span id="summaryServingsDisplay">1</span>
+            </div>
+
+            <div class="summary-item">
+              <label>Cost/Serving (Before Tax):</label
+              ><span id="summaryCostServing">₱0.00</span>
+            </div>
+            <div class="summary-item">
+              <label>Selling Price/Serving (After Tax):</label
+              ><span id="summarySellingPrice">₱0.00</span>
+            </div>
+            <div class="summary-item">
+              <label>Food Cost %:</label><span id="summaryFoodCost">0%</span>
+            </div>
+            <div class="summary-item">
+              <label>Labor Cost %:</label
+              ><span id="summaryLaborCostPercent">0%</span>
+            </div>
+            <div class="summary-item">
+              <label>Total Cost %:</label
+              ><span id="summaryTotalCostPercent">0%</span>
+            </div>
+            <div class="summary-item">
+              <label>Gross Profit Margin %:</label
+              ><span id="summaryGrossProfit">0%</span>
+            </div>
+
+            <!-- FIXED: Updated Total Revenue and Profit Analysis -->
+            <div class="summary-item total-profit-analysis">
+              <label>Total Revenue:</label
+              ><span id="summaryBatchRevenue">₱0.00</span>
+            </div>
+            <div class="summary-item total-profit-analysis">
+              <label>Total Profit:</label
+              ><span id="summaryBatchProfit">₱0.00</span>
+            </div>
+            <!-- REMOVED: Batch Profit Margin row -->
+          </div>
+
+          <div class="summary-actions">
+  <!-- CSV Export button -->
+          <button
+            id="exportCsvBtn"
+            class="csv-btn"
+            type="button"
+            data-role="export-csv"
+          >
+            <span>Export to CSV</span>
+          </button>
+          
+          <!-- Print button -->
+          <button
+            id="printBtn"
+            class="print-btn"
+            onclick="generatePrintPreview()"
+            type="button"
+            data-role="print"
+          >
+            <span>Print Costing</span>
+          </button>
+        </div>
+        </section>
+
+        <!-- FIXED: Ad Space moved inside content-area to prevent sidebar overlap -->
+        <aside class="ad-space panel">
+  <h3>Advertisement</h3>
+  <div class="ad-content">
+    <!-- AdSense Responsive Ad Unit -->
+    <ins class="adsbygoogle"
+         style="display:block"
+         data-ad-client="ca-pub-3249174906059582"
+         data-ad-slot="YOUR_AD_SLOT_ID"
+         data-ad-format="auto"
+         data-full-width-responsive="true"></ins>
+    <script>
+         (adsbygoogle = window.adsbygoogle || []).push({});
+    </script>
+    
+    <!-- Fallback for ad blockers or when ads don't load -->
+    <div class="ad-fallback hidden">
+      <p>Your ad could be here</p>
+      <div style="margin-top: var(--space-md); font-size: 13px; color: var(--text-secondary);">
+        Advertisement Space - Bottom
+      </div>
+    </div>
+  </div>
+</aside>
+      </div>
+    </div>
+
+    <!-- Print Preview Modal -->
+    <div id="printPreviewModal" class="modal hidden">
+      <div class="modal-content print-preview">
+        <div class="modal-header">
+          <h3>Print Preview - Recipe Costing</h3>
+          <button class="close-btn" onclick="closePrintPreview()" type="button">
+            ×
+          </button>
+        </div>
+        <div class="print-preview-content" id="printPreviewContent">
+          <!-- Print preview content will be inserted here -->
+        </div>
+        <div class="print-actions">
+          <button
+            class="btn-secondary"
+            onclick="closePrintPreview()"
+            type="button"
+          >
+            Cancel
+          </button>
+          <button
+            class="btn-primary"
+            onclick="printCostingReport()"
+            type="button"
+          >
+            Print
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Prompt Modal -->
+    <div id="editPromptModal" class="modal hidden edit-prompt-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="editPromptTitle">Save Changes</h3>
+          <button
+            class="close-btn"
+            onclick="closeEditPromptModal()"
+            type="button"
+          >
+            ×
+          </button>
+        </div>
+        <div id="editPromptMessage" aria-live="polite">
+          <!-- Message will be inserted here -->
+        </div>
+        <div class="edit-prompt-options">
+          <button
+            class="btn-secondary"
+            onclick="handleEditPromptChoice('replace')"
+            type="button"
+          >
+            Replace Existing
+          </button>
+          <button
+            class="btn-primary"
+            onclick="handleEditPromptChoice('new')"
+            type="button"
+          >
+            Save as New
+          </button>
+        </div>
+        <div style="margin-top: var(--space-md); text-align: center">
+          <button
+            class="btn-secondary"
+            onclick="closeEditPromptModal()"
+            type="button"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- UPDATED: Recipe Builder Modal -->
+    <div id="recipeBuilderModal" class="modal hidden">
+      <div class="modal-content large">
+        <div class="modal-header">
+          <!-- CHANGE: Updated modal title -->
+          <h3>Create New Recipe</h3>
+          <button class="close-btn" onclick="closeRecipeBuilderModal()" type="button">
+            ×
+          </button>
+        </div>
+        
+        <div class="modal-body">
+          <!-- REMOVED: "Current Recipe" heading -->
+          
+          <!-- Recipe name and reset button -->
+          <div class="recipe-header-controls">
+            <input
+              id="recipeName"
+              type="text"
+              placeholder="Enter recipe name..."
+            />
+
+            <!-- Servings input -->
+            <div class="servings-control">
+              <label for="servings">Servings:</label>
+              <div class="input-wrap tooltip-container">
+                <input
+                  id="servings"
+                  type="number"
+                  value="1"
+                  min="1"
+                  class="number-input small"
+                />
+                <div class="tooltip">
+                  <strong>Servings Input</strong>
+                  <ul></ul>
+                  <span>✅</span>
+                  <span>Applicable only for Main Recipes</span>
+                  <ul></ul>
+                  <span>❌</span>
+                  <span>Not applicable for Sub-recipes</span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              id="resetRecipe"
+              class="reset-btn"
+              type="button"
+              data-role="reset-recipe"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"
+                ></path>
+                <path d="M3 3v5h5"></path>
+              </svg>
+              Reset Recipe
+            </button>
+          </div>
+
+          <!-- UPDATED: Raw Materials Section with New Header Layout -->
+          <div class="section-header-with-total">
+            <div class="section-title">
+              <h4>Add Item to Recipe</h4>
+            </div>
+            <div class="section-total">
+              <div class="total-cost">
+                <strong>RAW MATERIALS TOTAL:</strong>
+                <span id="rawMaterialsTotal">₱0.00</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="add-ingredient-section">
+            <!-- REMOVED: "Add Item to Recipe" heading -->
+
+            <div class="input-group">
+              <label for="unifiedItemSelect"
+                >Select Item
+                <button
+                  type="button"
+                  class="help-icon"
+                  onclick="showFieldHelp('selectItem', event)"
+                >
+                  ?
+                </button>
+              </label>
+              <select
+                id="unifiedItemSelect"
+                class="select-input"
+                data-role="unified-item-select"
+              >
+                <option value="">Select an item...</option>
+                <optgroup label="Raw Materials">
+                  <!-- Raw materials will be populated here -->
+                </optgroup>
+                <optgroup label="Sub-Recipes">
+                  <!-- Sub-recipes will be populated here -->
+                </optgroup>
+              </select>
+            </div>
+
+            <div class="input-group">
+              <label for="addIngredientQty"
+                >Quantity
+                <button
+                  type="button"
+                  class="help-icon"
+                  onclick="showFieldHelp('quantity', event)"
+                >
+                  ?
+                </button>
+              </label>
+              <div class="input-with-unit">
+                <input
+                  type="number"
+                  id="addIngredientQty"
+                  placeholder="0.00"
+                  class="number-input small"
+                  min="0"
+                  step="0.01"
+                />
+                <span id="addIngredientUnit" class="unit-display-small">g</span>
+              </div>
+            </div>
+
+            <div class="input-group">
+              <label>&nbsp;</label>
+              <button
+                class="btn-primary"
+                onclick="addItemToRecipe()"
+                type="button"
+                data-role="add-to-recipe"
+              >
+                Add to Recipe
+              </button>
+            </div>
+          </div>
+
+          <!-- Recipe table -->
+          <div class="table-container">
+            <table id="recipeTable" aria-label="Recipe Calculator Table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th style="width: 160px">Qty</th>
+                  <th style="width: 160px">Unit Cost</th>
+                  <th style="width: 160px">Total Cost</th>
+                  <th style="width: 120px">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="recipeBody">
+                <!-- Recipe items will be populated here -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- REMOVED: Old raw materials total footer -->
+
+          <!-- UPDATED: Direct Labor Section with New Header Layout -->
+          <div class="labor-section">
+            <!-- REMOVED: "Direct Labor Cost" heading -->
+
+            <div class="section-header-with-total">
+              <div class="section-title">
+                <h4>Add Direct Labor Item</h4>
+              </div>
+              <div class="section-total">
+                <div class="total-cost">
+                  <strong>DIRECT LABOR TOTAL:</strong>
+                  <span id="directLaborTotal">₱0.00</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="add-labor-section">
+              <!-- REMOVED: "Add Direct Labor Item" heading -->
+
+              <div class="input-group">
+                <label for="directLaborSelect"
+                  >Direct Labor Item
+                  <button
+                    type="button"
+                    class="help-icon"
+                    onclick="showFieldHelp('laborName', event)"
+                  >
+                    ?
+                  </button>
+                </label>
+                <select
+                  id="directLaborSelect"
+                  class="select-input"
+                  data-role="direct-labor-select"
+                >
+                  <option value="">Select direct labor...</option>
+                  <!-- Direct labor items will be populated here -->
+                </select>
+              </div>
+
+              <!-- FIXED: Enhanced Rate Display with proper data binding -->
+              <div class="input-group">
+                <label for="selectedLaborRate"
+                  >Labor Rate
+                  <button
+                    type="button"
+                    class="help-icon"
+                    onclick="showFieldHelp('selectedLaborRate', event)"
+                    aria-label="Labor rate help"
+                  >
+                    ?
+                  </button>
+                </label>
+                <div class="input-with-unit">
+                  <input
+                    type="number"
+                    id="selectedLaborRate"
+                    class="number-input small readonly-input"
+                    readonly
+                    placeholder="Rate..."
+                    data-bind="laborRate"
+                    aria-label="Calculated labor rate (read-only)"
+                  />
+                  <span id="selectedLaborRateUnit" class="unit-display-small">/hour</span>
+                </div>
+              </div>
+
+              <div class="input-group">
+                <label for="timeRequirement"
+                  >Time Requirement
+                  <button
+                    type="button"
+                    class="help-icon"
+                    onclick="showFieldHelp('quantity', event)"
+                  >
+                    ?
+                  </button>
+                </label>
+                <div class="input-with-unit">
+                  <input
+                    type="number"
+                    id="timeRequirement"
+                    placeholder="0.00"
+                    class="number-input small"
+                    min="0"
+                    step="0.01"
+                  />
+                  <span id="timeRequirementUnit" class="unit-display-small">hours</span>
+                </div>
+              </div>
+
+              <div class="input-group">
+                <label>&nbsp;</label>
+                <button
+                  class="btn-primary"
+                  onclick="addDirectLaborToRecipe()"
+                  id="addLaborButton"
+                  type="button"
+                  data-role="add-direct-labor-button"
+                >
+                  Add Direct Labor
+                </button>
+              </div>
+            </div>
+
+            <!-- Direct Labor table -->
+            <div class="table-container">
+              <table
+                id="directLaborRecipeTable"
+                aria-label="Direct Labor Cost Table"
+              >
+                <thead>
+                  <tr>
+                    <th>Labor Item</th>
+                    <th style="width: 140px">Time Required</th>
+                    <th style="width: 140px">Rate</th>
+                    <th style="width: 160px">Total Cost</th>
+                    <th style="width: 100px">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="directLaborRecipeBody">
+                  <!-- Direct labor items will be populated here -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- REMOVED: Old direct labor total footer -->
+          </div>
+
+          <!-- Grand Total Display -->
+          <div class="table-footer" style="margin-top: var(--space-lg)">
+            <div class="total-cost accent-total">
+              <strong>TOTAL RECIPE COST:</strong>
+              <span id="grandTotal">₱0.00</span>
+            </div>
+          </div>
+
+          <div class="save-recipe-buttons">
+            <button
+              id="saveMainRecipeBtn"
+              class="add-btn"
+              type="button"
+              data-role="save-main-recipe"
+            >
+              Save to Main Recipe
+            </button>
+            <button
+              id="saveSubRecipeBtn"
+              class="btn-secondary"
+              type="button"
+              data-role="open-save-subrecipe"
+            >
+              Save to Sub-Recipe
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sub-Recipe Save Modal -->
+    <div id="subRecipeSaveModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Save as Sub-Recipe</h3>
+          <button
+            class="close-btn"
+            onclick="closeSubRecipeSaveModal()"
+            type="button"
+          >
+            ×
+          </button>
+        </div>
+
+        <!-- Layer 1: Sub-Recipe Name (uneditable) -->
+        <div class="form-group">
+          <label for="subRecipeNameDisplay"
+            >Sub-Recipe Name
+            <button
+              type="button"
+              class="field-help"
+              onclick="showFieldHelp('subRecipeName', event)"
+            >
+              ?
+            </button>
+          </label>
+          <input
+            type="text"
+            id="subRecipeNameDisplay"
+            class="text-input readonly-input"
+            readonly
+          />
+        </div>
+
+        <!-- Layer 2: Category of Measurement -->
+        <div class="form-group">
+          <label for="subRecipeCategory"
+            >Category of Measurement
+            <button
+              type="button"
+              class="field-help"
+              onclick="showFieldHelp('subRecipeCategory', event)"
+            >
+              ?
+            </button>
+          </label>
+          <select
+            id="subRecipeCategory"
+            class="select-input"
+            onchange="updateSubRecipeUnitOptions()"
+          >
+            <option value="weight">Weight</option>
+            <option value="volume">Volume</option>
+            <option value="count">Count</option>
+          </select>
+        </div>
+
+        <!-- Layer 3: Total Yield per Batch -->
+        <div class="form-group">
+          <label for="subRecipeYieldQuantity"
+            >Total Yield per Batch
+            <button
+              type="button"
+              class="field-help"
+              onclick="showFieldHelp('subRecipeYieldQuantity', event)"
+            >
+              ?
+            </button>
+          </label>
+          <div style="display: flex; gap: var(--space-sm)">
+            <input
+              type="number"
+              id="subRecipeYieldQuantity"
+              value="1"
+              step="0.01"
+              min="0.01"
+              class="number-input"
+              oninput="updateSubRecipeCostDisplay()"
+              style="flex: 1"
+            />
+            <select
+              id="subRecipeYieldUnit"
+              class="select-input"
+              onchange="updateSubRecipeCostDisplay()"
+              style="width: 120px"
+            >
+              <!-- Options will be populated dynamically -->
+            </select>
+          </div>
+        </div>
+
+        <!-- Layer 4: Cost Per Unit (uneditable) -->
+        <div class="form-group">
+          <label for="subRecipeCostPerUnit"
+            >Cost Per Unit
+            <button
+              type="button"
+              class="field-help"
+              onclick="showFieldHelp('costPerUnit', event)"
+            >
+              ?
+            </button>
+          </label>
+          <div style="display: flex; gap: var(--space-sm)">
+            <input
+              type="number"
+              id="subRecipeCostPerUnit"
+              step="0.0001"
+              class="number-input readonly-input"
+              readonly
+              style="flex: 1"
+            />
+            <select
+              id="subRecipeCostUnit"
+              class="select-input"
+              onchange="updateSubRecipeCostDisplay()"
+              style="width: 120px"
+            >
+              <!-- Options will be populated dynamically -->
+            </select>
+          </div>
+        </div>
+
+        <!-- Hidden canonical fields (ensures values exist even if UI nodes replaced) -->
+        <input
+          type="hidden"
+          id="subRecipeCostPerUnitField"
+          data-canonical="subRecipeCostPerUnitField"
+        />
+        <input
+          type="hidden"
+          id="subRecipeCostUnitField"
+          data-canonical="subRecipeCostUnitField"
+        />
+
+        <!-- Validation message area for sub-recipe modal -->
+        <div
+          id="subRecipeValidationMessage"
+          class="error-message hidden"
+          aria-live="polite"
+          role="status"
+        ></div>
+
+        <!-- Cost Calculation Display -->
+        <div class="cost-calculation">
+          <h4>Sub-Recipe Cost Calculation</h4>
+          <div class="calculation-formula">
+            Cost Per Unit = (Total Recipe Cost ÷ Total Yield per Batch) ×
+            Conversion Factor
+          </div>
+          <div id="subRecipeCostDetails">
+            Total recipe cost: <span id="currentRecipeCostDisplay">₱0.00</span
+            ><br />
+            Cost per unit: <span id="costPerOutputUnit">₱0.00</span>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button
+            class="btn-secondary"
+            onclick="closeSubRecipeSaveModal()"
+            type="button"
+          >
+            Cancel
+          </button>
+          <button
+            id="saveSubRecipeConfirmBtn"
+            class="btn-primary"
+            onclick="saveSubRecipeWithDuplicateCheck()"
+            type="button"
+            data-role="save-subrecipe"
+          >
+            Save Sub-Recipe
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Raw Material Modal -->
+    <div id="rawMaterialModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="rawMaterialModalTitle">Add New Raw Material</h3>
+          <button
+            class="close-btn"
+            onclick="closeRawMaterialModal()"
+            type="button"
+          >
+            ×
+          </button>
+        </div>
+        <form id="rawMaterialForm">
+  <div class="form-group">
+    <label>Raw Material Name:
+      <button type="button" class="field-help" onclick="showFieldHelp('ingredientName', event)">?</button>
+    </label>
+    <input type="text" id="modalRawMaterialName" required class="text-input" />
+  </div>
+
+  <div class="form-group">
+    <label>Measurement Category:
+      <button type="button" class="field-help" onclick="showFieldHelp('ingredientCategory', event)">?</button>
+    </label>
+    <select id="modalRawMaterialCategory" required class="select-input" onchange="updateUnitOptions()">
+      <option value="weight">Weight</option>
+      <option value="volume">Volume</option>
+      <option value="count">Count</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label>Purchase Price:
+      <button type="button" class="field-help" onclick="showFieldHelp('purchasePrice', event)">?</button>
+    </label>
+    <input 
+      type="number" 
+      id="modalRawMaterialPrice" 
+      step="0.01" 
+      required 
+      class="number-input" 
+      oninput="updateCostPerUnit()" 
+    />
+  </div>
+
+  <div class="form-group">
+    <label>Purchase Quantity & Unit:
+      <button type="button" class="field-help" onclick="showFieldHelp('purchaseQuantity', event)">?</button>
+    </label>
+    <div style="display: flex; gap: var(--space-sm);">
+      <input 
+        type="number" 
+        id="modalRawMaterialQuantity" 
+        step="0.01" 
+        value="1" 
+        required 
+        class="number-input" 
+        oninput="updateCostPerUnit()"
+        style="flex: 1;" 
+      />
+      <select 
+        id="modalRawMaterialUnit" 
+        required 
+        class="select-input" 
+        onchange="updateCostPerUnit()"
+        style="width: 90px;"
+      >
+        </select>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>Cost Per Unit:
+      <button type="button" class="field-help" onclick="showFieldHelp('costPerUnit', event)">?</button>
+    </label>
+    <div style="display: flex; gap: var(--space-sm);">
+      <input 
+        type="number" 
+        id="modalCostPerUnit" 
+        step="0.0001" 
+        required 
+        class="number-input" 
+        readonly 
+        style="flex: 1;" 
+      />
+      <select 
+        id="modalCostUnit" 
+        class="select-input" 
+        onchange="updateCostPerUnitValue()" 
+        style="width: 90px;"
+      >
+        </select>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>Yield Percentage:
+      <button type="button" class="field-help" onclick="showFieldHelp('yieldPercentage', event)">?</button>
+    </label>
+    <div class="input-with-unit">
+      <input 
+        type="number" 
+        id="modalRawMaterialYield" 
+        value="100" 
+        min="0" 
+        max="100" 
+        step="0.1" 
+        class="number-input" 
+        oninput="updateCostPerUnit()" 
+      />
+      <span class="unit-display-small">%</span>
+    </div>
+  </div>
+
+  <div class="cost-calculation">
+    <h4>Cost Calculation</h4>
+    <div class="calculation-formula">
+      Cost Per Unit = (Purchase Price ÷ Purchase Quantity) × Conversion Factor
+    </div>
+    <div id="costCalculationDetails">
+      Enter purchase details to see calculation
+    </div>
+  </div>
+
+  <div class="modal-actions">
+    <button type="button" class="btn-secondary" onclick="closeRawMaterialModal()">Cancel</button>
+    <button type="button" class="btn-primary" id="saveRawMaterialBtn" data-role="save-raw-material">Save Raw Material</button>
+  </div>
+</form>
+      </div>
+    </div>
+
+    <!-- Direct Labor Modal -->
+    <div id="directLaborModal" class="modal hidden">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="directLaborModalTitle">Add New Direct Labor</h3>
+      <button
+        class="close-btn"
+        onclick="closeDirectLaborModal()"
+        type="button"
+      >
+        ×
+      </button>
+    </div>
+    <form id="directLaborForm">
+      <!-- Row 1: Labor Name -->
+      <div class="form-group">
+        <label
+          >Labor Name:
+          <button
+            type="button"
+            class="field-help"
+            onclick="showFieldHelp('laborName', event)"
+          >
+            ?
+          </button>
+        </label>
+        <input
+          type="text"
+          id="modalLaborName"
+          required
+          class="text-input"
+          placeholder="e.g., Kitchen Work, Prep Chef"
+        />
+      </div>
+
+      <!-- Row 2: Shift Rate -->
+      <div class="form-group">
+        <label
+          >Shift Rate:
+          <button
+            type="button"
+            class="field-help"
+            onclick="showFieldHelp('shiftRate', event)"
+          >
+            ?
+          </button>
+        </label>
+        <input
+          type="number"
+          id="modalShiftRate"
+          step="0.01"
+          required
+          class="number-input"
+          oninput="updateLaborCostPerUnit()"
+          placeholder="Total cost per shift"
+        />
+      </div>
+
+      <!-- Row 3: Shift Duration and Time Unit -->
+      <div class="form-row">
+        <div class="form-group">
+          <label>
+            <div style="display: flex; gap: var(--space-sm);"></div>
+            Shift Duration:
+            <button
+              type="button"
+              class="field-help"
+              onclick="showFieldHelp('shiftDuration', event)"
+            >
+              ?
+            </button>
+          </label>
+          <input
+            type="number"
+            id="modalShiftDuration"
+            step="0.01"
+            value="8"
+            required
+            class="number-input"
+            oninput="updateLaborCostPerUnit()"
+            placeholder="Duration"
+          />
+        </div>
+        <div class="form-group">
+          <label>
+            Time Unit:
+            <button
+              type="button"
+              class="field-help"
+              onclick="showFieldHelp('timeUnit', event)"
+            >
+              ?
+            </button>
+          </label>
+          <select
+            id="modalTimeUnit"
+            required
+            class="select-input"
+            onchange="updateLaborCostPerUnit()"
+            style="width: 90px;"
+          >
+            <option value="hours">Hours</option>
+            <option value="minutes">Minutes</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Row 4: Cost Per Unit and Cost Unit -->
+      <div class="form-row">
+        <div class="form-group">
+          <label>
+            <div style="display: flex; gap: var(--space-sm);"></div>
+            Cost Per Unit:
+            <button
+              type="button"
+              class="field-help"
+              onclick="showFieldHelp('costPerUnit', event)"
+            >
+              ?
+            </button>
+          </label>
+          <input
+            type="number"
+            id="modalCostPerUnitLabor"
+            step="0.0001"
+            required
+            class="number-input"
+            readonly
+            placeholder="Calculated automatically"
+          />
+        </div>
+        <div class="form-group">
+          <label
+            >Cost Unit:
+            <button
+              type="button"
+              class="field-help"
+              onclick="showFieldHelp('costUnit', event)"
+            >
+              ?
+            </button>
+          </label>
+          <select
+            id="modalCostUnitLabor"
+            class="select-input"
+            onchange="updateLaborCostPerUnit()"
+            style="width: 90px;"
+          >
+            <option value="hours">Hours</option>
+            <option value="minutes">Minutes</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Cost Calculation Display -->
+      <div class="cost-calculation">
+        <h4>Cost Calculation</h4>
+        <div class="calculation-formula">
+          Cost Per Unit = (Shift Rate ÷ Shift Duration) × Conversion Factor
+        </div>
+        <div id="laborCostCalculationDetails">
+          Enter shift details to see calculation
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button
+          type="button"
+          class="btn-secondary"
+          onclick="closeDirectLaborModal()"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="btn-primary"
+          id="saveDirectLaborBtn"
+          data-role="save-direct-labor"
+        >
+          Save Direct Labor
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="ad-space">
+    <ins class="adsbygoogle"
+         style="display:block"
+         data-ad-client="ca-pub-3249174906059582"
+         data-ad-slot="YOUR_AD_SLOT_ID"
+         data-ad-format="auto"
+         data-full-width-responsive="true"></ins>
+    <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+</div>
+
+    <!-- Auth Modal -->
+    <div id="authModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="authModalTitle">Login to ProfitPerPlate</h3>
+          <button class="close-btn" onclick="closeAuthModal()" type="button">
+            ×
+          </button>
+        </div>
+        <form id="authForm">
+          <div class="form-group">
+            <label for="authEmail">Email:</label>
+            <input
+              type="email"
+              id="authEmail"
+              required
+              class="text-input"
+              placeholder="your@email.com"
+            />
+          </div>
+          <div class="form-group">
+            <label for="authPassword">Password:</label>
+            <div class="password-input-group">
+              <input
+                type="password"
+                id="authPassword"
+                required
+                class="text-input"
+                placeholder="Enter your password"
+                minlength="6"
+              />
+              <button
+                type="button"
+                id="togglePassword"
+                class="password-toggle"
+                aria-label="Toggle password visibility"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="auth-options">
+            <button
+              type="button"
+              id="forgotPasswordBtn"
+              onclick="openForgotPasswordModal()"
+              class="link-btn small"
+              data-role="forgot-password"
+            >
+              Forgot Password?
+            </button>
+          </div>
+          <div id="authError" class="error-message hidden"></div>
+          <div class="modal-actions">
+            <button
+              type="button"
+              class="btn-secondary"
+              onclick="closeAuthModal()"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="btn-primary"
+              id="authSubmitBtn"
+              data-role="auth-submit"
+            >
+              Login
+            </button>
+          </div>
+          <div class="auth-switch">
+            <span id="authSwitchText">Don't have an account? </span>
+            <button type="button" id="authSwitchBtn" class="link-btn">
+              Sign up
+            </button>
+          </div>
+        </form>
+
+      </form>
+
+      <div class="social-auth-separator">
+          <span>or</span>
+      </div>
+      <button type="button" class="btn-google-auth" onclick="signInWithGoogle()">
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google logo">
+          Continue with Google
+      </button>
+      <div class="auth-switch">
+
+      </div>
+    </div>
+
+    <!-- Forgot Password Modal -->
+    <div id="forgotPasswordModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Reset Password</h3>
+          <button
+            class="close-btn"
+            onclick="closeForgotPasswordModal()"
+            type="button"
+          >
+            ×
+          </button>
+        </div>
+        <form id="forgotPasswordForm">
+          <div class="form-group">
+            <label for="forgotPasswordEmail">Email:</label>
+            <input
+              type="email"
+              id="forgotPasswordEmail"
+              required
+              class="text-input"
+              placeholder="your@email.com"
+            />
+          </div>
+          <div id="forgotPasswordError" class="error-message hidden"></div>
+          <div id="forgotPasswordSuccess" class="success-message hidden"></div>
+          <div class="modal-actions">
+            <button
+              type="button"
+              class="btn-secondary"
+              onclick="closeForgotPasswordModal()"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="btn-primary"
+              id="sendResetEmailBtn"
+              data-role="send-reset-email"
+            >
+              Send Reset Link
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Reset Password Modal -->
+    <div id="resetPasswordModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Set New Password</h3>
+          <button
+            class="close-btn"
+            onclick="closeResetPasswordModal()"
+            type="button"
+          >
+            ×
+          </button>
+        </div>
+        <form id="resetPasswordForm">
+          <div class="form-group">
+            <label for="newPassword">New Password:</label>
+            <div class="password-input-group">
+              <input
+                type="password"
+                id="newPassword"
+                required
+                class="text-input"
+                placeholder="Enter new password"
+                minlength="6"
+              />
+              <button
+                type="button"
+                class="password-toggle"
+                onclick="togglePasswordVisibilityGeneric('newPassword', this)"
+                aria-label="Toggle password visibility"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="confirmPassword">Confirm New Password:</label>
+            <div class="password-input-group">
+              <input
+                type="password"
+                id="confirmPassword"
+                required
+                class="text-input"
+                placeholder="Confirm new password"
+                minlength="6"
+              />
+              <button
+                type="button"
+                class="password-toggle"
+                onclick="togglePasswordVisibilityGeneric('confirmPassword', this)"
+                aria-label="Toggle password visibility"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div id="resetPasswordError" class="error-message hidden"></div>
+          <div id="resetPasswordSuccess" class="success-message hidden"></div>
+          <div class="modal-actions">
+            <button
+              type="button"
+              class="btn-secondary"
+              onclick="closeResetPasswordModal()"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="btn-primary"
+              id="submitResetPasswordBtn"
+              data-role="submit-reset-password"
+            >
+              Reset Password
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Help modal -->
+    <div id="helpModal" class="modal hidden">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="helpModalTitle">Complete Field Guide — ProfitPerPlate</h3>
+      <button class="close-btn" onclick="closeHelpModal()">×</button>
+    </div>
+    <div id="helpModalContent"></div>
+    <div class="modal-actions">
+      <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px;">
+        <input type="checkbox" id="dontShowAgainCheckbox">
+        <span>Do not show this again</span>
+      </label>
+      <button class="btn-primary" onclick="closeHelpModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+    <!-- Unified Edit Prompt Modal -->
+    <div id="unifiedEditPromptModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="unifiedEditPromptTitle">Save Changes</h3>
+          <button class="close-btn" onclick="closeUnifiedEditPromptModal()">
+            ×
+          </button>
+        </div>
+        <div id="unifiedEditPromptMessage" class="edit-prompt-message">
+          <!-- Dynamic content will be inserted here -->
+        </div>
+        <div class="edit-prompt-options">
+          <button
+            class="btn-secondary"
+            onclick="handleUnifiedEditPromptChoice('replace')"
+          >
+            <div class="option-content">
+              <strong>Replace Existing</strong>
+              <small>Overwrite the existing item with your changes</small>
+            </div>
+          </button>
+          <button
+            class="btn-primary"
+            onclick="handleUnifiedEditPromptChoice('new')"
+          >
+            <div class="option-content">
+              <strong>Save as New</strong>
+              <small>Create new item (auto-renames if name unchanged)</small>
+            </div>
+          </button>
+        </div>
+        <div style="margin-top: var(--space-md); text-align: center">
+          <button class="btn-secondary" onclick="closeUnifiedEditPromptModal()">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Firebase and other scripts -->
+    <script src="firebase-config.js"></script>
+    <script src="script.js"></script>
+    <script src="csvExport.js"></script>
+    <script src="legal-support.js"></script>
+
   </body>
 </html>
