@@ -6783,6 +6783,12 @@ body.dark-mode {
 }
 
 /* Cookie Settings Styles */
+#cookieSettingsModal {
+    z-index: 100000 !important; /* Higher than password modals (99999) */
+    position: fixed !important;
+    background: rgba(0,0,0,0.7) !important;
+}
+
 .cookie-settings-body {
     padding: var(--space-md) 0;
 }
@@ -6972,4 +6978,13 @@ body.dark-mode .ad-space {
 #forgotPasswordModal.hidden, 
 #resetPasswordModal.hidden {
     display: none !important;
+}
+
+.subrecipe-disabled {
+  pointer-events: auto; /* let hover work */
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.subrecipe-disabled[aria-disabled="true"] {
+  /* reinforce accessible property */
 }

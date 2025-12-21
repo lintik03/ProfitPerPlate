@@ -6214,7 +6214,7 @@ function On(e, n, o) {
 }
 
 // =============================================================================
-// COST CALCULATION AND SUMMARY FUNCTIONS
+// COST CALCULATION AND SUMMARY FUNCTIONS (UPDATED zn() WITH ACCESSIBLE GUARD)
 // =============================================================================
 
 function zn() {
@@ -6240,70 +6240,160 @@ function zn() {
   n || Wn(t, o, a, e);
   n && Gn();
 
-  // --- START FIX: Disable Save Sub-Recipe button if sub-recipe exists ---
+  // --- START FIX: Disable Save Sub-Recipe button if sub-recipe exists (accessible pattern) ---
   // L references 'saveSubRecipeBtn', f references 'recipeBody'
-  if (f && L) {
-    const hasSubRecipe = Array.from(f.querySelectorAll("tr")).some(
-      (row) => row.dataset.type === "sub-recipe" || row.dataset.type === "subRecipe"
-    );
+  try {
+    if (f && L) {
+      // Determine whether there is any sub-recipe row present
+      const hasSubRecipe = Array.from(f.querySelectorAll("tr")).some(
+        (row) =>
+          (row.dataset.type && (row.dataset.type === "sub-recipe" || row.dataset.type === "subRecipe")) ||
+          row.classList.contains("sub-recipe-row")
+      );
 
-    // Keep the semantic disabled flag for forms, but allow hover/focus for tooltip
-    L.disabled = !!hasSubRecipe;
-    if (hasSubRecipe) {
-      // Accessibility and visual: mark aria-disabled and preserve pointer events so hover/focus events fire
-      L.setAttribute('aria-disabled', 'true');
-      L.style.opacity = "0.5";
-      L.style.cursor = "not-allowed";
+      // Remove native disabled attribute to keep element focusable and interactive for tooltip/focus
+      if (L.hasAttribute('disabled')) L.removeAttribute('disabled');
 
-      // IMPORTANT: allow pointer events for tooltip even though button is 'disabled' for action
-      L.style.pointerEvents = 'auto';
-      // ensure it's reachable by keyboard for accessibility
-      if (!L.hasAttribute('tabindex')) L.tabIndex = 0;
+      if (hasSubRecipe) {
+        // 1) Mark as disabled for assistive tech
+        L.setAttribute('aria-disabled', 'true');
 
-      // Ensure tooltip text exists
-      if (!L.getAttribute('data-tooltip')) {
-        L.setAttribute('data-tooltip', 'Cannot save as sub-recipe: Nested sub-recipes are not allowed.');
-      }
+        // 2) Visual styling to indicate disabled state
+        L.style.opacity = "0.5";
+        L.style.cursor = "not-allowed";
 
-      // Attach handlers only once (store refs so we can remove later)
-      if (!L._tooltipHandlers) {
-        L._tooltipHandlers = {
-          mouseenter: showTooltip,
-          mouseleave: hideTooltip,
-          focus: showTooltip,
-          blur: hideTooltip
-        };
-        L.addEventListener('mouseenter', L._tooltipHandlers.mouseenter);
-        L.addEventListener('mouseleave', L._tooltipHandlers.mouseleave);
-        L.addEventListener('focus', L._tooltipHandlers.focus);
-        L.addEventListener('blur', L._tooltipHandlers.blur);
-      }
-    } else {
-      // restore normal state
-      L.removeAttribute('aria-disabled');
-      L.style.opacity = "1";
-      L.style.cursor = "pointer";
-      L.style.pointerEvents = ''; // remove forced override; let global logic control if needed
+        // 3) Ensure pointer events enabled so hover/focus can trigger tooltip
+        L.style.pointerEvents = 'auto';
 
-      // Remove tooltip attribute and handlers
-      L.removeAttribute('data-tooltip');
-      if (L._tooltipHandlers) {
-        try {
-          L.removeEventListener('mouseenter', L._tooltipHandlers.mouseenter);
-          L.removeEventListener('mouseleave', L._tooltipHandlers.mouseleave);
-          L.removeEventListener('focus', L._tooltipHandlers.focus);
-          L.removeEventListener('blur', L._tooltipHandlers.blur);
-        } catch (err) { /* ignore */ }
-        L._tooltipHandlers = null;
-      }
+        // 4) Make it keyboard-focusable so keyboard users can discover the reason
+        if (!L.hasAttribute('tabindex')) L.tabIndex = 0;
 
-      // Remove tabindex if it wasn't present before (keep simple: remove if 0)
-      if (L.getAttribute('tabindex') === '0') {
-        L.removeAttribute('tabindex');
+        // 5) Tooltip content
+        if (!L.getAttribute('data-tooltip')) {
+          L.setAttribute('data-tooltip', 'Cannot save as sub-recipe: Nested sub-recipes are not allowed.');
+        }
+
+        // 6) Attach tooltip handlers (mouseenter/focus and their opposites)
+        if (!L._tooltipHandlers) {
+          L._tooltipHandlers = {
+            mouseenter: showTooltip,
+            mouseleave: hideTooltip,
+            focus: showTooltip,
+            blur: hideTooltip
+          };
+          L.addEventListener('mouseenter', L._tooltipHandlers.mouseenter);
+          L.addEventListener('mouseleave', L._tooltipHandlers.mouseleave);
+          L.addEventListener('focus', L._tooltipHandlers.focus);
+          L.addEventListener('blur', L._tooltipHandlers.blur);
+        }
+
+        // 7) Attach click and keyboard guards that prevent activation and show tooltip.
+        if (!L._guardAttached) {
+          L._clickGuard = function (ev) {
+            if (L.getAttribute('aria-disabled') === 'true') {
+              // Stop any other click handlers from running (prevents modal from opening)
+              ev.preventDefault();
+              ev.stopImmediatePropagation();
+              // show tooltip and focus for accessibility
+              try { showTooltip.call(L, ev); } catch (e) { /* ignore */ }
+              try { L.focus(); } catch (e) {}
+              return false;
+            }
+          };
+          L._keyGuard = function (ev) {
+            if (L.getAttribute('aria-disabled') === 'true') {
+              // If user presses Enter or Space, show tooltip and prevent action
+              if (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar') {
+                ev.preventDefault();
+                ev.stopImmediatePropagation();
+                try { showTooltip.call(L, ev); } catch (e) { /* ignore */ }
+                return false;
+              }
+            }
+          };
+          L.addEventListener('click', L._clickGuard);
+          L.addEventListener('keydown', L._keyGuard);
+          L._guardAttached = true;
+        }
+      } else {
+        // Restore normal state when there is no nested sub-recipe
+        L.removeAttribute('aria-disabled');
+        L.style.opacity = "1";
+        L.style.cursor = "pointer";
+        // Let global logic control pointer events normally
+        L.style.pointerEvents = '';
+
+        // Remove tooltip attribute and handlers
+        if (L.getAttribute('data-tooltip')) L.removeAttribute('data-tooltip');
+        if (L._tooltipHandlers) {
+          try {
+            L.removeEventListener('mouseenter', L._tooltipHandlers.mouseenter);
+            L.removeEventListener('mouseleave', L._tooltipHandlers.mouseleave);
+            L.removeEventListener('focus', L._tooltipHandlers.focus);
+            L.removeEventListener('blur', L._tooltipHandlers.blur);
+          } catch (err) { /* ignore */ }
+          L._tooltipHandlers = null;
+        }
+
+        // Remove click/keyboard guards
+        if (L._guardAttached) {
+          try {
+            L.removeEventListener('click', L._clickGuard);
+            L.removeEventListener('keydown', L._keyGuard);
+          } catch (err) { /* ignore */ }
+          L._clickGuard = null;
+          L._keyGuard = null;
+          L._guardAttached = false;
+        }
+
+        // Remove tabindex if it was only added for disabled state
+        if (L.getAttribute('tabindex') === '0') {
+          L.removeAttribute('tabindex');
+        }
       }
     }
+  } catch (err) {
+    console.warn("zn(): sub-recipe disable/tooltip handling failed:", err);
   }
   // --- END FIX ---
+
+  // --- START: existing summary calc logic remains unchanged below ---
+  const aobj = (function (e, t, n) {
+    const o = parseFloat(A ? A.value : 1) || 1,
+      a = n > 0 ? (e / n) * o : 0,
+      i = n > 0 ? (t / n) * o : 0;
+    return {
+      scaledRawMaterialsCost: a,
+      scaledDirectLaborCost: i,
+      scaledTotalCost: a + i,
+      targetServings: o
+    };
+  })(t, o, e),
+    s = aobj.scaledRawMaterialsCost,
+    c = aobj.scaledDirectLaborCost,
+    d = aobj.scaledTotalCost,
+    u = aobj.targetServings,
+    p = u > 0 ? d / u : 0,
+    m = p * (1 + (parseFloat(U ? U.value : 0) || 0) / 100),
+    g = m * (1 + ((parseFloat(T ? T.value : 0) || 0) + (parseFloat(q ? q.value : 0) || 0)) / 100),
+    fperc = m > 0 ? (s / u / m) * 100 : 0,
+    yperc = m > 0 ? (c / u / m) * 100 : 0,
+    bperc = m > 0 ? (d / u / m) * 100 : 0,
+    vperc = m > 0 ? 100 - bperc : 0,
+    hrev = m * u,
+    wprofit = hrev - d;
+  N && (N.textContent = u);
+  S && (S.textContent = `${tt}${s.toFixed(2)}`);
+  P && (P.textContent = `${tt}${c.toFixed(2)}`);
+  $ && ($.textContent = `${tt}${d.toFixed(2)}`);
+  R && (R.textContent = `${tt}${p.toFixed(2)}`);
+  I && (I.textContent = `${tt}${g.toFixed(2)}`);
+  M && (M.textContent = `${fperc.toFixed(1)}%`);
+  F && (F.textContent = `${yperc.toFixed(1)}%`);
+  k && (k.textContent = `${bperc.toFixed(1)}%`);
+  B && (B.textContent = `${vperc.toFixed(1)}%`);
+  Ke && (Ke.textContent = `${tt}${hrev.toFixed(2)}`);
+  Xe && (Xe.textContent = `${tt}${wprofit.toFixed(2)}`);
 }
 
 // --- START: Tooltip Functions ---
@@ -9045,3 +9135,5 @@ window.openForgotPasswordModal = function() {
 
 // Map the internal wt function to the global trigger as in the old version
 window.wt = window.openForgotPasswordModal;
+
+window.showNotification = (msg, type) => window.Wt ? Wt(msg, type) : console.log(msg);

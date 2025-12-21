@@ -255,16 +255,30 @@ window.LegalSystem = {
     },
 
     saveCookiePreferences: function() {
-        const analytics = document.getElementById('analyticsConsent').checked;
-        localStorage.setItem('ppp_cookie_consent', JSON.stringify({
-            analytics: analytics,
-            timestamp: new Date().toISOString()
-        }));
-        this.closeCookieSettings();
-        if(typeof window.showNotification === 'function') {
-            window.showNotification("Cookie preferences saved", "success");
-        }
-    },
+    // Select elements
+    const analyticsEl = document.getElementById('analyticsConsent');
+    const marketingEl = document.getElementById('marketingConsent');
+
+    // Safe reading (Defaults to false if element is missing)
+    const analytics = analyticsEl ? analyticsEl.checked : false;
+    const marketing = marketingEl ? marketingEl.checked : false;
+
+    const consentData = {
+        analytics: analytics,
+        marketing: marketing,
+        timestamp: new Date().toISOString()
+    };
+
+    // Save to local storage
+    localStorage.setItem('ppp_cookie_consent', JSON.stringify(consentData));
+    
+    this.closeCookieSettings();
+
+    // Trigger Notification via the Bridge
+    if (typeof window.showNotification === 'function') {
+        window.showNotification("Privacy preferences updated", "success");
+    }
+},
 
     loadCookiePreferences: function() {
         const prefs = JSON.parse(localStorage.getItem('ppp_cookie_consent') || '{"analytics": false}');
