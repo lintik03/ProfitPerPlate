@@ -811,6 +811,15 @@ window.signInWithGoogle = async function() {
             window.showNotification(`Welcome, ${user.displayName || user.email}!`, "success");
         }
 
+        // --- NEW ADDITION ---
+        // Initiate the timed reload to refresh app state with user data
+        if (typeof window.initiateTimedReload === 'function') {
+            window.initiateTimedReload();
+        } else {
+            // Fallback: reload immediately if the helper isn't found
+            setTimeout(() => window.location.reload(), 1500);
+        }
+
     } catch (error) {
         console.error("❌ Google Sign-In Error:", error);
         
