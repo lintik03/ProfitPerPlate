@@ -778,3 +778,57 @@ if (firebaseReady && auth && db) {
 // Export for direct access if needed
 window.firebaseAuth = auth;
 window.firebaseDB = db;
+
+// GOOGLE AUTHENTICATION SYSTEM
+window.signInWithGoogle = async function() {
+    if (!firebaseReady || !auth) {
+        if (typeof window.showNotification === 'function') {
+            window.showNotification("Auth system not ready. Please refresh.", "error");
+        }
+        return;
+    }
+
+    try {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        
+        // Optional: Force account selection
+        provider.setCustomParameters({
+            prompt: 'select_account'
+        });
+
+        console.log("🚀 Initiating Google Sign-In...");
+        const result = await auth.signInWithPopup(provider);
+        
+        // Success handling
+        const user = result.user;
+        console.log("✅ Google Sign-In successful:", user.email);
+        
+        if (typeof window.closeAuthModal === 'function') {
+            window.closeAuthModal();
+        }
+        
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(`Welcome, ${user.displayName || user.email}!`, "success");
+        }
+
+    } catch (error) {
+        console.error("❌ Google Sign-In Error:", error);
+        
+        let errorMessage = "Failed to sign in with Google.";
+        if (error.code === 'auth/popup-closed-by-user') {
+            errorMessage = "Sign-in cancelled.";
+        } else if (error.code === 'auth/auth-domain-config-required') {
+            errorMessage = "Google Auth not configured in Firebase Console.";
+        }
+
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(errorMessage, "error");
+        }
+        
+        const errorDisplay = document.getElementById('authError');
+        if (errorDisplay) {
+            errorDisplay.textContent = errorMessage;
+            errorDisplay.classList.remove('hidden');
+        }
+    }
+};

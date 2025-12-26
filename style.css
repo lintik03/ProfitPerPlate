@@ -3103,62 +3103,6 @@ body.dark-mode .scaling-info {
   /* Remove overflow-x: auto since we're using table-container */
 }
 
-/* FIXED: Ad Space - Improved Width, Alignment and Sidebar Overlap Prevention */
-.ad-space {
-  background: var(--surface);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-lg);
-  text-align: center;
-  min-height: 150px;
-  border: 1px solid var(--border-light);
-  transition: var(--transition);
-  
-  /* FIX: Ensure proper width and prevent sidebar overlap */
-  width: 100%;
-  max-width: 100%;
-  margin: var(--space-lg) auto;
-  box-sizing: border-box;
-  
-  /* FIX: Proper z-index to stay below sidebar */
-  z-index: 10;
-  position: relative;
-}
-
-.ad-space:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-xl);
-}
-
-.ad-space h3 {
-  margin-top: 0;
-  color: var(--primary);
-  font-size: 1.1rem;
-  margin-bottom: var(--space-md);
-  font-weight: 600;
-}
-
-.ad-content {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: var(--background);
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-md);
-  
-  /* FIX: Ensure content doesn't cause overflow */
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
 /* Remove old theme toggle styles */
 .theme-toggle-container,
 .theme-toggle-label,
@@ -3231,22 +3175,6 @@ body.dark-mode .header-icon-btn:hover {
     align-items: center;
   }
   
-  /* FIXED: Ad Space Overlap - Improved Desktop Layout */
-  .ad-space {
-    /* FIX: Proper width calculation with sidebar */
-    max-width: calc(1400px - var(--sidebar-width) - var(--space-xl) * 2);
-    margin-left: auto;
-    margin-right: auto;
-    
-    /* FIX: Ensure proper spacing with sidebar layout */
-    margin-top: var(--space-lg);
-    margin-bottom: var(--space-lg);
-    
-    /* FIX: Clear sidebar overlap */
-    position: relative;
-    left: 0;
-  }
-  
   /* FIX: Ensure sidebar stays above content */
   .sidebar {
     z-index: 100;
@@ -3273,18 +3201,6 @@ body.dark-mode .header-icon-btn:hover {
     margin-left: 0;
   }
   
-  /* FIX: Consistent tablet width for ad space */
-  .ad-space {
-    max-width: 90%;
-    margin-left: auto;
-    margin-right: auto;
-    
-    /* FIX: Proper spacing */
-    margin-top: var(--space-xl);
-    margin-bottom: var(--space-lg);
-  }
-  
-
 }
 
 /* Mobile Responsive Styles */
@@ -3374,28 +3290,7 @@ body.dark-mode .header-icon-btn:hover {
   .panel {
     padding: var(--space-lg);
   }
-
-  /* FIX: Mobile ad space adjustments */
-  .ad-space {
-    /* FIX: Mobile width constraints */
-    width: calc(100% - var(--space-md) * 2);
-    max-width: none;
-    margin: var(--space-lg) var(--space-md);
-    
-    /* FIX: Mobile spacing */
-    padding: var(--space-md);
-    min-height: 120px;
-  }
-  
-  .ad-content {
-    padding: var(--space-sm);
-  }
-  
-  .ad-space h3 {
-    font-size: 1rem;
-    margin-bottom: var(--space-sm);
-  }
-
+ 
   @media (max-width: 768px) {
   .btn-secondary.small, 
   .btn-danger.small {
@@ -4335,19 +4230,6 @@ body.dark-mode .select-input {
   border-color: var(--border);
   box-shadow: var(--shadow-md);
   color: var(--text-primary);
-}
-
-/* FIX: Dark mode ad space styling */
-body.dark-mode .ad-space {
-  background: var(--surface);
-  border-color: var(--border);
-  box-shadow: var(--shadow-md);
-  color: var(--text-primary);
-}
-
-body.dark-mode .ad-content {
-  background: var(--surface-elevated);
-  border-color: var(--border);
 }
 
 /* Tables & borders in dark mode */
@@ -6350,78 +6232,6 @@ body.dark-mode .summary-actions .csv-btn:hover {
   z-index: 1;
 }
 
-/* =============================================================================
-/* MONETIZATION STYLES */
-/* ============================================================================= */
-
-/* Premium badge */
-.premium-badge {
-    background: linear-gradient(45deg, #FFD700, #FFA500);
-    color: #000;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-}
-
-/* Disabled premium features */
-.feature-disabled {
-    position: relative;
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.feature-disabled::after {
-    content: "🔒 Premium";
-    position: absolute;
-    top: 0;
-    right: 0;
-    background: var(--surface-elevated);
-    color: var(--text-secondary);
-    font-size: 10px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    border: 1px solid var(--border);
-}
-
-/* Enhanced limit counter styling */
-.limit-counter {
-    display: inline-block;
-    background: var(--surface-elevated);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 2px 8px;
-    font-size: 11px;
-    color: var(--text-secondary);
-    margin-left: 8px;
-    font-weight: 600;
-    vertical-align: middle;
-}
-
-.limit-counter.warning {
-    background: rgba(255, 149, 0, 0.1);
-    border-color: var(--warning);
-    color: var(--warning);
-    animation: pulseWarning 2s infinite;
-}
-
-.limit-counter.danger {
-    background: rgba(255, 59, 48, 0.1);
-    border-color: var(--danger);
-    color: var(--danger);
-}
-
-.limit-counter.success {
-    background: rgba(52, 199, 89, 0.1);
-    border-color: var(--success);
-    color: var(--success);
-}
-
 @keyframes pulseWarning {
     0% { opacity: 1; }
     50% { opacity: 0.7; }
@@ -6467,51 +6277,6 @@ body.dark-mode .summary-actions .csv-btn:hover {
     bottom: calc(100% + 8px);
 }
 
-/* Upgrade prompt */
-.upgrade-prompt {
-    background: linear-gradient(135deg, var(--primary-light) 0%, rgba(45, 90, 61, 0.2) 100%);
-    border: 1px solid var(--primary);
-    border-radius: var(--radius-lg);
-    padding: var(--space-md);
-    margin: var(--space-md) 0;
-    text-align: center;
-}
-
-.upgrade-prompt h4 {
-    color: var(--primary);
-    margin: 0 0 var(--space-sm) 0;
-}
-
-.upgrade-prompt p {
-    color: var(--text-primary);
-    margin: 0 0 var(--space-md) 0;
-    font-size: 14px;
-}
-
-/* Menu premium display */
-.menu-premium-status {
-    padding: var(--space-sm) var(--space-md);
-    background: linear-gradient(45deg, var(--primary) 0%, var(--primary-dark) 100%);
-    color: white;
-    border-radius: var(--radius-md);
-    font-size: 12px;
-    font-weight: 600;
-    margin: var(--space-sm) 0;
-    text-align: center;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-}
-
-.menu-premium-status .premium-icon {
-    font-size: 14px;
-}
-
-/* Ad space for free users */
-.ad-space.free-tier {
-    animation: pulse 2s infinite;
-}
 
 @keyframes pulse {
     0% { box-shadow: 0 0 0 0 rgba(45, 90, 61, 0.4); }
@@ -7018,6 +6783,12 @@ body.dark-mode {
 }
 
 /* Cookie Settings Styles */
+#cookieSettingsModal {
+    z-index: 100000 !important; /* Higher than password modals (99999) */
+    position: fixed !important;
+    background: rgba(0,0,0,0.7) !important;
+}
+
 .cookie-settings-body {
     padding: var(--space-md) 0;
 }
@@ -7103,4 +6874,117 @@ body.dark-mode .cookie-option {
     visibility: hidden !important;
     opacity: 0;
     pointer-events: none;
+}
+
+/* GOOGLE AUTH STYLING */
+.social-auth-separator {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 20px 0;
+    color: var(--text-tertiary);
+}
+.social-auth-separator::before, .social-auth-separator::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--border);
+}
+.social-auth-separator span {
+    padding: 0 10px;
+    font-size: 14px;
+}
+.btn-google-auth {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: #ffffff;
+    color: #3c4043;
+    border: 1px solid var(--border);
+    padding: 10px;
+    border-radius: var(--radius-md);
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.btn-google-auth:hover {
+    background: #f8f9fa;
+    border-color: #d2e3fc;
+}
+.btn-google-auth img {
+    width: 18px;
+    height: 18px;
+}
+
+/* FIX: AdSense Container - Neutralized to prevent Modal Shifting */
+.ad-space {
+    /* Remove flex/margin centering that offsets modals */
+    display: block !important;
+    position: relative;
+    width: 100%;
+    /* Use standard width instead of complex calc to prevent layout calculation errors */
+    max-width: 1200px; 
+    margin: var(--space-2xl) auto !important;
+    padding: var(--space-md);
+    text-align: center;
+    clear: both;
+    z-index: 1; /* Keep below modals (10001) */
+    
+    /* Optional: visual container */
+    background: transparent;
+    border: 1px solid transparent;
+}
+
+/* Ensure the Google Ad unit itself is centered without affecting the page center */
+.ad-space ins.adsbygoogle {
+    margin: 0 auto !important;
+    display: block !important;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+    .ad-space {
+        width: auto;
+        margin: var(--space-lg) var(--space-md) !important;
+        min-height: 100px;
+    }
+}
+
+/* Dark mode - keep it subtle so it doesn't distract from the login */
+body.dark-mode .ad-space {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+}
+
+/* FORCE MODALS TO FOREGROUND */
+#forgotPasswordModal, 
+#resetPasswordModal {
+    z-index: 99999 !important; /* Extremely high to beat any other modal */
+    position: fixed !important;
+    display: flex; /* Ensures centering logic works when 'hidden' is removed */
+    align-items: center;
+    justify-content: center;
+}
+
+/* Ensure the backdrop covers everything */
+#forgotPasswordModal.modal, 
+#resetPasswordModal.modal {
+    background-color: rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Hide them when the class is present */
+#forgotPasswordModal.hidden, 
+#resetPasswordModal.hidden {
+    display: none !important;
+}
+
+.subrecipe-disabled {
+  pointer-events: auto; /* let hover work */
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.subrecipe-disabled[aria-disabled="true"] {
+  /* reinforce accessible property */
 }
