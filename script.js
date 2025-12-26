@@ -395,8 +395,6 @@ function setupOrientationHandling() {
     }
 }
 
-
-
 // Update the main initialization to use enhanced PWA
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
@@ -530,36 +528,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Enable cascade debug logging during development
 window.CASCADE_DEBUG = true;
 
-// --- ENHANCED GOOGLE SIGN-IN ---
-window.signInWithGoogle = async function(event) {
-  if (event) {
-    event.preventDefault();
-    event.stopPropagation();
-  }
 
-  console.log("🚀 Starting Google Sign-In...");
-  try {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    // Force account selection to prevent "instant auto-close" if session is weird
-    provider.setCustomParameters({ prompt: 'select_account' });
-
-    const result = await auth.signInWithPopup(provider);
-    console.log("✅ Success:", result.user.email);
-
-    // UI Clean up
-    document.getElementById('authModal')?.classList.add('hidden');
-    document.body.style.overflow = "";
-
-    if (typeof Wt === 'function') Wt('Logged in with Google!', 'success');
-    if (window.renderAllData) window.renderAllData();
-    initiateTimedReload();
-  } catch (error) {
-    console.error("❌ Google Error:", error.code, error.message);
-    if (error.code !== 'auth/popup-closed-by-user') {
-      if (typeof Wt === 'function') Wt(error.message, 'error');
-    }
-  }
-};
 
 // =============================================================================
 // CONTENT GATING - BLUR UI WHEN LOGGED OUT
@@ -3508,7 +3477,7 @@ async function Ct() {
     (ke.textContent = "Send Reset Link"),
     t.success
       ? ((Fe.textContent =
-          "Password reset email sent! Check your inbox or spam folder for further instructions."),
+          "Password reset email sent! Check your inbox for further instructions."),
         Fe.classList.remove("hidden"),
         Me.classList.add("hidden"),
         // START: Fix Insertion
@@ -3715,7 +3684,7 @@ async function Ft() {
           kt(),
           nt
             ? (Wt(
-                "🎉 Account created successfully! Please check your email spam folder for verification.",
+                "🎉 Account created successfully! Please check your email for verification.",
                 "success"
               ),
               (nt = !1),
@@ -6214,7 +6183,7 @@ function On(e, n, o) {
 }
 
 // =============================================================================
-// COST CALCULATION AND SUMMARY FUNCTIONS (UPDATED zn() WITH ACCESSIBLE GUARD)
+// COST CALCULATION AND SUMMARY FUNCTIONS
 // =============================================================================
 
 function zn() {
@@ -6226,264 +6195,118 @@ function zn() {
       const n = parseFloat(e.children[1].querySelector("input").value) || 0,
         o = parseFloat(e.children[2].querySelector("input").value) || 0;
       t += n * o;
-    });
-  y &&
-    y.querySelectorAll("tr").forEach((e) => {
-      const t = parseFloat(e.children[1].querySelector("input").value) || 0,
-        n = parseFloat(e.children[2].querySelector("input").value) || 0;
-      o += t * n;
-    });
+    }),
+    y &&
+      y.querySelectorAll("tr").forEach((e) => {
+        const t = parseFloat(e.children[1].querySelector("input").value) || 0,
+          n = parseFloat(e.children[2].querySelector("input").value) || 0;
+        o += t * n;
+      });
   const a = t + o;
-  b && (b.textContent = `${tt}${t.toFixed(2)}`);
-  v && (v.textContent = `${tt}${o.toFixed(2)}`);
-  h && (h.textContent = `${tt}${a.toFixed(2)}`);
-  n || Wn(t, o, a, e);
-  n && Gn();
+  b && (b.textContent = `${tt}${t.toFixed(2)}`),
+    v && (v.textContent = `${tt}${o.toFixed(2)}`),
+    h && (h.textContent = `${tt}${a.toFixed(2)}`),
+    n || Wn(t, o, a, e),
+    n && Gn();
 
-  // --- START FIX: Disable Save Sub-Recipe button if sub-recipe exists (accessible pattern) ---
+  // --- START FIX: Disable Save Sub-Recipe button if sub-recipe exists ---
   // L references 'saveSubRecipeBtn', f references 'recipeBody'
-  try {
-    if (f && L) {
-      // Determine whether there is any sub-recipe row present
-      const hasSubRecipe = Array.from(f.querySelectorAll("tr")).some(
-        (row) =>
-          (row.dataset.type && (row.dataset.type === "sub-recipe" || row.dataset.type === "subRecipe")) ||
-          row.classList.contains("sub-recipe-row")
-      );
-
-      // Remove native disabled attribute to keep element focusable and interactive for tooltip/focus
-      if (L.hasAttribute('disabled')) L.removeAttribute('disabled');
-
-      if (hasSubRecipe) {
-        // 1) Mark as disabled for assistive tech
-        L.setAttribute('aria-disabled', 'true');
-
-        // 2) Visual styling to indicate disabled state
+  if (f && L) {
+    const hasSubRecipe = Array.from(f.querySelectorAll("tr")).some(
+      (row) => row.dataset.type === "sub-recipe" || row.dataset.type === "subRecipe"
+    );
+    
+    L.disabled = hasSubRecipe;
+    
+    // Apply visual feedback and tooltip
+    if (hasSubRecipe) {
         L.style.opacity = "0.5";
         L.style.cursor = "not-allowed";
-
-        // 3) Ensure pointer events enabled so hover/focus can trigger tooltip
-        L.style.pointerEvents = 'auto';
-
-        // 4) Make it keyboard-focusable so keyboard users can discover the reason
-        if (!L.hasAttribute('tabindex')) L.tabIndex = 0;
-
-        // 5) Tooltip content
-        if (!L.getAttribute('data-tooltip')) {
-          L.setAttribute('data-tooltip', 'Cannot save as sub-recipe: Nested sub-recipes are not allowed.');
+        
+        // Enhanced tooltip system
+        if (!L.hasAttribute('data-tooltip')) {
+            L.setAttribute('data-tooltip', 'Cannot save as sub-recipe: Nested sub-recipes are not allowed.');
         }
-
-        // 6) Attach tooltip handlers (mouseenter/focus and their opposites)
-        if (!L._tooltipHandlers) {
-          L._tooltipHandlers = {
-            mouseenter: showTooltip,
-            mouseleave: hideTooltip,
-            focus: showTooltip,
-            blur: hideTooltip
-          };
-          L.addEventListener('mouseenter', L._tooltipHandlers.mouseenter);
-          L.addEventListener('mouseleave', L._tooltipHandlers.mouseleave);
-          L.addEventListener('focus', L._tooltipHandlers.focus);
-          L.addEventListener('blur', L._tooltipHandlers.blur);
-        }
-
-        // 7) Attach click and keyboard guards that prevent activation and show tooltip.
-        if (!L._guardAttached) {
-          L._clickGuard = function (ev) {
-            if (L.getAttribute('aria-disabled') === 'true') {
-              // Stop any other click handlers from running (prevents modal from opening)
-              ev.preventDefault();
-              ev.stopImmediatePropagation();
-              // show tooltip and focus for accessibility
-              try { showTooltip.call(L, ev); } catch (e) { /* ignore */ }
-              try { L.focus(); } catch (e) {}
-              return false;
-            }
-          };
-          L._keyGuard = function (ev) {
-            if (L.getAttribute('aria-disabled') === 'true') {
-              // If user presses Enter or Space, show tooltip and prevent action
-              if (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar') {
-                ev.preventDefault();
-                ev.stopImmediatePropagation();
-                try { showTooltip.call(L, ev); } catch (e) { /* ignore */ }
-                return false;
-              }
-            }
-          };
-          L.addEventListener('click', L._clickGuard);
-          L.addEventListener('keydown', L._keyGuard);
-          L._guardAttached = true;
-        }
-      } else {
-        // Restore normal state when there is no nested sub-recipe
-        L.removeAttribute('aria-disabled');
+        
+        // Add tooltip hover events
+        L.addEventListener('mouseenter', showTooltip);
+        L.addEventListener('mouseleave', hideTooltip);
+        
+    } else {
         L.style.opacity = "1";
         L.style.cursor = "pointer";
-        // Let global logic control pointer events normally
-        L.style.pointerEvents = '';
-
-        // Remove tooltip attribute and handlers
-        if (L.getAttribute('data-tooltip')) L.removeAttribute('data-tooltip');
-        if (L._tooltipHandlers) {
-          try {
-            L.removeEventListener('mouseenter', L._tooltipHandlers.mouseenter);
-            L.removeEventListener('mouseleave', L._tooltipHandlers.mouseleave);
-            L.removeEventListener('focus', L._tooltipHandlers.focus);
-            L.removeEventListener('blur', L._tooltipHandlers.blur);
-          } catch (err) { /* ignore */ }
-          L._tooltipHandlers = null;
-        }
-
-        // Remove click/keyboard guards
-        if (L._guardAttached) {
-          try {
-            L.removeEventListener('click', L._clickGuard);
-            L.removeEventListener('keydown', L._keyGuard);
-          } catch (err) { /* ignore */ }
-          L._clickGuard = null;
-          L._keyGuard = null;
-          L._guardAttached = false;
-        }
-
-        // Remove tabindex if it was only added for disabled state
-        if (L.getAttribute('tabindex') === '0') {
-          L.removeAttribute('tabindex');
-        }
-      }
+        
+        // Remove tooltip attributes and events
+        L.removeAttribute('data-tooltip');
+        L.removeEventListener('mouseenter', showTooltip);
+        L.removeEventListener('mouseleave', hideTooltip);
     }
-  } catch (err) {
-    console.warn("zn(): sub-recipe disable/tooltip handling failed:", err);
   }
   // --- END FIX ---
-
-  // --- START: existing summary calc logic remains unchanged below ---
-  const aobj = (function (e, t, n) {
-    const o = parseFloat(A ? A.value : 1) || 1,
-      a = n > 0 ? (e / n) * o : 0,
-      i = n > 0 ? (t / n) * o : 0;
-    return {
-      scaledRawMaterialsCost: a,
-      scaledDirectLaborCost: i,
-      scaledTotalCost: a + i,
-      targetServings: o
-    };
-  })(t, o, e),
-    s = aobj.scaledRawMaterialsCost,
-    c = aobj.scaledDirectLaborCost,
-    d = aobj.scaledTotalCost,
-    u = aobj.targetServings,
-    p = u > 0 ? d / u : 0,
-    m = p * (1 + (parseFloat(U ? U.value : 0) || 0) / 100),
-    g = m * (1 + ((parseFloat(T ? T.value : 0) || 0) + (parseFloat(q ? q.value : 0) || 0)) / 100),
-    fperc = m > 0 ? (s / u / m) * 100 : 0,
-    yperc = m > 0 ? (c / u / m) * 100 : 0,
-    bperc = m > 0 ? (d / u / m) * 100 : 0,
-    vperc = m > 0 ? 100 - bperc : 0,
-    hrev = m * u,
-    wprofit = hrev - d;
-  N && (N.textContent = u);
-  S && (S.textContent = `${tt}${s.toFixed(2)}`);
-  P && (P.textContent = `${tt}${c.toFixed(2)}`);
-  $ && ($.textContent = `${tt}${d.toFixed(2)}`);
-  R && (R.textContent = `${tt}${p.toFixed(2)}`);
-  I && (I.textContent = `${tt}${g.toFixed(2)}`);
-  M && (M.textContent = `${fperc.toFixed(1)}%`);
-  F && (F.textContent = `${yperc.toFixed(1)}%`);
-  k && (k.textContent = `${bperc.toFixed(1)}%`);
-  B && (B.textContent = `${vperc.toFixed(1)}%`);
-  Ke && (Ke.textContent = `${tt}${hrev.toFixed(2)}`);
-  Xe && (Xe.textContent = `${tt}${wprofit.toFixed(2)}`);
 }
 
 // --- START: Tooltip Functions ---
-function showTooltip(ev) {
-  try {
-    // ev may be event; `this` will be the element when used as listener (preferred).
-    const el = this instanceof HTMLElement ? this : (ev && ev.currentTarget) || (ev && ev.target);
-    if (!el) return;
-
-    // Only show if there is tooltip text
-    const tip = el.getAttribute('data-tooltip') || el.dataset.tooltip;
-    if (!tip) return;
-
-    // Create tooltip element if it doesn't exist
-    let tooltip = document.getElementById('subRecipeTooltip');
-    if (!tooltip) {
-      tooltip = document.createElement('div');
-      tooltip.id = 'subRecipeTooltip';
-      tooltip.className = 'custom-tooltip';
-      document.body.appendChild(tooltip);
+function showTooltip(e) {
+    if (this.disabled) {
+        // Create tooltip element if it doesn't exist
+        let tooltip = document.getElementById('subRecipeTooltip');
+        if (!tooltip) {
+            tooltip = document.createElement('div');
+            tooltip.id = 'subRecipeTooltip';
+            tooltip.className = 'custom-tooltip';
+            document.body.appendChild(tooltip);
+        }
+        
+        // Set tooltip content and position
+        tooltip.textContent = this.getAttribute('data-tooltip');
+        tooltip.style.display = 'block';
+        
+        const rect = this.getBoundingClientRect();
+        tooltip.style.left = (rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2)) + 'px';
+        tooltip.style.top = (rect.top - tooltip.offsetHeight - 8) + 'px';
     }
-
-    // Set content and make ready for measurement
-    tooltip.textContent = tip;
-    tooltip.style.display = 'block';
-    tooltip.style.visibility = 'hidden'; // keep hidden while measuring
-    tooltip.style.left = '0px';
-    tooltip.style.top = '0px';
-
-    // Position after layout using requestAnimationFrame
-    requestAnimationFrame(() => {
-      const rect = el.getBoundingClientRect();
-      const ttW = tooltip.offsetWidth || 200;
-      const ttH = tooltip.offsetHeight || 28;
-      // center horizontally, place above element with 8px gap; fallback keep inside viewport
-      let left = rect.left + (rect.width / 2) - (ttW / 2);
-      left = Math.max(8, Math.min(left, window.innerWidth - ttW - 8));
-      let top = rect.top - ttH - 8;
-      if (top < 8) { // if not enough space above, place below
-        top = rect.bottom + 8;
-      }
-
-      tooltip.style.left = `${Math.round(left)}px`;
-      tooltip.style.top = `${Math.round(top)}px`;
-      tooltip.style.visibility = 'visible';
-    });
-  } catch (err) {
-    console.warn('showTooltip error', err);
-  }
 }
 
 function hideTooltip() {
-  const tooltip = document.getElementById('subRecipeTooltip');
-  if (tooltip) {
-    tooltip.style.display = 'none';
-  }
+    const tooltip = document.getElementById('subRecipeTooltip');
+    if (tooltip) {
+        tooltip.style.display = 'none';
+    }
 }
 
 // Add CSS for tooltip (inject if not exists)
 if (!document.getElementById('tooltipStyles')) {
-  const style = document.createElement('style');
-  style.id = 'tooltipStyles';
-  style.textContent = `
-    .custom-tooltip {
-        position: fixed;
-        background: rgba(0, 0, 0, 0.85);
-        color: white;
-        padding: 8px 12px;
-        border-radius: 6px;
-        font-size: 12px;
-        z-index: 12000;
-        max-width: 250px;
-        text-align: center;
-        pointer-events: none;
-        display: none;
-        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
-        border: 1px solid rgba(255, 255, 255, 0.06);
-    }
-    .custom-tooltip::after {
-        content: '';
-        position: absolute;
-        top: 100%;
-        left: 50%;
-        margin-left: -5px;
-        border-width: 6px;
-        border-style: solid;
-        border-color: rgba(0,0,0,0.85) transparent transparent transparent;
-    }
-  `;
-  document.head.appendChild(style);
+    const style = document.createElement('style');
+    style.id = 'tooltipStyles';
+    style.textContent = `
+        .custom-tooltip {
+            position: fixed;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            z-index: 10000;
+            max-width: 250px;
+            text-align: center;
+            pointer-events: none;
+            display: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .custom-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: rgba(0, 0, 0, 0.8) transparent transparent transparent;
+        }
+    `;
+    document.head.appendChild(style);
 }
 
 // --- END: Tooltip Functions ---
@@ -9117,23 +8940,3 @@ window.openRecipeBuilderModal = function() {
     }
     return originalOpenRecipeBuilderModal.apply(this, arguments);
 };
-
-// Re-establishing the "Working" connection from the old version
-window.openForgotPasswordModal = function() {
-    // 1. Close the login modal if open (kt() logic)
-    const loginModal = document.getElementById('loginModal');
-    if (loginModal) loginModal.classList.add('hidden');
-
-    // 2. Open the forgot password modal ($e logic)
-    const forgotModal = document.getElementById('forgotPasswordModal');
-    if (forgotModal) {
-        forgotModal.classList.remove('hidden');
-    } else {
-        console.error("Forgot Password Modal element not found.");
-    }
-};
-
-// Map the internal wt function to the global trigger as in the old version
-window.wt = window.openForgotPasswordModal;
-
-window.showNotification = (msg, type) => window.Wt ? Wt(msg, type) : console.log(msg);
